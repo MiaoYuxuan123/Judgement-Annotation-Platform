@@ -44,10 +44,10 @@
 
 ## 全体成员签名
 
-<img src="E:/Typora/pictures/缪周洋.jpg" alt="缪周洋" style="zoom:25%;" />
+<img src="../img/缪周洋.jpg" alt="缪周洋" style="zoom: 10%;" />
 
-<img src="E:/Typora/pictures/缪宇轩-1776684007465-2.jpg" alt="缪宇轩" style="zoom: 33%;" />
+<img src="../img/缪宇轩.jpg" alt="缪宇轩" style="zoom: 15%;" />
 
-<img src="E:/Typora/pictures/盛浩宇.jpg" alt="盛浩宇" style="zoom: 50%;" />
+<img src="../img/盛浩宇.jpg" alt="盛浩宇" style="zoom: 20%;" />
 
-<img src="E:/Typora/pictures/朱雨乐.jpg" alt="朱雨乐" style="zoom: 80%;" />
+<img src="../img/朱雨乐.jpg" alt="朱雨乐" style="zoom: 80%;" />
