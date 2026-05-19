@@ -136,11 +136,11 @@ class DemoDataStore {
     }
 
     private void seedUsers() {
-        addUser(1, "admin", "123456", "系统管理员", "admin", true);
+        addUser(1, "admin", "123456", "系统管理员", "admin", false);
         addUser(2, "creator", "123456", "任务创建者", "creator", true);
-        addUser(3, "annotator1", "123456", "标注员一", "annotator", false);
-        addUser(4, "annotator2", "123456", "标注员二", "annotator", false);
-        addUser(5, "reviewer", "123456", "裁定老师", "reviewer", false);
+        addUser(3, "annotator1", "123456", "参与者一", "user", false);
+        addUser(4, "annotator2", "123456", "参与者二", "user", false);
+        addUser(5, "reviewer", "123456", "参与者三", "user", false);
     }
 
     private void addUser(long id, String username, String password, String realName, String role, boolean canCreateTask) {
@@ -327,6 +327,14 @@ class DocumentController {
         return ApiResponse.ok(document(store, id));
     }
 
+    @DeleteMapping("/{id}")
+    ApiResponse<Void> delete(@PathVariable long id) {
+        if (store.documents.remove(id) == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "文书不存在");
+        }
+        return ApiResponse.ok("删除成功", null);
+    }
+
     @PostMapping
     ApiResponse<Map<String, Object>> create(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         long id = store.docSeq.incrementAndGet();
@@ -401,6 +409,17 @@ class TaskController {
         List<TaskSummary> list = store.tasks.values().stream()
                 .filter(t -> status == null || status.isBlank() || t.status.equals(status))
                 .filter(t -> keyword == null || keyword.isBlank() || t.taskName.contains(keyword))
+                .sorted(Comparator.comparing((TaskItem t) -> t.id).reversed())
+                .map(t -> TaskSummary.from(t, store))
+                .toList();
+        return ApiResponse.ok(Map.of("total", list.size(), "list", list));
+    }
+
+    @GetMapping("/my")
+    ApiResponse<Map<String, Object>> myTasks(HttpServletRequest request) {
+        User user = store.current(request);
+        List<TaskSummary> list = store.tasks.values().stream()
+                .filter(t -> t.creatorId == user.id || t.annotatorIds.contains(user.id) || t.reviewerId == user.id)
                 .sorted(Comparator.comparing((TaskItem t) -> t.id).reversed())
                 .map(t -> TaskSummary.from(t, store))
                 .toList();

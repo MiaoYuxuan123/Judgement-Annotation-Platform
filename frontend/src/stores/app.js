@@ -10,8 +10,10 @@ export const useAppStore = defineStore('app', {
   }),
   actions: {
     async refreshBase() {
+      const user = JSON.parse(localStorage.getItem('jap_user') || 'null')
+      const taskUrl = user?.canCreateTask ? '/tasks' : '/tasks/my'
       const [tasks, documents, users, configs] = await Promise.all([
-        client.get('/tasks'),
+        client.get(taskUrl),
         client.get('/documents'),
         client.get('/users'),
         client.get('/configs/versions')

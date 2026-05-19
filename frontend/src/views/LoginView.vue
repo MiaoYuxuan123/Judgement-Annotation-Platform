@@ -12,16 +12,10 @@
     </section>
     <section class="login-card">
       <h2>登录系统</h2>
-      <p class="muted">演示账号：admin / creator / annotator1 / annotator2 / reviewer，密码均为 123456。</p>
+      <p class="muted">请输入账号和密码。系统会在登录后根据账号权限展示对应功能。</p>
       <el-form :model="form" label-position="top" @keyup.enter="submit">
         <el-form-item label="账号">
-          <el-select v-model="form.username" filterable style="width: 100%">
-            <el-option label="admin - 超级管理员" value="admin" />
-            <el-option label="creator - 任务创建者" value="creator" />
-            <el-option label="annotator1 - 标注员一" value="annotator1" />
-            <el-option label="annotator2 - 标注员二" value="annotator2" />
-            <el-option label="reviewer - 裁定者" value="reviewer" />
-          </el-select>
+          <el-input v-model="form.username" placeholder="请输入账号" />
         </el-form-item>
         <el-form-item label="密码">
           <el-input v-model="form.password" type="password" show-password />
@@ -40,7 +34,7 @@ import { useAuthStore } from '../stores/auth'
 const router = useRouter()
 const auth = useAuthStore()
 const loading = ref(false)
-const form = reactive({ username: 'creator', password: '123456' })
+const form = reactive({ username: '', password: '' })
 
 async function submit() {
   loading.value = true

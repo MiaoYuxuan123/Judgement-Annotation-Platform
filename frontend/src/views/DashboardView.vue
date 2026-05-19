@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="grid-4">
-      <div class="metric"><span>任务总数</span><strong>{{ app.tasks.length }}</strong></div>
+      <div class="metric"><span>{{ auth.user?.canCreateTask ? '创建任务' : '参与任务' }}</span><strong>{{ app.tasks.length }}</strong></div>
       <div class="metric"><span>文书总数</span><strong>{{ app.documents.length }}</strong></div>
       <div class="metric"><span>系统用户</span><strong>{{ app.users.length }}</strong></div>
       <div class="metric"><span>指南版本</span><strong>{{ app.configs.length }}</strong></div>
@@ -10,7 +10,7 @@
       <section class="panel">
         <div class="toolbar">
           <h3>最近任务</h3>
-          <el-button type="primary" @click="$router.push('/tasks')">创建 / 查看任务</el-button>
+          <el-button type="primary" @click="$router.push('/tasks')">查看任务</el-button>
         </div>
         <el-table :data="app.tasks" empty-text="暂无任务">
           <el-table-column prop="taskName" label="任务名称" min-width="180" />
@@ -39,7 +39,9 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useAppStore } from '../stores/app'
+import { useAuthStore } from '../stores/auth'
 
 const app = useAppStore()
+const auth = useAuthStore()
 onMounted(app.refreshBase)
 </script>

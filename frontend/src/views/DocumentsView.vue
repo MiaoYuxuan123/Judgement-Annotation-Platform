@@ -3,7 +3,7 @@
     <div class="toolbar">
       <h3>文书总库</h3>
       <div>
-        <el-input v-model="keyword" placeholder="搜索文书标题 / ID" style="width: 220px; margin-right: 8px" @keyup.enter="load" />
+        <el-input v-model="keyword" placeholder="文书ID / 标题 / 上传时间" style="width: 260px; margin-right: 8px" @keyup.enter="load" />
         <el-button @click="load">搜索</el-button>
         <el-button type="primary" @click="visible=true">手动新增</el-button>
       </div>
@@ -16,8 +16,11 @@
       <el-table-column prop="title" label="标题" min-width="220" />
       <el-table-column prop="type" label="类型" width="130" />
       <el-table-column prop="uploadDate" label="上传时间" width="130" />
-      <el-table-column label="操作" width="100">
-        <template #default="{ row }"><el-button link type="primary" @click="show(row.id)">查看</el-button></template>
+      <el-table-column label="操作" width="140">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="show(row.id)">查看</el-button>
+          <el-button link type="danger" @click="remove(row)">删除</el-button>
+        </template>
       </el-table-column>
     </el-table>
     <el-drawer v-model="drawer" title="文书详情" size="48%">
@@ -38,6 +41,7 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
+import { ElMessageBox } from 'element-plus'
 import client from '../api/client'
 
 const documents = ref([])
@@ -60,6 +64,12 @@ async function show(id) {
 async function save() {
   await client.post('/documents', form)
   visible.value = false
+  load()
+}
+
+async function remove(row) {
+  await ElMessageBox.confirm(`确认删除 ${row.title}？`, '删除文书')
+  await client.delete(`/documents/${row.id}`)
   load()
 }
 

@@ -5,7 +5,10 @@
         <h3>{{ detail.summary.taskName }}</h3>
         <p class="muted">{{ detail.summary.description }}</p>
       </div>
-      <el-button type="primary" @click="advance">推进阶段</el-button>
+      <div>
+        <el-button v-if="auth.user?.canCreateTask" type="primary" @click="advance">推进阶段</el-button>
+        <el-button v-else type="warning" @click="$router.push(`/tasks/${id}/data`)">数据列表</el-button>
+      </div>
     </div>
     <el-steps :active="active" finish-status="success" style="margin-bottom: 18px">
       <el-step title="标注中" />
@@ -23,8 +26,8 @@
       <el-table-column prop="type" label="类型" width="120" />
       <el-table-column label="操作" width="260">
         <template #default="{ row }">
-          <el-button link type="primary" @click="$router.push(`/annotate/${id}/${row.id}`)">进入标注</el-button>
-          <el-button link type="warning" @click="$router.push(`/review/${id}`)">裁定</el-button>
+          <el-button v-if="!auth.user?.canCreateTask" link type="primary" @click="$router.push(`/annotate/${id}/${row.id}`)">进入标注</el-button>
+          <el-button v-if="!auth.user?.canCreateTask" link type="warning" @click="$router.push(`/review/${id}`)">裁定</el-button>
           <el-button link type="success" @click="$router.push(`/results/${id}`)">结果</el-button>
         </template>
       </el-table-column>
@@ -36,8 +39,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '../api/client'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const auth = useAuthStore()
 const id = route.params.id
 const detail = ref(null)
 const active = computed(() => ['标注中', '待裁定', '可导出'].indexOf(detail.value?.summary.status || '标注中'))

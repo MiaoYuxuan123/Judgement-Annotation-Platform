@@ -1,132 +1,224 @@
 <template>
-  <div class="annotate-layout" v-if="data">
-    <section class="panel work-panel">
-      <div class="toolbar">
-        <div>
-          <h3>{{ data.document.title }}</h3>
-          <p class="muted">选中文本后点击“生成命题”，原文不会被修改。</p>
+  <div v-if="data">
+    <section class="panel annotate-topbar">
+      <div>
+        <el-button text @click="$router.push(`/tasks/${route.params.taskId}/data`)">← 返回数据选择</el-button>
+        <strong>{{ data.document.title }}</strong>
+        <span class="muted">选中文本后自动选择标签，编号使用 P1、P2、P3...</span>
+      </div>
+      <div>
+        <el-button @click="undo">撤回</el-button>
+        <el-button @click="redo">重做</el-button>
+        <el-button @click="submit(true)">暂存</el-button>
+        <el-button type="primary" @click="submit(false)">提交</el-button>
+      </div>
+    </section>
+
+    <div class="annotation-workbench">
+      <aside class="panel work-panel">
+        <h3>命题列表</h3>
+        <div v-for="p in propositions" :key="p.propId" class="prop-item">
+          <strong>{{ p.propId }} · {{ p.tag }}</strong>
+          <div>{{ p.text }}</div>
         </div>
-        <el-button type="primary" @click="createProposition">生成命题</el-button>
-      </div>
-      <div class="document-text" ref="textRef">{{ data.document.content }}</div>
-      <h4>命题列表</h4>
-      <div v-for="p in propositions" :key="p.propId" class="prop-item">
-        <strong>P{{ p.sequenceNo }} · {{ p.tag }}</strong>
-        <div>{{ p.text }}</div>
-      </div>
-      <el-empty v-if="!propositions.length" description="暂无命题，先在原文中选取一段文字" />
-    </section>
+        <el-empty v-if="!propositions.length" description="暂无命题" />
+        <el-divider />
+        <h3>关系列表</h3>
+        <div v-for="r in relations" :key="r.relId" class="prop-item">
+          <strong>{{ r.relId }}</strong>
+          <div>{{ r.type }}({{ r.source }}, {{ r.target }})</div>
+        </div>
+        <el-empty v-if="!relations.length" description="暂无关系" />
+      </aside>
 
-    <section class="panel work-panel">
-      <h3>标注操作</h3>
-      <el-form label-position="top">
-        <el-form-item label="当前命题">
-          <el-select v-model="selectedPropId" style="width: 100%" placeholder="选择命题">
-            <el-option v-for="p in propositions" :key="p.propId" :label="`P${p.sequenceNo} ${p.text}`" :value="p.propId" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="命题标签">
-          <el-select v-model="selectedTag" style="width: 100%" @change="updateTag">
-            <el-option v-for="tag in allTags" :key="tag.shortName" :label="`${tag.shortName} · ${tag.name}`" :value="tag.shortName" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <el-divider />
-      <h4>关系标注</h4>
-      <el-form label-position="top">
-        <el-form-item label="关系类型">
-          <el-select v-model="relationForm.type" style="width: 100%">
-            <el-option v-for="tag in data.config.relationTypes" :key="tag.shortName" :label="`${tag.shortName} · ${tag.name}`" :value="tag.shortName" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="来源命题"><el-select v-model="relationForm.source" style="width: 100%"><el-option v-for="p in propositions" :key="p.propId" :label="`P${p.sequenceNo}`" :value="p.propId" /></el-select></el-form-item>
-        <el-form-item label="目标命题"><el-select v-model="relationForm.target" style="width: 100%"><el-option v-for="p in propositions" :key="p.propId" :label="`P${p.sequenceNo}`" :value="p.propId" /></el-select></el-form-item>
-        <el-button @click="addRelation">添加关系</el-button>
-      </el-form>
-      <el-table :data="relations" size="small" style="margin-top: 12px">
-        <el-table-column prop="type" label="类型" width="70" />
-        <el-table-column prop="source" label="来源" />
-        <el-table-column prop="target" label="目标" />
-      </el-table>
-      <el-divider />
-      <el-button type="primary" style="width: 100%" @click="submit(false)">提交标注</el-button>
-      <el-button style="width: 100%; margin: 8px 0 0" @click="submit(true)">暂存草稿</el-button>
-    </section>
+      <main class="center-work">
+        <section class="panel work-panel">
+          <div class="toolbar">
+            <h3>文本标注区</h3>
+            <el-tag>原文不可修改</el-tag>
+          </div>
+          <div class="document-text" @mouseup="handleSelection" v-html="markedHtml"></div>
+        </section>
 
-    <section class="panel work-panel">
-      <div class="toolbar">
-        <h3>论证图示</h3>
-        <el-tag>{{ propositions.length }} 命题 / {{ relations.length }} 关系</el-tag>
+        <section class="panel relation-builder">
+          <h3>关系生成区</h3>
+          <div class="relation-buttons">
+            <el-button v-for="rel in data.config.relationTypes" :key="rel.shortName" :type="relationForm.type === rel.shortName ? 'primary' : 'default'" @click="relationForm.type = rel.shortName">
+              {{ rel.name }} ({{ rel.shortName }})
+            </el-button>
+          </div>
+          <el-form :model="relationForm" inline style="margin-top: 14px">
+            <el-form-item label="第一个命题/关系">
+              <el-select v-model="relationForm.source" style="width: 180px">
+                <el-option v-for="item in relationOptions" :key="item.value" :label="item.label" :value="item.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="第二个命题/关系">
+              <el-select v-model="relationForm.target" style="width: 180px">
+                <el-option v-for="item in relationOptions" :key="item.value" :label="item.label" :value="item.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="层级">
+              <el-select v-model="relationForm.level" style="width: 110px">
+                <el-option v-for="level in ['M1','M2','M3','M4']" :key="level" :label="level" :value="level" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button @click="clearRelation">清空</el-button>
+              <el-button @click="clearRelation">撤销</el-button>
+              <el-button type="primary" @click="addRelation">确认</el-button>
+            </el-form-item>
+          </el-form>
+        </section>
+      </main>
+
+      <section class="panel work-panel">
+        <div class="toolbar">
+          <h3>图示区</h3>
+          <el-button @click="fullscreen = true">全屏</el-button>
+        </div>
+        <GraphView :propositions="propositions" :relations="relations" />
+      </section>
+    </div>
+
+    <el-dialog v-model="labelDialog" title="选择命题标签" width="360px" @close="selectedText=''">
+      <el-radio-group v-model="primaryTag" class="label-grid">
+        <el-radio-button v-for="tag in data.config.primaryTags" :key="tag.shortName" :label="tag.shortName">{{ tag.shortName }}</el-radio-button>
+      </el-radio-group>
+      <div v-if="primaryTag === 'GM'" class="tag-row" style="margin-top: 14px">
+        <el-radio-group v-model="secondaryTag">
+          <el-radio-button v-for="tag in data.config.secondaryTags" :key="tag.shortName" :label="tag.shortName">{{ tag.shortName }}</el-radio-button>
+        </el-radio-group>
       </div>
+      <p class="muted">选中文本：{{ selectedText }}</p>
+      <template #footer>
+        <el-button @click="cancelLabel">取消</el-button>
+        <el-button type="primary" @click="confirmLabel">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="fullscreen" title="论证图示全屏预览" fullscreen>
       <GraphView :propositions="propositions" :relations="relations" />
-    </section>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import client from '../api/client'
 import GraphView from '../components/GraphView.vue'
 
 const route = useRoute()
+const router = useRouter()
 const data = ref(null)
 const propositions = ref([])
 const relations = ref([])
-const selectedPropId = ref('')
-const selectedTag = ref('SF')
-const relationForm = reactive({ type: 'S', source: '', target: '' })
+const history = ref([])
+const redoStack = ref([])
+const labelDialog = ref(false)
+const fullscreen = ref(false)
+const selectedText = ref('')
+const selectedStart = ref(0)
+const primaryTag = ref('GM')
+const secondaryTag = ref('GM-L')
+const relationForm = reactive({ type: 'S', source: '', target: '', level: 'M1' })
 
-const allTags = computed(() => [...(data.value?.config.primaryTags || []), ...(data.value?.config.secondaryTags || [])])
+const relationOptions = computed(() => [
+  ...propositions.value.map((p) => ({ label: `${p.propId} ${p.text.slice(0, 12)}`, value: p.propId })),
+  ...relations.value.map((r) => ({ label: `${r.relId} ${r.type}(${r.source}, ${r.target})`, value: r.relId }))
+])
 
-watch(selectedPropId, () => {
-  const prop = propositions.value.find((p) => p.propId === selectedPropId.value)
-  if (prop) selectedTag.value = prop.tag
+const markedHtml = computed(() => {
+  const text = data.value?.document.content || ''
+  let html = ''
+  let cursor = 0
+  propositions.value
+    .slice()
+    .sort((a, b) => a.startPos - b.startPos)
+    .forEach((p) => {
+      html += escapeHtml(text.slice(cursor, p.startPos))
+      html += `<mark class="annotation-mark">${p.propId}</mark><span class="annotation-text">${escapeHtml(text.slice(p.startPos, p.endPos))}</span>`
+      cursor = p.endPos
+    })
+  html += escapeHtml(text.slice(cursor))
+  return html
 })
 
-async function load() {
-  data.value = await client.get(`/tasks/${route.params.taskId}/items/${route.params.dataId}`)
-  propositions.value = [...(data.value.annotation.propositions || [])]
-  relations.value = [...(data.value.annotation.relations || [])]
+function snapshot() {
+  history.value.push(JSON.stringify({ propositions: propositions.value, relations: relations.value }))
+  redoStack.value = []
 }
 
-function createProposition() {
-  const selection = window.getSelection()?.toString().trim()
-  if (!selection) {
-    ElMessage.warning('请先在左侧原文中选中文本')
-    return
-  }
-  const start = data.value.document.content.indexOf(selection)
+function restore(raw) {
+  const state = JSON.parse(raw)
+  propositions.value = state.propositions
+  relations.value = state.relations
+}
+
+function undo() {
+  if (!history.value.length) return
+  redoStack.value.push(JSON.stringify({ propositions: propositions.value, relations: relations.value }))
+  restore(history.value.pop())
+}
+
+function redo() {
+  if (!redoStack.value.length) return
+  history.value.push(JSON.stringify({ propositions: propositions.value, relations: relations.value }))
+  restore(redoStack.value.pop())
+}
+
+function handleSelection() {
+  const text = window.getSelection()?.toString().trim()
+  if (!text) return
+  selectedText.value = text
+  selectedStart.value = data.value.document.content.indexOf(text)
+  labelDialog.value = true
+}
+
+function cancelLabel() {
+  selectedText.value = ''
+  labelDialog.value = false
+  window.getSelection()?.removeAllRanges()
+}
+
+function confirmLabel() {
+  if (!selectedText.value) return
+  snapshot()
+  const start = selectedStart.value < 0 ? propositions.value.length * 10 : selectedStart.value
   const prop = {
-    propId: `P${Date.now()}`,
+    propId: `P${propositions.value.length + 1}`,
     sequenceNo: propositions.value.length + 1,
-    startPos: start < 0 ? propositions.value.length * 10 : start,
-    endPos: start < 0 ? propositions.value.length * 10 + selection.length : start + selection.length,
-    text: selection,
-    tag: selectedTag.value || 'SF'
+    startPos: start,
+    endPos: start + selectedText.value.length,
+    text: selectedText.value,
+    tag: primaryTag.value === 'GM' ? secondaryTag.value : primaryTag.value
   }
   propositions.value.push(prop)
   reorder()
-  selectedPropId.value = prop.propId
+  cancelLabel()
 }
 
 function reorder() {
   propositions.value.sort((a, b) => a.startPos - b.startPos)
-  propositions.value = propositions.value.map((p, i) => ({ ...p, sequenceNo: i + 1 }))
+  propositions.value = propositions.value.map((p, i) => ({ ...p, propId: `P${i + 1}`, sequenceNo: i + 1 }))
 }
 
-function updateTag() {
-  const index = propositions.value.findIndex((p) => p.propId === selectedPropId.value)
-  if (index >= 0) propositions.value[index] = { ...propositions.value[index], tag: selectedTag.value }
+function clearRelation() {
+  relationForm.source = ''
+  relationForm.target = ''
+  relationForm.level = 'M1'
 }
 
 function addRelation() {
   if (!relationForm.source || !relationForm.target || relationForm.source === relationForm.target) {
-    ElMessage.warning('请选择不同的来源和目标命题')
+    ElMessage.warning('请选择不同的命题或关系')
     return
   }
-  relations.value.push({ relId: `R${Date.now()}`, type: relationForm.type, source: relationForm.source, target: relationForm.target })
+  snapshot()
+  relations.value.push({ relId: `R${relations.value.length + 1}`, type: relationForm.type, source: relationForm.source, target: relationForm.target, level: relationForm.level })
+  clearRelation()
 }
 
 async function submit(isDraft) {
@@ -138,6 +230,17 @@ async function submit(isDraft) {
     isDraft
   })
   ElMessage.success(isDraft ? '草稿已暂存' : '标注已提交')
+  if (!isDraft) router.push(`/tasks/${route.params.taskId}/data`)
+}
+
+async function load() {
+  data.value = await client.get(`/tasks/${route.params.taskId}/items/${route.params.dataId}`)
+  propositions.value = [...(data.value.annotation.propositions || [])]
+  relations.value = [...(data.value.annotation.relations || [])]
+}
+
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
 }
 
 onMounted(load)
