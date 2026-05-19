@@ -1,5 +1,5 @@
 <template>
-  <router-view v-if="route.meta.public" />
+  <router-view v-if="route.meta.public || route.meta.reviewPage" />
   <el-container v-else class="shell">
     <el-aside width="248px" class="sidebar">
       <div class="brand">
@@ -10,7 +10,11 @@
         </div>
       </div>
       <el-menu :default-active="route.path" router class="nav">
-        <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">{{ item.label }}</el-menu-item>
+        <el-menu-item index="/dashboard">工作台</el-menu-item>
+        <el-menu-item index="/users">用户管理</el-menu-item>
+        <el-menu-item index="/documents">文书总库</el-menu-item>
+        <el-menu-item index="/configs">配置中心</el-menu-item>
+        <el-menu-item index="/tasks">任务管理</el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -50,30 +54,7 @@ const titleMap = {
 }
 
 const title = computed(() => titleMap[route.path] || '业务流程')
-const roleName = computed(() => {
-  if (auth.user?.role === 'admin') return '超级管理员'
-  if (auth.user?.canCreateTask) return '任务创建者'
-  return '任务参与者'
-})
-const menuItems = computed(() => {
-  if (auth.user?.role === 'admin') {
-    return [
-      { path: '/documents', label: '文书总库' },
-      { path: '/configs', label: '配置中心' },
-      { path: '/users', label: '用户管理' }
-    ]
-  }
-  if (auth.user?.canCreateTask) {
-    return [
-      { path: '/dashboard', label: '任务概览' },
-      { path: '/tasks', label: '任务管理' }
-    ]
-  }
-  return [
-    { path: '/dashboard', label: '我的任务' },
-    { path: '/tasks', label: '参与任务' }
-  ]
-})
+const roleName = computed(() => ({ admin: '超级管理员', creator: '任务创建者', annotator: '标注员', reviewer: '裁定者' }[auth.user?.role] || '用户'))
 
 function logout() {
   auth.logout()
