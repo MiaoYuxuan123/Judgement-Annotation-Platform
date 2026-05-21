@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
-  { path: '/', redirect: '/dashboard' },
+  { path: '/' },
   { path: '/login', component: () => import('../views/LoginView.vue'), meta: { public: true } },
   { path: '/dashboard', component: () => import('../views/DashboardView.vue') },
   { path: '/users', component: () => import('../views/UsersView.vue') },
@@ -22,6 +22,9 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
+  if (to.path === '/') {
+    return auth.user?.role === 'admin' ? '/users' : '/dashboard'
+  }
   if (!to.meta.public && !auth.isLoggedIn) return '/login'
   return true
 })
