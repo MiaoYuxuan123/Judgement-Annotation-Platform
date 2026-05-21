@@ -83,20 +83,27 @@
               {{ rel.name }} ({{ rel.shortName }})
             </el-button>
           </div>
-          <div class="relation-input-card">
-            <div class="relation-type-preview">{{ relationForm.type }}</div>
-            <el-select v-model="relationForm.source" placeholder="命题/关系" class="relation-select">
-              <el-option v-for="item in relationOptions" :key="item.value" :label="item.label" :value="item.value" />
-            </el-select>
-            <el-select v-model="relationForm.target" placeholder="命题/关系" class="relation-select">
-              <el-option v-for="item in relationOptions" :key="item.value" :label="item.label" :value="item.value" />
-            </el-select>
-            <el-select v-model="relationForm.level" class="level-select">
-              <el-option v-for="level in ['M1','M2','M3','M4']" :key="level" :label="level" :value="level" />
-            </el-select>
+          <div class="relation-input-card modern-builder">
+            <div class="relation-builder-head">
+              <div class="relation-type-preview">{{ relationForm.type }}</div>
+              <div>
+                <strong>{{ relationTypeName }}</strong>
+                <span>{{ supportsMultiMember ? '支持多个命题/关系成员' : '请选择两个命题/关系成员' }}</span>
+              </div>
+            </div>
+            <div class="member-builder">
+              <div v-for="(member, index) in relationMembers" :key="index" class="member-slot">
+                <span class="member-index">{{ index + 1 }}</span>
+                <el-select v-model="relationMembers[index]" placeholder="选择命题/关系" class="relation-select">
+                  <el-option v-for="item in relationOptions" :key="item.value" :label="item.label" :value="item.value" />
+                </el-select>
+                <el-button v-if="supportsMultiMember && relationMembers.length > 2" text type="danger" @click="removeMember(index)">删除</el-button>
+              </div>
+              <el-button class="add-member-btn" :disabled="!supportsMultiMember" @click="addMember">＋</el-button>
+            </div>
             <div class="relation-actions">
-              <el-button type="primary" @click="clearRelation">清空</el-button>
-              <el-button type="primary" @click="clearRelation">撤销</el-button>
+              <el-button @click="clearRelation">清空</el-button>
+              <el-button @click="clearRelation">撤销</el-button>
               <el-button type="primary" @click="addRelation">确认</el-button>
             </div>
           </div>
@@ -218,7 +225,8 @@ const selectedEnd = ref(0)
 const labelPosition = ref({ left: 720, top: 160 })
 const primaryTag = ref('GM')
 const secondaryTag = ref('GM-L')
-const relationForm = reactive({ type: 'S', source: '', target: '', level: 'M1' })
+const relationForm = reactive({ type: 'S' })
+const relationMembers = ref(['', ''])
 const activeRelationId = ref('')
 const editingRelationId = ref('')
 
@@ -236,6 +244,9 @@ const orderedRelationTypes = computed(() => {
   const order = ['S', 'J', 'M', 'A', 'I']
   return [...(data.value?.config.relationTypes || [])].sort((a, b) => order.indexOf(a.shortName) - order.indexOf(b.shortName))
 })
+
+const supportsMultiMember = computed(() => ['J', 'I'].includes(relationForm.type))
+const relationTypeName = computed(() => orderedRelationTypes.value.find((item) => item.shortName === relationForm.type)?.name || '关系')
 
 const labelPopupStyle = computed(() => ({
   left: `${labelPosition.value.left}px`,
@@ -346,15 +357,18 @@ function reorder() {
 }
 
 function clearRelation() {
-  relationForm.source = ''
-  relationForm.target = ''
-  relationForm.level = 'M1'
+  relationMembers.value = ['', '']
   editingRelationId.value = ''
 }
 
 function addRelation() {
-  if (!relationForm.source || !relationForm.target || relationForm.source === relationForm.target) {
-    ElMessage.warning('请选择不同的命题或关系')
+  const members = relationMembers.value.filter(Boolean)
+  if (members.length < 2 || new Set(members).size !== members.length) {
+    ElMessage.warning('请选择至少两个不同的命题或关系')
+    return
+  }
+  if (!supportsMultiMember.value && members.length !== 2) {
+    ElMessage.warning('当前关系类型只支持两个成员')
     return
   }
   snapshot()
@@ -362,9 +376,9 @@ function addRelation() {
   const rel = {
     relId: editingRelationId.value || `R${relations.value.length + 1}`,
     type: relationForm.type,
-    source: relationForm.source,
-    target: relationForm.target,
-    level: relationForm.level
+    source: members[0],
+    target: members[1],
+    members
   }
   if (existingIndex >= 0) relations.value[existingIndex] = rel
   else relations.value.push(rel)
@@ -397,9 +411,8 @@ function deleteProposition(prop) {
 
 function editRelation(rel) {
   relationForm.type = rel.type
-  relationForm.source = rel.source
-  relationForm.target = rel.target
-  relationForm.level = rel.level || 'M1'
+  relationMembers.value = [...(rel.members || [rel.source, rel.target]).filter(Boolean)]
+  while (relationMembers.value.length < 2) relationMembers.value.push('')
   editingRelationId.value = rel.relId
   activeRelationId.value = rel.relId
 }
@@ -414,6 +427,16 @@ function deleteRelation(rel) {
 
 function renumberRelations() {
   relations.value = relations.value.map((rel, index) => ({ ...rel, relId: `R${index + 1}` }))
+}
+
+function addMember() {
+  if (!supportsMultiMember.value) return
+  relationMembers.value.push('')
+}
+
+function removeMember(index) {
+  if (relationMembers.value.length <= 2) return
+  relationMembers.value.splice(index, 1)
 }
 
 function generateGraph() {
@@ -451,7 +474,8 @@ function escapeHtml(value) {
 }
 
 function formula(relation) {
-  return `${relation.type}(${displayRelationMember(relation.source)}, ${displayRelationMember(relation.target)})`
+  const members = relation.members || [relation.source, relation.target]
+  return `${relation.type}(${members.map(displayRelationMember).join(', ')})`
 }
 
 function displayRelationMember(id) {
