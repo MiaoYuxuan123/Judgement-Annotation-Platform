@@ -52,14 +52,8 @@
         {{ rel.type }}
       </text>
     </svg>
-    <div
-        v-if="variant === 'cards'"
-        v-for="(p, index) in propositions"
-        :key="p.propId"
-        class="graph-node"
-        :style="nodeStyle(index)"
-    >
-      <strong>P{{ p.sequenceNo }} · {{ p.tag }}</strong>
+    <div v-for="(p, index) in propositions" :key="p.propId" class="graph-node" :style="nodeStyle(index)">
+      <strong>{{ p.propId || `P${p.sequenceNo}` }} · {{ p.tag }}</strong>
       <div>{{ p.text }}</div>
     </div>
   </div>
