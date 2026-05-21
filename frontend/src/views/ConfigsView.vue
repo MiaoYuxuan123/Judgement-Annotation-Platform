@@ -95,15 +95,22 @@
       </template>
     </el-dialog>
 
-    <!-- 保存：覆盖 / 另存为选择对话框（编辑已有版本时） -->
-    <el-dialog v-model="saveChoiceVisible" title="保存方式" width="400px">
-      <p>当前版本 <strong>{{ currentConfig?.versionName }}</strong> 已存在于版本库中，请选择保存方式：</p>
-      <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px">
-        <el-button type="primary" @click="saveAsOverwrite">覆盖原版本</el-button>
-        <el-button @click="saveAsNew">另存为新版本</el-button>
-      </div>
+    <!-- 保存：版本名称与说明对话框 -->
+    <el-dialog v-model="saveNameVisible" :title="currentConfig?.id ? '保存版本' : '保存新版本'" width="460px">
+      <el-form :model="saveNameForm" label-position="top">
+        <el-form-item label="版本名称"><el-input v-model="saveNameForm.versionName" placeholder="如 V1.1 课堂扩展指南" /></el-form-item>
+        <el-form-item label="说明"><el-input v-model="saveNameForm.description" type="textarea" :rows="3" placeholder="可选" /></el-form-item>
+      </el-form>
       <template #footer>
-        <el-button @click="saveChoiceVisible = false">取消</el-button>
+        <template v-if="currentConfig?.id">
+          <el-button @click="saveNameVisible = false">取消</el-button>
+          <el-button type="primary" @click="saveAsOverwrite">覆盖原版本</el-button>
+          <el-button @click="confirmSaveAsNew">另存为新版本</el-button>
+        </template>
+        <template v-else>
+          <el-button @click="saveNameVisible = false">取消</el-button>
+          <el-button type="primary" @click="confirmSaveAsNew">确认保存</el-button>
+        </template>
       </template>
     </el-dialog>
 
@@ -189,23 +196,28 @@ function loadVersionIntoEditor(row) {
 
 // ─── Save flow ───
 
-const saveChoiceVisible = ref(false)
+const saveNameVisible = ref(false)
+const saveNameForm = reactive({ versionName: '', description: '' })
 
 function handleSaveVersion() {
   if (!currentConfig.value) return
   if (currentConfig.value.id) {
-    saveChoiceVisible.value = true
+    saveNameForm.versionName = currentConfig.value.versionName || ''
+    saveNameForm.description = currentConfig.value.description || ''
   } else {
-    doSaveNew()
+    saveNameForm.versionName = ''
+    saveNameForm.description = ''
   }
+  saveNameVisible.value = true
 }
 
 async function saveAsOverwrite() {
-  saveChoiceVisible.value = false
+  if (!saveNameForm.versionName.trim()) { ElMessage.warning('请输入版本名称'); return }
+  saveNameVisible.value = false
   const cfg = currentConfig.value
   await client.put(`/configs/versions/${cfg.id}`, {
-    versionName: cfg.versionName,
-    description: cfg.description,
+    versionName: saveNameForm.versionName.trim(),
+    description: saveNameForm.description.trim(),
     primaryTags: cfg.primaryTags,
     secondaryTags: cfg.secondaryTags,
     relationTypes: cfg.relationTypes
@@ -214,16 +226,13 @@ async function saveAsOverwrite() {
   await load()
 }
 
-async function saveAsNew() {
-  saveChoiceVisible.value = false
-  await doSaveNew()
-}
-
-async function doSaveNew() {
+async function confirmSaveAsNew() {
+  if (!saveNameForm.versionName.trim()) { ElMessage.warning('请输入版本名称'); return }
+  saveNameVisible.value = false
   const cfg = currentConfig.value
   const result = await client.post('/configs/versions', {
-    versionName: cfg.versionName,
-    description: cfg.description,
+    versionName: saveNameForm.versionName.trim(),
+    description: saveNameForm.description.trim(),
     primaryTags: cfg.primaryTags,
     secondaryTags: cfg.secondaryTags,
     relationTypes: cfg.relationTypes
