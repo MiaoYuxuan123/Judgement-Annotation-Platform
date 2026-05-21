@@ -1,23 +1,29 @@
 <template>
   <router-view v-if="route.meta.public" />
-  <el-container v-else class="shell">
-    <el-aside width="248px" class="sidebar">
+  <el-container v-else class="shell" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+    <el-aside :width="sidebarCollapsed ? '72px' : '248px'" class="sidebar">
       <div class="brand">
         <div class="brand-mark">JAP</div>
-        <div>
+        <div v-if="!sidebarCollapsed">
           <strong>裁判文书标注平台</strong>
           <span>Judgment Annotation</span>
         </div>
       </div>
       <el-menu :default-active="route.path" router class="nav">
-        <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">{{ item.label }}</el-menu-item>
+        <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">
+          <span v-if="sidebarCollapsed">{{ item.label.slice(0, 2) }}</span>
+          <span v-else>{{ item.label }}</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
       <el-header class="topbar">
-        <div>
-          <div class="page-title">{{ title }}</div>
-          <div class="page-subtitle">四阶段流程：创建任务 -> 标注 -> 裁定 -> 导出</div>
+        <div class="topbar-left">
+          <el-button text class="collapse-btn" @click="sidebarCollapsed = !sidebarCollapsed">{{ sidebarCollapsed ? '展开' : '收起' }}</el-button>
+          <div>
+            <div class="page-title">{{ title }}</div>
+            <div class="page-subtitle">四阶段流程：创建任务 -> 标注 -> 裁定 -> 导出</div>
+          </div>
         </div>
         <div class="userbox">
           <el-tag effect="plain">{{ roleName }}</el-tag>
@@ -33,13 +39,14 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const sidebarCollapsed = ref(false)
 
 const titleMap = {
   '/dashboard': '工作台',

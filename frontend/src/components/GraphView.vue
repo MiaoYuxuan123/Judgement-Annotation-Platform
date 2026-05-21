@@ -22,7 +22,7 @@
       </text>
     </svg>
     <div v-for="(p, index) in propositions" :key="p.propId" class="graph-node" :style="nodeStyle(index)">
-      <strong>P{{ p.sequenceNo }} · {{ p.tag }}</strong>
+      <strong>{{ p.propId || `P${p.sequenceNo}` }} · {{ p.tag }}</strong>
       <div>{{ p.text }}</div>
     </div>
   </div>
