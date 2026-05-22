@@ -36,11 +36,11 @@
         </div>
         <div class="list-box relation-box">
           <div
-            v-for="(r, index) in relations"
-            :key="r.relId"
-            class="plain-list-item relation-row"
-            :class="{ active: activeRelationId === r.relId }"
-            @click="activeRelationId = r.relId"
+              v-for="(r, index) in relations"
+              :key="r.relId"
+              class="plain-list-item relation-row"
+              :class="{ active: activeRelationId === r.relId }"
+              @click="activeRelationId = r.relId"
           >
             <span class="item-main">{{ r.relId }}, {{ formula(r) }}</span>
             <span class="item-actions">
@@ -65,20 +65,20 @@
         </section>
 
         <section class="relation-builder">
-        <div class="section-title relation-title">
-          <h3>关系生成区</h3>
-          <div class="relation-title-actions">
-            <span v-if="graphDirty" class="graph-dirty">图示待刷新</span>
-            <span v-else class="muted">图示已同步</span>
-            <el-button type="primary" class="generate-graph-btn" @click="generateGraph">生成图示</el-button>
-          </div>
+          <div class="section-title relation-title">
+            <h3>关系生成区</h3>
+            <div class="relation-title-actions">
+              <span v-if="graphDirty" class="graph-dirty">图示待刷新</span>
+              <span v-else class="muted">图示已同步</span>
+              <el-button type="primary" class="generate-graph-btn" @click="generateGraph">生成图示</el-button>
+            </div>
           </div>
           <div class="relation-buttons">
             <el-button
-              v-for="rel in orderedRelationTypes"
-              :key="rel.shortName"
-              :class="{ active: relationForm.type === rel.shortName }"
-              @click="relationForm.type = rel.shortName"
+                v-for="rel in orderedRelationTypes"
+                :key="rel.shortName"
+                :class="{ active: relationForm.type === rel.shortName }"
+                @click="relationForm.type = rel.shortName"
             >
               {{ rel.name }} ({{ rel.shortName }})
             </el-button>
@@ -134,26 +134,26 @@
         </div>
         <div class="tag-group-title">一级标签</div>
         <div class="tag-choice-grid">
-        <button
-          v-for="tag in primaryTagOrder"
-          :key="tag.shortName"
-          class="modern-tag-option"
-          :class="{ selected: primaryTag === tag.shortName }"
-          @click="choosePrimary(tag.shortName)"
-        >
-          <strong>{{ tag.shortName }}</strong>
-          <span>{{ tag.name }}</span>
-        </button>
+          <button
+              v-for="tag in primaryTagOrder"
+              :key="tag.shortName"
+              class="modern-tag-option"
+              :class="{ selected: primaryTag === tag.shortName }"
+              @click="choosePrimary(tag.shortName)"
+          >
+            <strong>{{ tag.shortName }}</strong>
+            <span>{{ tag.name }}</span>
+          </button>
         </div>
         <template v-if="primaryTag === 'GM'">
           <div class="tag-group-title">GM 二级标签</div>
           <div class="tag-choice-grid secondary-grid">
             <button
-              v-for="tag in data.config.secondaryTags"
-              :key="tag.shortName"
-              class="modern-tag-option compact"
-              :class="{ selected: secondaryTag === tag.shortName }"
-              @click="secondaryTag = tag.shortName"
+                v-for="tag in data.config.secondaryTags"
+                :key="tag.shortName"
+                class="modern-tag-option compact"
+                :class="{ selected: secondaryTag === tag.shortName }"
+                @click="secondaryTag = tag.shortName"
             >
               <strong>{{ tag.shortName }}</strong>
               <span>{{ tag.name }}</span>
@@ -200,14 +200,17 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import client from '../api/client'
 import GraphView from '../components/GraphView.vue'
+import { circledNo, propByIdMap } from '../utils/reviewHelpers'
 
 const route = useRoute()
 const router = useRouter()
+const isArbitration = computed(() => route.query.mode === 'arbitration')
+
 const data = ref(null)
 const propositions = ref([])
 const relations = ref([])
@@ -262,15 +265,15 @@ const markedHtml = computed(() => {
   let html = ''
   let cursor = 0
   ranges
-    .sort((a, b) => a.startPos - b.startPos)
-    .forEach((p) => {
-      if (p.startPos < cursor) return
-      html += escapeHtml(text.slice(cursor, p.startPos))
-      const markClass = p.kind === 'pending' ? 'annotation-mark pending' : 'annotation-mark'
-      const textClass = p.kind === 'pending' ? 'annotation-text pending' : 'annotation-text'
-      html += `<mark class="${markClass}">${escapeHtml(p.propId)}</mark><span class="${textClass}">${escapeHtml(text.slice(p.startPos, p.endPos))}</span>`
-      cursor = p.endPos
-    })
+      .sort((a, b) => a.startPos - b.startPos)
+      .forEach((p) => {
+        if (p.startPos < cursor) return
+        html += escapeHtml(text.slice(cursor, p.startPos))
+        const markClass = p.kind === 'pending' ? 'annotation-mark pending' : 'annotation-mark'
+        const textClass = p.kind === 'pending' ? 'annotation-text pending' : 'annotation-text'
+        html += `<mark class="${markClass}">${escapeHtml(p.propId)}</mark><span class="${textClass}">${escapeHtml(text.slice(p.startPos, p.endPos))}</span>`
+        cursor = p.endPos
+      })
   html += escapeHtml(text.slice(cursor))
   return html
 })
@@ -337,12 +340,12 @@ function confirmLabel() {
   snapshot()
   const start = selectedStart.value < 0 ? propositions.value.length * 10 : selectedStart.value
   const prop = {
-    propId: `P${propositions.value.length + 1}`,
+    propId: `P${Date.now()}`,
     sequenceNo: propositions.value.length + 1,
-    startPos: start,
-    endPos: start + selectedText.value.length,
-    text: selectedText.value,
-    tag: primaryTag.value === 'GM' ? secondaryTag.value : primaryTag.value
+    startPos: start < 0 ? propositions.value.length * 10 : start,
+    endPos: start < 0 ? propositions.value.length * 10 + selection.length : start + selection.length,
+    text: selection,
+    tag: selectedTag.value || 'SF'
   }
   propositions.value.push(prop)
   reorder()
@@ -448,9 +451,25 @@ function generateGraph() {
 }
 
 async function submit(isDraft) {
+  const taskId = Number(route.params.taskId)
+  const dataId = Number(route.params.dataId)
+
+  if (isArbitration.value) {
+    await client.post('/reviews/manual', {
+      taskId,
+      dataId,
+      propositions: propositions.value,
+      relations: relations.value
+    })
+    ElMessage.success('裁定结果已保存')
+    const returnTo = route.query.returnTo || `/review/${taskId}?docId=${dataId}&select=final`
+    router.push(returnTo)
+    return
+  }
+
   await client.post('/annotations/submit', {
-    taskId: Number(route.params.taskId),
-    dataId: Number(route.params.dataId),
+    taskId,
+    dataId,
     propositions: propositions.value,
     relations: relations.value,
     isDraft

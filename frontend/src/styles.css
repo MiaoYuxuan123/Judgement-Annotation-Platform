@@ -142,48 +142,6 @@ body {
   margin-top: 16px;
 }
 
-.task-directory,
-.data-select-layout {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.directory {
-  width: 260px;
-  max-height: calc(100vh - 150px);
-  overflow: auto;
-  flex: 0 0 260px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 14px;
-}
-
-.dir-item {
-  padding: 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.dir-item:hover {
-  background: #f3f4f6;
-}
-
-.dir-item span,
-.dir-item small {
-  display: block;
-}
-
-.dir-item span {
-  font-weight: 700;
-}
-
-.dir-item small {
-  color: #6b7280;
-  margin-top: 4px;
-}
-
 .login-page {
   min-height: 100vh;
   display: grid;
@@ -198,8 +156,8 @@ body {
   flex-direction: column;
   justify-content: center;
   background:
-    linear-gradient(rgba(17, 24, 39, .72), rgba(17, 24, 39, .88)),
-    url("https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1600&q=80") center/cover;
+          linear-gradient(rgba(17, 24, 39, .72), rgba(17, 24, 39, .88)),
+          url("https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1600&q=80") center/cover;
 }
 
 .login-hero h1 {
@@ -394,10 +352,6 @@ body {
   border-radius: 8px;
   background: #fff;
   border: 1px solid #dbeafe;
-}
-
-.relation-input-card.modern-builder {
-  grid-template-columns: 180px minmax(0, 1fr) auto;
 }
 
 .relation-actions {
@@ -1079,9 +1033,11 @@ body {
 .version-card {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 10px;
+  background: #fff;
   cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+  text-align: left;
 }
 
 .version-card.active {
@@ -1104,12 +1060,8 @@ body {
   .grid-4,
   .split,
   .annotate-layout,
-  .annotation-workbench,
-  .review-workbench,
-  .result-layout,
-  .task-directory,
-  .data-select-layout,
   .review-grid,
+  .review-body,
   .login-page {
     grid-template-columns: 1fr;
   }
@@ -1347,4 +1299,218 @@ body {
     grid-column: 1 / -1;
     min-height: 360px;
   }
+}
+
+/* ==========================================================================
+   司法文本裁定工作台 (Review Board Layout)
+   ========================================================================== */
+
+/* 1. 顶层视口容器隔离 */
+.review-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f8fafc;
+}
+
+/* 2. 裁定专用顶部导航 */
+.review-header {
+  height: 56px;
+  min-height: 56px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  background-color: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .03);
+}
+
+.review-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.review-logo {
+  font-size: 18px;
+  color: #1f6feb;
+}
+
+.review-header-left h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.review-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.review-doc-select {
+  width: 220px;
+}
+
+.review-user {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 500;
+  padding-left: 12px;
+  border-left: 1px solid #e2e8f0;
+}
+
+/* 3. 三栏横向弹性容器 */
+.review-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 4. 左边栏：原文与关系拓扑图示 */
+.review-left {
+  flex: 30; /* 智能比例分配 */
+  min-width: 420px;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 14px;
+  overflow-y: auto;
+  border-right: 1px solid #e2e8f0;
+}
+
+.review-original {
+  line-height: 1.8;
+  font-size: 14.5px;
+  color: #334155;
+  background-color: #fffaf0; /* 复用现代风格的温暖米色 */
+  border: 1px solid #f1d48a;
+  border-radius: 8px;
+  padding: 16px;
+  min-height: 180px;
+}
+
+.review-prop-inline {
+  background-color: #ffe082;
+  border-bottom: 2px solid #f59e0b;
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+
+.review-prop-badge {
+  color: #b45309;
+  font-weight: 700;
+  margin-right: 1px;
+}
+
+.review-graph-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+}
+
+/* 5. 中间栏：列表数据审阅与最终裁决按钮 */
+.review-center {
+  flex: 45;
+  min-width: 520px;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 14px;
+  overflow-y: auto;
+  border-right: 1px solid #e2e8f0;
+}
+
+.review-formula {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #1e40af;
+  background-color: #eff6ff;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-top: auto; /* 始终吸附在中间容器的最底部 */
+}
+
+/* 6. 右边栏：标注人员版本管理与导航 */
+.review-sidebar {
+  width: 240px;
+  min-width: 240px;
+  background-color: #fff;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.review-sidebar h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.review-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background-color: #fff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all .15s ease;
+}
+
+.review-sidebar-item:hover {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+}
+
+.review-sidebar-item.active {
+  color: #2563eb;
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.review-sidebar-icon {
+  font-size: 15px;
+}
+
+/* 7. 公用结构：裁定数据面板卡片 */
+.review-block {
+  background-color: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .03);
+}
+
+.review-block h3 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
 }
