@@ -40,7 +40,7 @@ async function submit() {
   loading.value = true
   try {
     await auth.login(form)
-    router.push('/dashboard')
+    router.push('/')
   } finally {
     loading.value = false
   }

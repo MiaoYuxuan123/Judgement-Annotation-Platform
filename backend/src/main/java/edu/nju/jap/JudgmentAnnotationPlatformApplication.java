@@ -107,6 +107,7 @@ class SimpleAuthInterceptor implements HandlerInterceptor {
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "未登录或 Token 无效");
         }
+        user.lastSeen = java.time.LocalDateTime.now();
         request.setAttribute("currentUser", user);
         return true;
     }
@@ -115,7 +116,6 @@ class SimpleAuthInterceptor implements HandlerInterceptor {
 @Component
 class DemoDataStore {
     final AtomicLong userSeq = new AtomicLong(10);
-    final AtomicLong docSeq = new AtomicLong(100);
     final AtomicLong configSeq = new AtomicLong(1);
     final AtomicLong taskSeq = new AtomicLong(1000);
     final AtomicLong exportSeq = new AtomicLong(1);
@@ -169,7 +169,7 @@ class DemoDataStore {
     }
 
     private void addDocument(long id, String title, String type, String content) {
-        documents.put(id, new DocumentItem(id, "W" + id, title, type, "2026-05-" + (id - 95), content.trim(), 1L));
+        documents.put(id, new DocumentItem(id, "W" + id, title, type, "2026-05-" + String.format("%02d", id - 95), content.trim(), 1L));
     }
 
     private void seedConfig() {
@@ -358,7 +358,7 @@ class DocumentController {
 
     @PostMapping
     ApiResponse<Map<String, Object>> create(@RequestBody Map<String, Object> body, HttpServletRequest request) {
-        long id = store.docSeq.incrementAndGet();
+        long id = store.nextDocId();
         User user = store.current(request);
         DocumentItem doc = new DocumentItem(id, "W" + id, UserController.text(body, "title", "新文书" + id),
                 UserController.text(body, "type", "民事判决书"), LocalDate.now().toString(),
