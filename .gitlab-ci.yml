@@ -1,22 +1,48 @@
-stages:
-  - trigger
+#stages:
+#  - trigger
+#
+## 触发后端 pipeline
+#backend:
+#  stage: trigger
+#  trigger:
+#    include:
+#      - local: .gitlab/backend.yml
+#  rules:
+#    - changes:
+#        - backend/**/*
+#
+## 触发前端 pipeline
+#frontend:
+#  stage: trigger
+#  trigger:
+#    include:
+#      - local: .gitlab/frontend.yml
+#  rules:
+#    - changes:
+#        - frontend/**/*
 
-# 触发后端 pipeline
+stages:
+  - backend
+  - frontend
+
+# 后端 pipeline
 backend:
-  stage: trigger
-  trigger:
-    include:
-      - local: .gitlab/backend.yml
+  stage: backend
+  script:
+    - echo "触发后端构建"
   rules:
     - changes:
         - backend/**/*
+  include:
+    - local: .gitlab/backend.yml
 
-# 触发前端 pipeline
+# 前端 pipeline
 frontend:
-  stage: trigger
-  trigger:
-    include:
-      - local: .gitlab/frontend.yml
+  stage: frontend
+  script:
+    - echo "触发前端构建"
   rules:
     - changes:
         - frontend/**/*
+  include:
+    - local: .gitlab/frontend.yml
