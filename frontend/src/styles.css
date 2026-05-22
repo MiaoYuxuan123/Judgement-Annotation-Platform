@@ -142,48 +142,6 @@ body {
   margin-top: 16px;
 }
 
-.task-directory,
-.data-select-layout {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.directory {
-  width: 260px;
-  max-height: calc(100vh - 150px);
-  overflow: auto;
-  flex: 0 0 260px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 14px;
-}
-
-.dir-item {
-  padding: 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.dir-item:hover {
-  background: #f3f4f6;
-}
-
-.dir-item span,
-.dir-item small {
-  display: block;
-}
-
-.dir-item span {
-  font-weight: 700;
-}
-
-.dir-item small {
-  color: #6b7280;
-  margin-top: 4px;
-}
-
 .login-page {
   min-height: 100vh;
   display: grid;
@@ -198,8 +156,8 @@ body {
   flex-direction: column;
   justify-content: center;
   background:
-    linear-gradient(rgba(17, 24, 39, .72), rgba(17, 24, 39, .88)),
-    url("https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1600&q=80") center/cover;
+          linear-gradient(rgba(17, 24, 39, .72), rgba(17, 24, 39, .88)),
+          url("https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1600&q=80") center/cover;
 }
 
 .login-hero h1 {
@@ -1079,9 +1037,11 @@ body {
 .version-card {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 10px;
+  background: #fff;
   cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+  text-align: left;
 }
 
 .version-card.active {
@@ -1104,12 +1064,8 @@ body {
   .grid-4,
   .split,
   .annotate-layout,
-  .annotation-workbench,
-  .review-workbench,
-  .result-layout,
-  .task-directory,
-  .data-select-layout,
   .review-grid,
+  .review-body,
   .login-page {
     grid-template-columns: 1fr;
   }

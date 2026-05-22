@@ -200,14 +200,17 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import client from '../api/client'
 import GraphView from '../components/GraphView.vue'
+import { circledNo, propByIdMap } from '../utils/reviewHelpers'
 
 const route = useRoute()
 const router = useRouter()
+const isArbitration = computed(() => route.query.mode === 'arbitration')
+
 const data = ref(null)
 const propositions = ref([])
 const relations = ref([])
@@ -337,12 +340,12 @@ function confirmLabel() {
   snapshot()
   const start = selectedStart.value < 0 ? propositions.value.length * 10 : selectedStart.value
   const prop = {
-    propId: `P${propositions.value.length + 1}`,
+    propId: `P${Date.now()}`,
     sequenceNo: propositions.value.length + 1,
-    startPos: start,
-    endPos: start + selectedText.value.length,
-    text: selectedText.value,
-    tag: primaryTag.value === 'GM' ? secondaryTag.value : primaryTag.value
+    startPos: start < 0 ? propositions.value.length * 10 : start,
+    endPos: start < 0 ? propositions.value.length * 10 + selection.length : start + selection.length,
+    text: selection,
+    tag: selectedTag.value || 'SF'
   }
   propositions.value.push(prop)
   reorder()
@@ -448,9 +451,25 @@ function generateGraph() {
 }
 
 async function submit(isDraft) {
+  const taskId = Number(route.params.taskId)
+  const dataId = Number(route.params.dataId)
+
+  if (isArbitration.value) {
+    await client.post('/reviews/manual', {
+      taskId,
+      dataId,
+      propositions: propositions.value,
+      relations: relations.value
+    })
+    ElMessage.success('裁定结果已保存')
+    const returnTo = route.query.returnTo || `/review/${taskId}?docId=${dataId}&select=final`
+    router.push(returnTo)
+    return
+  }
+
   await client.post('/annotations/submit', {
-    taskId: Number(route.params.taskId),
-    dataId: Number(route.params.dataId),
+    taskId,
+    dataId,
     propositions: propositions.value,
     relations: relations.value,
     isDraft
