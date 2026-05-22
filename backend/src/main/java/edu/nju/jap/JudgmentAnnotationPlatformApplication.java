@@ -120,6 +120,15 @@ class DemoDataStore {
     final AtomicLong taskSeq = new AtomicLong(1000);
     final AtomicLong exportSeq = new AtomicLong(1);
 
+    /** 返回当前文档表中未被占用的最小 ID（从 101 起扫描），删除后新增会复用该空位。 */
+    long nextDocId() {
+        long id = 101;
+        while (documents.containsKey(id)) {
+            id++;
+        }
+        return id;
+    }
+
     final Map<Long, User> users = new ConcurrentHashMap<>();
     final Map<String, Long> tokenToUser = new ConcurrentHashMap<>();
     final Map<Long, DocumentItem> documents = new ConcurrentHashMap<>();
@@ -164,10 +173,22 @@ class DemoDataStore {
     }
 
     private void seedConfig() {
-        GuideConfig config = new GuideConfig(1, "V1.0 标准指南", "默认裁判文书论证标签体系", true,
-                List.of(new LabelDef("SF", "个别事实"), new LabelDef("GF", "一般事实"), new LabelDef("SM", "个别规范"), new LabelDef("GM", "一般规范")),
-                List.of(new LabelDef("GM-L", "法律"), new LabelDef("GM-I", "解释"), new LabelDef("GM-C", "合同"), new LabelDef("GM-U", "习惯"), new LabelDef("GM-M", "道德"), new LabelDef("GM-O", "其他规范")),
-                List.of(new LabelDef("S", "支持"), new LabelDef("A", "反对"), new LabelDef("J", "组合"), new LabelDef("M", "匹配"), new LabelDef("I", "同一")));
+        GuideConfig config = new GuideConfig(1, "V1.0 标准指南", "默认裁判文书论证标签体系", true, "2026-05-01",
+                List.of(new LabelDef("SF", "个别事实判断", "关于案件中个别对象的事实判断，是规范适用的前提条件", ""),
+                        new LabelDef("GF", "一般事实判断", "为规范适用提供经验或背景支撑，例如社会常识、经验法则、行业知识、科学规律等", ""),
+                        new LabelDef("SM", "个别规范判断", "体现法院对本案的规范性评价，在法律论证中通常作为结论出现", ""),
+                        new LabelDef("GM", "一般规范判断", "构成法律论证的规范基础，是连接个案事实与裁判结论的核心要素", "")),
+                List.of(new LabelDef("GM-L", "法律条文", "直接来源于成文法规范的判断，包括对法律条文内容的引用或概括性复述", "GM"),
+                        new LabelDef("GM-I", "法律解释", "对法律条文含义、适用范围或适用条件所作的解释性判断", "GM"),
+                        new LabelDef("GM-C", "合同及合同解释", "来源于合同条款或对合同条款的规范性解释", "GM"),
+                        new LabelDef("GM-U", "习惯与行业惯例", "来源于社会习惯、交易习惯或行业通行规则的规范性判断", "GM"),
+                        new LabelDef("GM-M", "道德与价值观念", "基于价值判断、公序良俗或基本原则作出的规范性判断", "GM"),
+                        new LabelDef("GM-O", "其他规范判断", "无法稳定归入上述类型的一般规范判断", "GM")),
+                List.of(new LabelDef("S", "支持关系", "一命题或命题组为另一命题的成立提供理由", ""),
+                        new LabelDef("A", "反对关系", "一命题或命题组为另一命题的不成立提供理由", ""),
+                        new LabelDef("J", "组合关系", "多个命题共同成立方能构成完整理由的合取结构", ""),
+                        new LabelDef("M", "匹配关系", "规范构成要件与个案事实之间的对应关系，是组合关系的特殊形态", ""),
+                        new LabelDef("I", "同一关系", "多个命题在语义上表达同一判断内容，用于处理裁判文书中的重复表达", "")));
         configs.put(1L, config);
     }
 
@@ -348,13 +369,25 @@ class DocumentController {
 
     @PostMapping("/upload")
     ApiResponse<Map<String, Object>> upload(@RequestParam("files") MultipartFile[] files, HttpServletRequest request) {
-        User user = store.current(request);
-        for (MultipartFile file : files) {
-            long id = store.docSeq.incrementAndGet();
-            store.documents.put(id, new DocumentItem(id, "W" + id, file.getOriginalFilename(), "上传文件",
-                    LocalDate.now().toString(), "本院认为，" + file.getOriginalFilename() + " 的模拟解析文本已生成，可用于演示标注流程。", user.id));
+        if (files == null || files.length == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择至少一个文件");
         }
-        return ApiResponse.ok("上传成功", Map.of("count", files.length));
+        List<Map<String, Object>> previews = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+        for (MultipartFile file : files) {
+            if (file == null || file.isEmpty()) continue;
+            String filename = file.getOriginalFilename() == null ? "未命名文件" : file.getOriginalFilename();
+            try {
+                DocumentTextExtractor.ParsedDocument parsed = DocumentTextExtractor.parse(file);
+                previews.add(Map.of("filename", filename, "title", parsed.title(), "type", parsed.type(),
+                        "content", parsed.content(), "contentLength", parsed.content().length()));
+            } catch (Exception ex) { errors.add(filename + ": " + ex.getMessage()); }
+        }
+        if (previews.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                errors.isEmpty() ? "未收到有效文件" : String.join("; ", errors));
+        Map<String, Object> payload = new LinkedHashMap<>(); payload.put("count", previews.size()); payload.put("list", previews);
+        if (!errors.isEmpty()) payload.put("errors", errors);
+        return ApiResponse.ok("解析完成，请确认后保存", payload);
     }
 
     static DocumentItem document(DemoDataStore store, long id) {
@@ -387,11 +420,69 @@ class ConfigController {
     ApiResponse<Map<String, Object>> create(@RequestBody Map<String, Object> body) {
         long id = store.configSeq.incrementAndGet();
         GuideConfig base = store.configs.get(1L);
+        List<LabelDef> primaryTags = labelDefs(body.get("primaryTags"), base.primaryTags);
+        List<LabelDef> secondaryTags = labelDefs(body.get("secondaryTags"), base.secondaryTags);
+        List<LabelDef> relationTypes = labelDefs(body.get("relationTypes"), base.relationTypes);
         GuideConfig config = new GuideConfig(id, UserController.text(body, "versionName", "V" + id),
-                UserController.text(body, "description", "自定义指南版本"), false,
-                base.primaryTags, base.secondaryTags, base.relationTypes);
+                UserController.text(body, "description", "自定义指南版本"), false, java.time.LocalDate.now().toString(),
+                primaryTags, secondaryTags, relationTypes);
         store.configs.put(id, config);
         return ApiResponse.ok("配置保存成功", Map.of("configId", id));
+    }
+
+    @PutMapping("/{id}")
+    ApiResponse<GuideConfig> update(@PathVariable long id, @RequestBody Map<String, Object> body) {
+        GuideConfig old = config(store, id);
+        List<LabelDef> primaryTags = labelDefs(body.get("primaryTags"), old.primaryTags);
+        List<LabelDef> secondaryTags = labelDefs(body.get("secondaryTags"), old.secondaryTags);
+        List<LabelDef> relationTypes = labelDefs(body.get("relationTypes"), old.relationTypes);
+        GuideConfig updated = new GuideConfig(id,
+                UserController.text(body, "versionName", old.versionName),
+                UserController.text(body, "description", old.description),
+                old.active, old.createdAt, primaryTags, secondaryTags, relationTypes);
+        store.configs.put(id, updated);
+        return ApiResponse.ok("配置更新成功", updated);
+    }
+
+    @DeleteMapping("/{id}")
+    ApiResponse<Void> delete(@PathVariable long id) {
+        if (id == 1L) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "默认指南版本不可删除");
+        }
+        if (store.configs.remove(id) == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "指南版本不存在");
+        }
+        return ApiResponse.ok("删除成功", null);
+    }
+
+    static GuideConfig config(DemoDataStore store, long id) {
+        GuideConfig cfg = store.configs.get(id);
+        if (cfg == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "指南版本不存在");
+        return cfg;
+    }
+
+    @SuppressWarnings("unchecked")
+    static List<LabelDef> labelDefs(Object value, List<LabelDef> fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        if (!(value instanceof List<?> raw)) {
+            return fallback;
+        }
+        if (raw.isEmpty()) {
+            return List.of();
+        }
+        List<LabelDef> result = new ArrayList<>();
+        for (Object item : raw) {
+            if (item instanceof Map<?, ?> m) {
+                String sn = m.get("shortName") == null ? "" : m.get("shortName").toString();
+                String nm = m.get("name") == null ? "" : m.get("name").toString();
+                String desc = m.get("description") == null ? "" : m.get("description").toString();
+                String parent = m.get("parentTag") == null ? "" : m.get("parentTag").toString();
+                result.add(new LabelDef(sn, nm, desc, parent));
+            }
+        }
+        return result.isEmpty() ? fallback : result;
     }
 }
 
@@ -609,7 +700,7 @@ class ReviewController {
 record LoginRequest(@NotBlank String username, @NotBlank String password) {
 }
 
-record LabelDef(String shortName, String name) {
+record LabelDef(String shortName, String name, String description, String parentTag) {
 }
 
 record Proposition(String propId, int sequenceNo, int startPos, int endPos, String text, String tag) {
@@ -632,6 +723,7 @@ class User {
     public String role;
     public boolean canCreateTask;
     public String status;
+    public java.time.LocalDateTime lastSeen;
 
     User(long id, String username, String password, String realName, String role, boolean canCreateTask, String status) {
         this.id = id;
@@ -644,7 +736,15 @@ class User {
     }
 
     Map<String, Object> safe() {
-        return Map.of("id", id, "username", username, "realName", realName, "role", role, "canCreateTask", canCreateTask, "status", status);
+        var m = new java.util.LinkedHashMap<String, Object>();
+        m.put("id", id);
+        m.put("username", username);
+        m.put("realName", realName);
+        m.put("role", role);
+        m.put("canCreateTask", canCreateTask);
+        m.put("status", status);
+        m.put("lastSeen", lastSeen == null ? null : lastSeen.toString());
+        return m;
     }
 }
 
@@ -673,15 +773,17 @@ class GuideConfig {
     public String versionName;
     public String description;
     public boolean active;
+    public String createdAt;
     public List<LabelDef> primaryTags;
     public List<LabelDef> secondaryTags;
     public List<LabelDef> relationTypes;
 
-    GuideConfig(long id, String versionName, String description, boolean active, List<LabelDef> primaryTags, List<LabelDef> secondaryTags, List<LabelDef> relationTypes) {
+    GuideConfig(long id, String versionName, String description, boolean active, String createdAt, List<LabelDef> primaryTags, List<LabelDef> secondaryTags, List<LabelDef> relationTypes) {
         this.id = id;
         this.versionName = versionName;
         this.description = description;
         this.active = active;
+        this.createdAt = createdAt;
         this.primaryTags = primaryTags;
         this.secondaryTags = secondaryTags;
         this.relationTypes = relationTypes;
