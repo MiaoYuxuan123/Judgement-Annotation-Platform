@@ -13,13 +13,13 @@ Thumbs.db
 .env.*
 !.env.example
 
-frontend/node_modules/
-node_modules/
-
-frontend/dist/
-frontend/build/
-dist/
-build/
+#frontend/node_modules/
+#node_modules/
+#
+#frontend/dist/
+#frontend/build/
+#dist/
+#build/
 
 frontend/.cache/
 .cache/
@@ -31,8 +31,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-backend/target/
-target/
+#backend/target/
+#target/
 
 *.class
 *.jar
