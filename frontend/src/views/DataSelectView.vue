@@ -74,7 +74,7 @@
                   class="task-action-btn green"
                   @click="$router.push(`/results/${id}?dataId=${row.id}`)"
                 >
-                  查看结果
+                  查看结果/导出
                 </button>
               </td>
             </tr>
@@ -101,7 +101,10 @@ const activeDocId = ref(null)
 
 const canAnnotate = computed(() => detail.value?.annotators.some((u) => u.id === auth.user?.id))
 const canReview = computed(() => detail.value?.reviewer.id === auth.user?.id)
-const showResultAction = computed(() => detail.value?.summary.status === '可导出')
+const showResultAction = computed(() => {
+  if (detail.value?.summary.status !== '可导出') return false
+  return canAnnotate.value || canReview.value || auth.user?.canCreateTask
+})
 const roleText = computed(() => (canReview.value ? '裁定' : '标注'))
 const rowStatus = computed(() => {
   if (detail.value?.summary.status === '可导出') return '已裁定'

@@ -76,7 +76,7 @@ export function participantAction(row) {
   const status = detail?.summary?.status
 
   if (status === '可导出') {
-    return { label: '查看结果/导出', color: 'green', route: `/results/${row.taskId}` }
+    return { label: '查看结果/导出', color: 'green', route: `/tasks/${row.taskId}/data` }
   }
   if (role === 'annotate') {
     if (status === '标注中') {
@@ -91,7 +91,7 @@ export function participantAction(row) {
   }
   if (role === 'arbitrate') {
     if (status === '待裁定') {
-      return { label: '开始裁决', color: 'orange', route: `/review/${row.taskId}` }
+      return { label: '开始裁决', color: 'orange', route: `/tasks/${row.taskId}/data` }
     }
     return null
   }

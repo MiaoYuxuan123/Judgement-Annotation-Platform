@@ -18,7 +18,7 @@
       </div>
     </section>
 
-    <el-alert v-if="!canExport" title="只有任务创建者和裁决者可以导出结果，标注者可查看所有结果。" type="info" show-icon :closable="false" style="margin-bottom: 14px" />
+    <el-alert v-if="!canExport" title="当前任务尚未进入可导出阶段，或您没有导出权限。" type="info" show-icon :closable="false" style="margin-bottom: 14px" />
     <el-alert v-if="exportInfo" :title="`导出完成：${exportInfo.downloadUrl}`" type="success" show-icon style="margin-bottom: 14px" />
 
     <div class="result-layout">
@@ -90,7 +90,12 @@ const versions = computed(() => {
   return list
 })
 const selectedVersion = computed(() => versions.value.find((v) => v.key === selectedKey.value) || versions.value[0] || { propositions: [], relations: [] })
-const canExport = computed(() => auth.user?.canCreateTask || detail.value?.reviewer.id === auth.user?.id)
+const canExport = computed(() => {
+  if (detail.value?.summary?.status !== '可导出') return false
+  if (auth.user?.canCreateTask) return true
+  if (detail.value?.reviewer?.id === auth.user?.id) return true
+  return detail.value?.annotators?.some((u) => u.id === auth.user?.id) ?? false
+})
 
 watch(currentDocId, () => {
   selectedKey.value = versions.value[0]?.key || ''
