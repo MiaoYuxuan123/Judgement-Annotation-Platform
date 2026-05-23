@@ -205,7 +205,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import client from '../api/client'
 import GraphView from '../components/GraphView.vue'
-import { circledNo, propByIdMap } from '../utils/reviewHelpers'
+import { circledNo, findAvailableTextSpan, propByIdMap } from '../utils/reviewHelpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -271,7 +271,7 @@ const markedHtml = computed(() => {
         html += escapeHtml(text.slice(cursor, p.startPos))
         const markClass = p.kind === 'pending' ? 'annotation-mark pending' : 'annotation-mark'
         const textClass = p.kind === 'pending' ? 'annotation-text pending' : 'annotation-text'
-        html += `<mark class="${markClass}">${escapeHtml(p.propId)}</mark><span class="${textClass}">${escapeHtml(text.slice(p.startPos, p.endPos))}</span>`
+        html += `<mark class="${markClass}">${escapeHtml(p.propId)}</mark><span class="${textClass}">${escapeHtml(p.text || text.slice(p.startPos, p.endPos))}</span>`
         cursor = p.endPos
       })
   html += escapeHtml(text.slice(cursor))
@@ -309,10 +309,17 @@ function handleSelection() {
   if (!text) return
   const range = selection.getRangeAt(0)
   const rect = range.getBoundingClientRect()
+  const content = data.value?.document.content || ''
   selectedText.value = text
-  selectedStart.value = data.value.document.content.indexOf(text)
-  selectedEnd.value = selectedStart.value + text.length
-  if (selectedStart.value >= 0 && overlapsExisting(selectedStart.value, selectedEnd.value)) {
+  const span = findAvailableTextSpan(content, text, propositions.value)
+  selectedStart.value = span.start
+  selectedEnd.value = span.end
+  if (span.start < 0) {
+    ElMessage.warning('无法在原文中唯一定位所选文本，请重新选择')
+    window.getSelection()?.removeAllRanges()
+    return
+  }
+  if (overlapsExisting(span.start, span.end)) {
     ElMessage.warning('该文本已被标注或与已有命题重叠，请选择其他文本')
     window.getSelection()?.removeAllRanges()
     return
@@ -338,14 +345,16 @@ function cancelLabel() {
 function confirmLabel() {
   if (!selectedText.value) return
   snapshot()
-  const start = selectedStart.value < 0 ? propositions.value.length * 10 : selectedStart.value
+  const start = selectedStart.value
+  const text = selectedText.value.trim()
+  const tag = primaryTag.value === 'GM' ? secondaryTag.value : primaryTag.value
   const prop = {
     propId: `P${Date.now()}`,
     sequenceNo: propositions.value.length + 1,
-    startPos: start < 0 ? propositions.value.length * 10 : start,
-    endPos: start < 0 ? propositions.value.length * 10 + selection.length : start + selection.length,
-    text: selection,
-    tag: selectedTag.value || 'SF'
+    startPos: start,
+    endPos: start + text.length,
+    text,
+    tag
   }
   propositions.value.push(prop)
   reorder()

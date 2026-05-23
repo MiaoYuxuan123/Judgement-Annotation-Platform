@@ -96,6 +96,10 @@ body {
   background: #f4f6f8;
 }
 
+.main:has(.review-page) {
+  overflow: hidden;
+}
+
 .panel {
   background: #fff;
   border: 1px solid #e5e7eb;
@@ -1305,11 +1309,13 @@ body {
    司法文本裁定工作台 (Review Board Layout)
    ========================================================================== */
 
-/* 1. 顶层视口容器隔离 */
+/* 1. 顶层视口容器：与 App shell（顶栏 72px + main 内边距 40px）对齐 */
 .review-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - 112px);
+  max-height: calc(100vh - 112px);
+  overflow: hidden;
   background-color: #f8fafc;
 }
 
@@ -1366,31 +1372,42 @@ body {
 .review-body {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   position: relative;
 }
 
 /* 4. 左边栏：原文与关系拓扑图示 */
 .review-left {
-  flex: 30; /* 智能比例分配 */
+  flex: 30;
   min-width: 420px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 14px;
   gap: 14px;
-  overflow-y: auto;
+  overflow: hidden;
   border-right: 1px solid #e2e8f0;
 }
 
+.review-left > .review-block:first-child {
+  flex: 0 1 38%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .review-original {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   line-height: 1.8;
   font-size: 14.5px;
   color: #334155;
-  background-color: #fffaf0; /* 复用现代风格的温暖米色 */
+  background-color: #fffaf0;
   border: 1px solid #f1d48a;
   border-radius: 8px;
   padding: 16px;
-  min-height: 180px;
 }
 
 .review-prop-inline {
@@ -1409,21 +1426,48 @@ body {
 
 .review-graph-block {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  min-height: 320px;
+}
+
+.review-graph-block .graph-canvas {
+  flex: 1;
+  min-height: 280px;
+  height: 100%;
+}
+
+.review-block-title {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+.review-block-title h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
 }
 
 /* 5. 中间栏：列表数据审阅与最终裁决按钮 */
 .review-center {
   flex: 45;
   min-width: 520px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 14px;
   gap: 14px;
-  overflow-y: auto;
+  overflow: hidden;
   border-right: 1px solid #e2e8f0;
+}
+
+.review-center > .review-block {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 .review-formula {
@@ -1437,19 +1481,21 @@ body {
 
 .review-actions {
   display: flex;
+  flex-shrink: 0;
   justify-content: flex-end;
   gap: 12px;
   padding: 12px 16px;
   background-color: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  margin-top: auto; /* 始终吸附在中间容器的最底部 */
+  margin-top: auto;
 }
 
 /* 6. 右边栏：标注人员版本管理与导航 */
 .review-sidebar {
   width: 240px;
   min-width: 240px;
+  min-height: 0;
   background-color: #fff;
   padding: 14px;
   display: flex;
@@ -1506,6 +1552,7 @@ body {
   border-radius: 8px;
   padding: 14px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, .03);
+  min-height: 0;
 }
 
 .review-block h3 {

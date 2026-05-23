@@ -198,23 +198,48 @@ class DemoDataStore {
         tasks.put(task.id, task);
 
         List<Proposition> p1 = List.of(
-                new Proposition("P1", 1, 4, 11, "依法成立的合同", "GM-L"),
-                new Proposition("P2", 2, 23, 39, "对当事人具有法律约束力", "GM-I"),
-                new Proposition("P3", 3, 65, 77, "被告未按期支付货款", "SF"),
-                new Proposition("P4", 4, 82, 88, "构成违约", "SM")
+                new Proposition("P1", 1, 5, 12, "依法成立的合同", "GM-L"),
+                new Proposition("P2", 2, 13, 24, "对当事人具有法律约束力", "GM-I"),
+                new Proposition("P3", 3, 44, 53, "被告未按期支付货款", "SF"),
+                new Proposition("P4", 4, 56, 60, "构成违约", "SM"),
+                new Proposition("P5", 5, 97, 110, "支付货款并承担逾期付款责任", "SF")
         );
-        List<Relation> r1 = List.of(new Relation("R1", "S", "P1", "P2"), new Relation("R2", "S", "P3", "P4"));
+
+        // 1001 任务加入 S(支持) 与 A(反对) 关系进行测试
+        List<Relation> r1 = List.of(
+                new Relation("R1", "S", "P1", "P2"),
+                new Relation("R2", "S", "P3", "P4"),
+                new Relation("R3", "A", "P5", "P4") // P5 反对(A) P4
+        );
+
         annotations.put(annotationKey(1001, 101, 3), new AnnotationResult(1001, 101, 3, p1, r1, false, LocalDateTime.now().minusHours(5)));
         annotations.put(annotationKey(1001, 101, 4), new AnnotationResult(1001, 101, 4,
                 List.of(p1.get(0), p1.get(2), p1.get(3)), List.of(new Relation("R1", "S", "P3", "P4")), false, LocalDateTime.now().minusHours(4)));
 
+
+        // ==================== 1002 任务：严格遵循最新 5 种缩写规范灌注数据 ====================
         TaskItem done = new TaskItem(1002, "侵权责任裁定样例", "展示裁定与导出流程", "可导出", 1,
                 List.of(103L), List.of(3L, 4L), 5L, 2L, LocalDateTime.now().minusDays(3), configs.get(1L));
         tasks.put(done.id, done);
-        arbitrations.put(arbitrationKey(1002, 103), new ArbitrationResult(1002, 103, 5,
-                List.of(new Proposition("P1", 1, 4, 16, "行为人因过错侵害他人民事权益", "SF"),
-                        new Proposition("P2", 2, 22, 32, "应当承担侵权责任", "GM-L")),
-                List.of(new Relation("R1", "S", "P1", "P2")), "MANUAL", LocalDateTime.now().minusDays(1)));
+
+        List<Proposition> p2 = List.of(
+                new Proposition("P1", 1, 5, 19, "行为人因过错侵害他人民事权益", "SF"),
+                new Proposition("P2", 2, 25, 33, "应当承担侵权责任", "GM-L"),
+                new Proposition("P3", 3, 41, 57, "被告车辆倒车时未尽到合理注意义务", "SF"),
+                new Proposition("P4", 4, 58, 67, "与原告车辆发生碰撞", "SF"),
+                new Proposition("P5", 5, 77, 83, "承担全部责任", "GM-L")
+        );
+
+        // 🌟 严格对齐五种基本结构定义
+        List<Relation> r2 = List.of(
+                new Relation("R1", "S", "P1", "P2"),   // 1. 支持关系 (Support, S) -> 实心圆
+                new Relation("R2", "A", "P3", "P2"),   // 2. 反对关系 (Attack, A)  -> 空心圆
+                new Relation("R3", "J", "P1", "P4"),   // 3. 组合关系 (Joint, J)   -> "+"号无向线
+                new Relation("R4", "M", "P2", "P4"),   // 4. 匹配关系 (Match, M)   -> "+"号有向线
+                new Relation("R5", "I", "P1", "P5")    // 5. 同一关系 (Identity, I)-> 框内 "/"
+        );
+
+        arbitrations.put(arbitrationKey(1002, 103), new ArbitrationResult(1002, 103, 5, p2, r2, "MANUAL", LocalDateTime.now().minusDays(1)));
     }
 
     User userFromHeader(String authorization) {
