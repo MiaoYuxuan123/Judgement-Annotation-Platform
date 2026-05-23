@@ -96,7 +96,8 @@ body {
   background: #f4f6f8;
 }
 
-.main:has(.review-page) {
+.main:has(.review-page),
+.main:has(.results-page) {
   overflow: hidden;
 }
 
@@ -1309,8 +1310,9 @@ body {
    司法文本裁定工作台 (Review Board Layout)
    ========================================================================== */
 
-/* 1. 顶层视口容器：与 App shell（顶栏 72px + main 内边距 40px）对齐 */
-.review-page {
+/* 结果查看页与裁定页共用三栏工作台布局 */
+.review-page,
+.results-page {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 112px);

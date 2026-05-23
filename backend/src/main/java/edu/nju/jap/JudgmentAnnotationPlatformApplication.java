@@ -608,21 +608,10 @@ class TaskController {
     }
 
     @GetMapping("/{taskId}/export")
-    ApiResponse<Map<String, Object>> export(@PathVariable long taskId, @RequestParam String format) {
-        if (!Set.of("json", "xlsx", "png", "svg", "zip").contains(format)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "导出格式非法");
-        }
-        TaskItem task = task(store, taskId);
-        long id = store.exportSeq.incrementAndGet();
-        Map<String, Object> payload = Map.of("exportId", id, "taskId", taskId, "format", format,
-                "progress", 100, "downloadUrl", "/download/task-" + taskId + "." + format,
-                "preview", Map.of("task", task.taskName, "labelVersion", task.configSnapshot.versionName, "results", resultsFor(taskId)));
-        return ApiResponse.ok("导出成功", payload);
-    }
-
-    private List<ArbitrationResult> resultsFor(long taskId) {
-        TaskItem task = task(store, taskId);
-        return task.documentIds.stream().map(id -> store.arbitrations.get(DemoDataStore.arbitrationKey(taskId, id))).filter(Objects::nonNull).toList();
+    ApiResponse<Map<String, Object>> export(@PathVariable long taskId) {
+        TaskController.task(store, taskId);
+        throw new ResponseStatusException(HttpStatus.GONE,
+                "导出已改为浏览器端 ZIP 打包，请在「结果查看 / 导出」页面点击「导出 ZIP」并选择保存位置");
     }
 
     static TaskItem task(DemoDataStore store, long id) {
