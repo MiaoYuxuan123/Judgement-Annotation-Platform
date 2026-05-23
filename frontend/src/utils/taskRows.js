@@ -98,13 +98,10 @@ export function participantAction(row) {
   return null
 }
 
-/** 创建者操作按钮 */
+/** 创建者操作按钮（仅已裁定/可导出时可操作） */
 export function creatorAction(task) {
   if (task.status === '可导出') {
     return { label: '查看结果/导出', color: 'green', route: `/tasks/${task.taskId}/data` }
-  }
-  if (task.status === '待裁定') {
-    return { label: '开始裁决', color: 'orange', route: `/tasks/${task.taskId}/data` }
   }
   return null
 }
