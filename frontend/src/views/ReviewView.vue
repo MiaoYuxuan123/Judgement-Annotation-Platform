@@ -37,7 +37,13 @@
           <div class="review-block-title">
             <h3>图示区</h3>
           </div>
-          <GraphCanvas :propositions="activeData.propositions" :relations="activeData.relations" variant="circles" />
+          <component
+            :is="GraphCanvas"
+            v-if="showGraph && GraphCanvas"
+            :key="`${currentDocId}-${selectedKey}`"
+            :propositions="activeData.propositions"
+            :relations="activeData.relations"
+          />
         </div>
       </section>
 
@@ -92,11 +98,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
-import GraphCanvas from '../components/GraphCanvas.vue'
 import { useAuthStore } from '../stores/auth'
 import { buildAnnotatedParts, circledNo, formatRelationFormula } from '../utils/reviewHelpers'
 
@@ -109,6 +114,8 @@ const review = ref(null)
 const taskDetail = ref(null)
 const currentDocId = ref(null)
 const selectedKey = ref('')
+const showGraph = ref(false)
+const GraphCanvas = shallowRef(null)
 
 const currentDoc = computed(() => review.value?.documents.find((d) => d.document.id === currentDocId.value))
 
@@ -164,7 +171,7 @@ const annotatedParts = computed(() => {
 const relationRows = computed(() =>
     (activeData.value.relations || []).map((rel, index) => ({
       relId: rel.relId || `R${index + 1}`,
-      formula: formatRelationFormula(rel, activeData.value.propositions)
+      formula: formatRelationFormula(rel, activeData.value.propositions, index)
     }))
 )
 
@@ -185,7 +192,27 @@ watch(
     }
 )
 
+async function waitForLayout() {
+  await nextTick()
+  await new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  })
+}
+
+async function refreshGraph() {
+  showGraph.value = false
+  if (!selectedKey.value || !activeData.value.propositions?.length) return
+  await waitForLayout()
+  if (!GraphCanvas.value) {
+    GraphCanvas.value = (await import('../components/GraphCanvas.vue')).default
+  }
+  showGraph.value = true
+}
+
+watch([currentDocId, selectedKey, () => activeData.value.propositions.length], refreshGraph, { flush: 'post' })
+
 async function load() {
+  showGraph.value = false
   const [reviewData, detail] = await Promise.all([
     client.get(`/reviews/${taskId.value}`),
     client.get(`/tasks/${taskId.value}`)

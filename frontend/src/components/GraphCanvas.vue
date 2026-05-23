@@ -2,79 +2,126 @@
   <div class="graph-canvas" ref="rootRef">
     <div class="graph-canvas-toolbar">
       <el-button-group size="small">
-        <el-button @click="zoomBy(0.1)">放大</el-button>
-        <el-button @click="zoomBy(-0.1)">缩小</el-button>
-        <el-button @click="resetView">重置</el-button>
+        <el-button @click="zoomBy(0.12)">放大</el-button>
+        <el-button @click="zoomBy(-0.12)">缩小</el-button>
+        <el-button @click="fitViewNow">适应</el-button>
       </el-button-group>
       <el-button size="small" type="primary" plain @click="toggleFullscreen">
-        <span class="fullscreen-icon">⛶</span> 全屏
+        <span class="fullscreen-icon">{{ isFullscreen ? '⤢' : '⛶' }}</span>
+        {{ isFullscreen ? '退出全屏' : '全屏' }}
       </el-button>
     </div>
-    <div
-        class="graph-canvas-viewport"
-        @wheel.prevent="onWheel"
-        @mousedown="onPanStart"
-    >
-      <div
-          class="graph-canvas-stage"
-          :style="{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})` }"
+    <div class="graph-canvas-viewport-wrap" ref="viewportRef">
+      <VueFlow
+        v-if="propositions.length && !layouting"
+        id="argument-graph"
+        v-model:nodes="nodes"
+        v-model:edges="edges"
+        :node-types="nodeTypes"
+        :edge-types="edgeTypes"
+        :min-zoom="0.25"
+        :max-zoom="2"
+        :nodes-draggable="false"
+        :nodes-connectable="false"
+        :elements-selectable="false"
+        :pan-on-drag="true"
+        :zoom-on-scroll="true"
+        fit-view-on-init
+        class="graph-canvas-flow"
+        @nodes-initialized="onNodesInitialized"
       >
-        <GraphView :propositions="propositions" :relations="relations" :variant="variant" />
-      </div>
+        <Background :gap="16" pattern-color="#e8edf3" />
+        <Controls :show-interactive="false" />
+      </VueFlow>
+      <div v-else-if="layouting" class="graph-canvas-empty">布局计算中…</div>
+      <div v-else class="graph-canvas-empty">暂无图示数据</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
-import GraphView from './GraphView.vue'
+import { markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  VueFlow,
+  useVueFlow
+} from '@vue-flow/core'
+import { Background } from '@vue-flow/background'
+import { Controls } from '@vue-flow/controls'
+import '@vue-flow/core/dist/style.css'
+import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/controls/dist/style.css'
 
-defineProps({
+import PropNode from './graph/PropNode.vue'
+import HubNode from './graph/HubNode.vue'
+import ElkOrthogonalEdge from './graph/ElkOrthogonalEdge.vue'
+import { layoutArgumentGraphWithElk } from '../utils/argumentGraphElkLayout'
+
+const props = defineProps({
   propositions: { type: Array, default: () => [] },
-  relations: { type: Array, default: () => [] },
-  variant: { type: String, default: 'circles' }
+  relations: { type: Array, default: () => [] }
 })
 
 const rootRef = ref(null)
-const scale = ref(1)
-const translate = reactive({ x: 0, y: 0 })
-const panning = reactive({ active: false, startX: 0, startY: 0, originX: 0, originY: 0 })
+const viewportRef = ref(null)
+const isFullscreen = ref(false)
+const layouting = ref(false)
+const nodes = ref([])
+const edges = ref([])
+
+const nodeTypes = {
+  prop: markRaw(PropNode),
+  'hub-s': markRaw(HubNode),
+  'hub-a': markRaw(HubNode),
+  'hub-m': markRaw(HubNode),
+  'hub-j': markRaw(HubNode)
+}
+
+const edgeTypes = {
+  'elk-orthogonal': markRaw(ElkOrthogonalEdge)
+}
+
+const { fitView, zoomIn, zoomOut } = useVueFlow({ id: 'argument-graph' })
+
+let layoutToken = 0
+let resizeObserver = null
+
+async function runLayout() {
+  const token = ++layoutToken
+  if (!props.propositions?.length) {
+    nodes.value = []
+    edges.value = []
+    layouting.value = false
+    return
+  }
+
+  layouting.value = true
+  try {
+    const result = await layoutArgumentGraphWithElk(props.propositions, props.relations)
+    if (token !== layoutToken) return
+    nodes.value = result.nodes
+    edges.value = result.edges
+  } catch (err) {
+    console.error('[GraphCanvas] ELK layout failed', err)
+    nodes.value = []
+    edges.value = []
+  } finally {
+    if (token === layoutToken) layouting.value = false
+  }
+}
+
+function fitViewNow() {
+  requestAnimationFrame(() => {
+    fitView({ padding: 0.18, duration: 280 })
+  })
+}
+
+function onNodesInitialized() {
+  fitViewNow()
+}
 
 function zoomBy(delta) {
-  scale.value = Math.min(2.5, Math.max(0.4, +(scale.value + delta).toFixed(2)))
-}
-
-function resetView() {
-  scale.value = 1
-  translate.x = 0
-  translate.y = 0
-}
-
-function onWheel(event) {
-  zoomBy(event.deltaY < 0 ? 0.08 : -0.08)
-}
-
-function onPanStart(event) {
-  if (event.button !== 0) return
-  panning.active = true
-  panning.startX = event.clientX
-  panning.startY = event.clientY
-  panning.originX = translate.x
-  panning.originY = translate.y
-  window.addEventListener('mousemove', onPanMove)
-  window.addEventListener('mouseup', onPanEnd)
-}
-
-function onPanMove(event) {
-  if (!panning.active) return
-  translate.x = panning.originX + (event.clientX - panning.startX)
-  translate.y = panning.originY + (event.clientY - panning.startY)
-}
-
-function onPanEnd() {
-  panning.active = false
-  window.removeEventListener('mousemove', onPanMove)
-  window.removeEventListener('mouseup', onPanEnd)
+  if (delta > 0) zoomIn({ duration: 150 })
+  else zoomOut({ duration: 150 })
 }
 
 async function toggleFullscreen() {
@@ -83,4 +130,114 @@ async function toggleFullscreen() {
   if (!document.fullscreenElement) await el.requestFullscreen?.()
   else await document.exitFullscreen?.()
 }
+
+function onFullscreenChange() {
+  isFullscreen.value = document.fullscreenElement === rootRef.value
+  if (isFullscreen.value) setTimeout(fitViewNow, 80)
+}
+
+watch(
+  () => [props.propositions, props.relations],
+  () => {
+    runLayout()
+  },
+  { deep: true, immediate: true }
+)
+
+onMounted(() => {
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+  if (viewportRef.value && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => fitViewNow())
+    resizeObserver.observe(viewportRef.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+  resizeObserver?.disconnect()
+  layoutToken += 1
+})
 </script>
+
+<style scoped>
+.graph-canvas {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.graph-canvas:fullscreen {
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.graph-canvas-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.graph-canvas-viewport-wrap {
+  flex: 1;
+  min-height: 260px;
+  position: relative;
+  overflow: hidden;
+}
+
+.graph-canvas-flow {
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  background: #fff;
+}
+
+.graph-canvas-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #94a3b8;
+  font-size: 13px;
+  background: #fff;
+  z-index: 2;
+}
+
+.fullscreen-icon {
+  margin-right: 4px;
+}
+
+:deep(.vue-flow__node) {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+:deep(.vue-flow__handle) {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  opacity: 0;
+  border: none;
+  background: transparent;
+}
+
+:deep(.vue-flow__edge-path) {
+  stroke: #111;
+}
+
+:deep(.vue-flow__controls) {
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+</style>

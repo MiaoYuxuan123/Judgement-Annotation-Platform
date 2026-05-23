@@ -1,120 +1,314 @@
 <template>
-  <div v-if="review">
-    <section class="panel annotate-topbar">
-      <div>
-        <el-button text @click="$router.push(`/tasks/${route.params.taskId}/data`)">← 返回</el-button>
-        <strong>{{ review.task.taskName }} — 结果查看</strong>
-        <span class="muted">可切换不同标注员版本与最终裁定结果。</span>
+  <div v-if="review" class="review-page results-page">
+    <header class="review-header">
+      <div class="review-header-left">
+        <span class="review-logo">📊</span>
+        <h1>结果查看 / 导出</h1>
       </div>
-      <div>
-        <el-select v-model="format" style="width: 120px" :disabled="!canExport">
-          <el-option label="JSON" value="json" />
-          <el-option label="XLSX" value="xlsx" />
-          <el-option label="PNG" value="png" />
-          <el-option label="SVG" value="svg" />
-          <el-option label="ZIP" value="zip" />
+      <div class="review-header-right">
+        <el-select v-model="currentDocId" class="review-doc-select" placeholder="选择文书">
+          <el-option
+            v-for="item in review.documents"
+            :key="item.document.id"
+            :label="item.document.title"
+            :value="item.document.id"
+          />
         </el-select>
-        <el-button type="primary" :disabled="!canExport" @click="exportData">导出</el-button>
+        <el-button type="primary" :disabled="!canExport || exporting" :loading="exporting" @click="exportData">
+          导出 ZIP
+        </el-button>
+        <el-button text @click="$router.push(`/tasks/${taskId}`)">返回任务</el-button>
+        <span class="review-user">{{ auth.user?.realName || '查看者' }}</span>
       </div>
-    </section>
+    </header>
 
-    <el-alert v-if="!canExport" title="当前任务尚未进入可导出阶段，或您没有导出权限。" type="info" show-icon :closable="false" style="margin-bottom: 14px" />
-    <el-alert v-if="exportInfo" :title="`导出完成：${exportInfo.downloadUrl}`" type="success" show-icon style="margin-bottom: 14px" />
+    <el-alert
+      v-if="!canExport"
+      class="results-alert"
+      title="只有任务创建者和裁决者可以导出结果，标注者可查看所有版本。"
+      type="info"
+      show-icon
+      :closable="false"
+    />
+    <el-alert
+      v-if="exportMessage"
+      class="results-alert"
+      :title="exportMessage"
+      type="success"
+      show-icon
+      @close="exportMessage = ''"
+    />
 
-    <div class="result-layout">
-      <section class="panel work-panel">
-        <div class="toolbar">
-          <h3>图示区</h3>
-          <el-button @click="fullscreen = true">全屏</el-button>
+    <div class="review-body">
+      <section class="review-left">
+        <div class="review-block">
+          <h3>原文展示区</h3>
+          <div class="review-original">
+            <template v-for="(part, idx) in annotatedParts" :key="idx">
+              <span v-if="part.type === 'text'">{{ part.text }}</span>
+              <span v-else class="review-prop-inline">
+                <sup class="review-prop-badge">{{ circledNo(part.sequenceNo) }}</sup>{{ part.text }}
+              </span>
+            </template>
+          </div>
         </div>
-        <GraphView :propositions="selectedVersion.propositions || []" :relations="selectedVersion.relations || []" />
+
+        <div class="review-block review-graph-block">
+          <div class="review-block-title">
+            <h3>图示区</h3>
+          </div>
+          <component
+            :is="GraphCanvas"
+            v-if="showGraph && GraphCanvas"
+            :key="`${currentDocId}-${selectedKey}`"
+            :propositions="activeData.propositions"
+            :relations="activeData.relations"
+          />
+        </div>
       </section>
 
-      <section class="panel work-panel">
-        <h3>原文参考区</h3>
-        <el-select v-model="currentDocId" style="width: 100%; margin-bottom: 12px">
-          <el-option v-for="item in review.documents" :key="item.document.id" :label="item.document.title" :value="item.document.id" />
-        </el-select>
-        <div class="document-text">{{ current?.document.content }}</div>
-        <el-divider />
-        <h3>命题列表</h3>
-        <el-table :data="selectedVersion.propositions || []" size="small">
-          <el-table-column prop="propId" label="编号" width="80" />
-          <el-table-column prop="tag" label="标签" width="90" />
-          <el-table-column prop="text" label="文本" />
-        </el-table>
-        <h3>关系列表</h3>
-        <el-table :data="selectedVersion.relations || []" size="small">
-          <el-table-column prop="relId" label="编号" width="80" />
-          <el-table-column prop="type" label="关系" width="80" />
-          <el-table-column label="公式"><template #default="{ row }">{{ row.type }}({{ row.source }}, {{ row.target }})</template></el-table-column>
-        </el-table>
+      <section class="review-center results-center">
+        <div class="review-block">
+          <h3>命题列表</h3>
+          <el-table :data="activeData.propositions" size="small" stripe empty-text="暂无命题">
+            <el-table-column label="命题序号" width="100" align="center">
+              <template #default="{ row }">{{ circledNo(row.sequenceNo) }}</template>
+            </el-table-column>
+            <el-table-column prop="text" label="命题内容" min-width="220" show-overflow-tooltip />
+            <el-table-column prop="tag" label="命题类型" width="100" align="center" />
+          </el-table>
+        </div>
+
+        <div class="review-block">
+          <h3>关系列表</h3>
+          <el-table :data="relationRows" size="small" stripe empty-text="暂无关系">
+            <el-table-column label="关系序号" width="100" align="center">
+              <template #default="{ $index }">R{{ $index + 1 }}</template>
+            </el-table-column>
+            <el-table-column label="关系内容" min-width="260">
+              <template #default="{ row }">
+                <code class="review-formula">{{ row.formula }}</code>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </section>
 
-      <aside class="panel work-panel">
+      <aside class="review-sidebar">
         <h3>结果来源</h3>
-        <div v-for="source in versions" :key="source.key" class="version-card" :class="{ active: selectedKey === source.key }" @click="selectedKey = source.key">
-          <strong>{{ source.name }}</strong>
-          <span>{{ source.propositions.length }} 命题 / {{ source.relations.length }} 关系</span>
-        </div>
+        <button
+          v-for="item in sidebarItems"
+          :key="item.key"
+          type="button"
+          class="review-sidebar-item"
+          :class="{ active: selectedKey === item.key }"
+          @click="selectedKey = item.key"
+        >
+          <span class="review-sidebar-icon">{{ item.icon }}</span>
+          <span class="review-sidebar-meta">
+            <span class="review-sidebar-label">{{ item.label }}</span>
+            <span class="review-sidebar-count">{{ item.countText }}</span>
+          </span>
+        </button>
       </aside>
     </div>
-
-    <el-dialog v-model="fullscreen" title="图示全屏预览" fullscreen>
-      <GraphView :propositions="selectedVersion.propositions || []" :relations="selectedVersion.relations || []" />
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { ElLoading, ElMessage } from 'element-plus'
 import client from '../api/client'
-import GraphView from '../components/GraphView.vue'
 import { useAuthStore } from '../stores/auth'
+import { buildAnnotatedParts, circledNo, formatRelationFormula } from '../utils/reviewHelpers'
+import { exportTaskZip } from '../utils/taskZipExport'
 
 const route = useRoute()
 const auth = useAuthStore()
+const taskId = computed(() => Number(route.params.taskId))
+
 const review = ref(null)
-const detail = ref(null)
+const taskDetail = ref(null)
 const currentDocId = ref(null)
 const selectedKey = ref('')
-const format = ref('zip')
-const exportInfo = ref(null)
-const fullscreen = ref(false)
+const exportMessage = ref('')
+const exporting = ref(false)
+const showGraph = ref(false)
+const GraphCanvas = shallowRef(null)
 
-const current = computed(() => review.value?.documents.find((d) => d.document.id === currentDocId.value))
-const versions = computed(() => {
-  const list = (current.value?.annotatorResults || []).map((result) => ({ key: `u-${result.userId}`, name: `标注员 ${result.userId}`, ...result }))
-  if (current.value?.finalResult && typeof current.value.finalResult === 'object') list.push({ key: 'final', name: '最终裁定结果', ...current.value.finalResult })
-  return list
-})
-const selectedVersion = computed(() => versions.value.find((v) => v.key === selectedKey.value) || versions.value[0] || { propositions: [], relations: [] })
-const canExport = computed(() => {
-  if (detail.value?.summary?.status !== '可导出') return false
-  if (auth.user?.canCreateTask) return true
-  if (detail.value?.reviewer?.id === auth.user?.id) return true
-  return detail.value?.annotators?.some((u) => u.id === auth.user?.id) ?? false
+const currentDoc = computed(() => review.value?.documents.find((d) => d.document.id === currentDocId.value))
+
+const annotatorNameMap = computed(() => {
+  const map = new Map()
+  for (const a of taskDetail.value?.annotators || []) {
+    map.set(a.id, a.realName || a.username)
+  }
+  return map
 })
 
-watch(currentDocId, () => {
-  selectedKey.value = versions.value[0]?.key || ''
+const sidebarItems = computed(() => {
+  const items = (currentDoc.value?.annotatorResults || []).map((r, index) => {
+    const props = r.propositions || []
+    const rels = r.relations || []
+    return {
+      key: `annotator-${r.userId}`,
+      label: annotatorNameMap.value.get(r.userId) || `标注员 ${String.fromCharCode(65 + index)}`,
+      icon: '👤',
+      countText: `${props.length} 命题 / ${rels.length} 关系`
+    }
+  })
+  const final = currentDoc.value?.finalResult
+  if (final && typeof final === 'object' && final.propositions) {
+    const props = final.propositions || []
+    const rels = final.relations || []
+    items.push({
+      key: 'final',
+      label: '最终裁定结果',
+      icon: '✓',
+      countText: `${props.length} 命题 / ${rels.length} 关系`
+    })
+  }
+  return items
 })
+
+const activeData = computed(() => {
+  if (!currentDoc.value) return { propositions: [], relations: [] }
+  if (selectedKey.value === 'final') {
+    const f = currentDoc.value.finalResult
+    return {
+      propositions: f.propositions || [],
+      relations: f.relations || []
+    }
+  }
+  const userId = Number(selectedKey.value.replace('annotator-', ''))
+  const result = currentDoc.value.annotatorResults.find((r) => r.userId === userId)
+  return {
+    propositions: result?.propositions || [],
+    relations: result?.relations || []
+  }
+})
+
+const annotatedParts = computed(() => {
+  const content = currentDoc.value?.document?.content || ''
+  return buildAnnotatedParts(content, activeData.value.propositions)
+})
+
+const relationRows = computed(() =>
+  (activeData.value.relations || []).map((rel, index) => ({
+    relId: rel.relId || `R${index + 1}`,
+    formula: formatRelationFormula(rel, activeData.value.propositions, index)
+  }))
+)
+
+const canExport = computed(() => auth.user?.canCreateTask || taskDetail.value?.reviewer?.id === auth.user?.id)
+
+watch(sidebarItems, (items) => {
+  if (!items.length) return
+  if (!items.some((i) => i.key === selectedKey.value)) {
+    selectedKey.value = items[0].key
+  }
+})
+
+async function waitForLayout() {
+  await nextTick()
+  await new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  })
+}
+
+async function refreshGraph() {
+  showGraph.value = false
+  if (!selectedKey.value || !activeData.value.propositions?.length) return
+  await waitForLayout()
+  if (!GraphCanvas.value) {
+    GraphCanvas.value = (await import('../components/GraphCanvas.vue')).default
+  }
+  showGraph.value = true
+}
+
+watch([currentDocId, selectedKey, () => activeData.value.propositions.length], refreshGraph, { flush: 'post' })
 
 async function load() {
-  const taskId = route.params.taskId
-  const [reviewData, detailData] = await Promise.all([client.get(`/reviews/${taskId}`), client.get(`/tasks/${taskId}`)])
+  showGraph.value = false
+  const [reviewData, detail] = await Promise.all([
+    client.get(`/reviews/${taskId.value}`),
+    client.get(`/tasks/${taskId.value}`)
+  ])
   review.value = reviewData
-  detail.value = detailData
-  const queryDocId = Number(route.query.dataId)
-  const docIds = review.value.documents.map((d) => d.document.id)
-  currentDocId.value = docIds.includes(queryDocId) ? queryDocId : review.value.documents[0]?.document.id
-  selectedKey.value = versions.value[0]?.key || ''
+  taskDetail.value = detail
+  currentDocId.value = reviewData.documents[0]?.document.id
+  if (sidebarItems.value.length) {
+    selectedKey.value = sidebarItems.value[0].key
+  }
 }
 
 async function exportData() {
-  exportInfo.value = await client.get(`/tasks/${route.params.taskId}/export`, { params: { format: format.value } })
+  if (!canExport.value || exporting.value) return
+  exporting.value = true
+  exportMessage.value = ''
+  const loading = ElLoading.service({
+    lock: true,
+    text: '正在准备导出…',
+    background: 'rgba(255,255,255,0.7)'
+  })
+  try {
+    const savedName = await exportTaskZip({
+      review: review.value,
+      taskDetail: taskDetail.value,
+      currentDocId: currentDocId.value,
+      onProgress: (text) => {
+        if (text) loading.setText(text)
+      }
+    })
+    exportMessage.value = `已保存：${savedName}`
+    ElMessage.success('导出完成')
+  } catch (err) {
+    if (err?.name === 'AbortError') return
+    ElMessage.error(err?.message || '导出失败')
+  } finally {
+    loading.close()
+    exporting.value = false
+  }
 }
 
 onMounted(load)
 </script>
+
+<style scoped>
+.results-page .review-header-right {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.results-alert {
+  flex-shrink: 0;
+  margin: 0 14px 10px;
+}
+
+.results-center {
+  border-right: none;
+}
+
+.review-sidebar-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.review-sidebar-label {
+  line-height: 1.3;
+}
+
+.review-sidebar-count {
+  font-size: 11px;
+  font-weight: 400;
+  color: #94a3b8;
+}
+
+.review-sidebar-item.active .review-sidebar-count {
+  color: #60a5fa;
+}
+</style>

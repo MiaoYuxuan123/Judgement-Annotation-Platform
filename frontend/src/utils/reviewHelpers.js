@@ -1,43 +1,115 @@
-const CIRCLED = [
-    '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩',
-    '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳'
-]
-
-export function circledNo(sequenceNo) {
-    if (sequenceNo >= 1 && sequenceNo <= CIRCLED.length) return CIRCLED[sequenceNo - 1]
-    return `(${sequenceNo})`
+/**
+ * 将数字序号统一转换为 P1, P2 格式
+ */
+export function formatPropLabel(sequenceNo) {
+    return `P${sequenceNo}`
 }
 
+/**
+ * 将命题数组快速转为 Map，方便高效查询
+ */
 export function propByIdMap(propositions) {
     return new Map((propositions || []).map((p) => [p.propId, p]))
 }
 
-export function formatRelationFormula(rel, propositions) {
+/**
+ * 核心纠正：兼顾旧代码和新视图的终极公式生成器
+ */
+export function formatRelationFormula(rel, propositions, index) {
     const map = propByIdMap(propositions)
     const source = map.get(rel.source)
     const target = map.get(rel.target)
-    const left = source ? circledNo(source.sequenceNo) : rel.source
-    const right = target ? circledNo(target.sequenceNo) : rel.target
-    return `${rel.type}(${left}, ${right})`
+
+    const left = source ? formatPropLabel(source.sequenceNo) : (rel.source || 'P?')
+    const right = target ? formatPropLabel(target.sequenceNo) : (rel.target || 'P?')
+
+    let rNumber = 1
+    if (index !== undefined && index !== null) {
+        rNumber = index + 1
+    } else if (rel && rel.relId) {
+        const match = String(rel.relId).match(/\d+/)
+        rNumber = match ? match[0] : 1
+    }
+
+    return `${rel.type || 'S'}(${left}, ${right})`
 }
 
-/** 将命题按原文位置切分为可渲染片段 */
+function spansOverlap(aStart, aEnd, bStart, bEnd) {
+    return Math.max(aStart, bStart) < Math.min(aEnd, bEnd)
+}
+
+/**
+ * 标注页选区：在原文中找不与其他命题重叠的匹配片段
+ */
+export function findAvailableTextSpan(content, text, propositions, preferredStart = 0) {
+    const needle = String(text || '').trim()
+    if (!needle || !content) return { start: -1, end: -1 }
+
+    const ranges = (propositions || [])
+        .filter((p) => p.startPos != null && p.endPos != null)
+        .map((p) => [p.startPos, p.endPos])
+
+    let from = Math.max(0, preferredStart)
+    while (from <= content.length) {
+        const idx = content.indexOf(needle, from)
+        if (idx < 0) break
+        const end = idx + needle.length
+        const blocked = ranges.some(([s, e]) => spansOverlap(idx, end, s, e))
+        if (!blocked) return { start: idx, end }
+        from = idx + 1
+    }
+    return { start: -1, end: -1 }
+}
+
+function clampPos(value, min, max) {
+    return Math.max(min, Math.min(value, max))
+}
+
+/**
+ * 文本切片：完整保留原文，仅按 startPos/endPos 高亮对应片段
+ */
 export function buildAnnotatedParts(content, propositions) {
     if (!content) return []
+
     const sorted = [...(propositions || [])]
         .filter((p) => p.startPos != null && p.endPos != null && p.endPos > p.startPos)
-        .sort((a, b) => a.startPos - b.startPos)
+        .sort((a, b) => a.startPos - b.startPos || (a.sequenceNo || 0) - (b.sequenceNo || 0))
 
     const parts = []
     let cursor = 0
+
     for (const p of sorted) {
-        const start = Math.max(0, Math.min(p.startPos, content.length))
-        const end = Math.max(start, Math.min(p.endPos, content.length))
-        if (start > cursor) parts.push({ type: 'text', text: content.slice(cursor, start) })
-        if (end > start) parts.push({ type: 'prop', text: content.slice(start, end), sequenceNo: p.sequenceNo })
+        const start = clampPos(p.startPos, 0, content.length)
+        const end = clampPos(p.endPos, start, content.length)
+
+        // 重叠区间跳过，避免打乱原文顺序
+        if (start < cursor) continue
+
+        if (start > cursor) {
+            parts.push({ type: 'text', text: content.slice(cursor, start) })
+        }
+
+        parts.push({
+            type: 'prop',
+            text: content.slice(start, end),
+            sequenceNo: p.sequenceNo,
+            label: formatPropLabel(p.sequenceNo),
+            tag: p.tag || 'SF'
+        })
+
         cursor = end
     }
-    if (cursor < content.length) parts.push({ type: 'text', text: content.slice(cursor) })
-    if (!parts.length) parts.push({ type: 'text', text: content })
+
+    if (cursor < content.length) {
+        parts.push({ type: 'text', text: content.slice(cursor) })
+    }
+    if (!parts.length) {
+        parts.push({ type: 'text', text: content })
+    }
+
     return parts
+}
+
+export function circledNo(sequenceNo) {
+    return formatPropLabel(sequenceNo)
 }
