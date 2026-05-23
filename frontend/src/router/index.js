@@ -1,15 +1,23 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { getDefaultRoute, isParticipant } from '../utils/defaultRoute'
 
 const routes = [
-  { path: '/', redirect: '/dashboard' },
+  {
+    path: '/',
+    redirect: () => {
+      const auth = useAuthStore()
+      if (!auth.isLoggedIn) return '/login'
+      return getDefaultRoute(auth)
+    }
+  },
   { path: '/login', component: () => import('../views/LoginView.vue'), meta: { public: true } },
-  { path: '/dashboard', component: () => import('../views/DashboardView.vue') },
-  { path: '/users', component: () => import('../views/UsersView.vue') },
   { path: '/documents', component: () => import('../views/DocumentsView.vue') },
   { path: '/configs', component: () => import('../views/ConfigsView.vue') },
-  { path: '/tasks', component: () => import('../views/TasksView.vue') },
-  { path: '/tasks/:id', component: () => import('../views/TaskDetailView.vue') },
+  { path: '/users', component: () => import('../views/UsersView.vue') },
+  { path: '/dashboard', redirect: '/tasks' },
+  { path: '/tasks', component: () => import('../views/TaskListEntry.vue') },
+  { path: '/tasks/:id', redirect: (to) => ({ path: '/tasks', query: { taskId: to.params.id } }) },
   { path: '/tasks/:id/data', component: () => import('../views/DataSelectView.vue') },
   { path: '/annotate/:taskId/:dataId', component: () => import('../views/AnnotateView.vue') },
   { path: '/review/:taskId', component: () => import('../views/ReviewView.vue') },
@@ -24,9 +32,11 @@ const router = createRouter({
 router.beforeEach((to) => {
   const auth = useAuthStore()
   if (!to.meta.public && !auth.isLoggedIn) return '/login'
-  if (to.path === '/login' && auth.isLoggedIn) return '/dashboard'
-  if (to.path === '/dashboard' && auth.user?.role === 'admin') return '/documents'
-  if (['/users', '/documents', '/configs'].includes(to.path) && auth.user?.role !== 'admin') return '/tasks'
+  if (to.path === '/login' && auth.isLoggedIn) return getDefaultRoute(auth)
+  if (['/users', '/documents', '/configs'].includes(to.path) && auth.user?.role !== 'admin') {
+    return '/tasks'
+  }
+  if (to.path === '/dashboard' && isParticipant(auth)) return '/tasks'
   return true
 })
 

@@ -1,5 +1,11 @@
 <template>
-  <router-view v-if="route.meta.public" />
+  <router-view v-if="shell === 'public'" />
+  <CreatorLayout v-else-if="shell === 'creator'">
+    <router-view />
+  </CreatorLayout>
+  <ParticipantLayout v-else-if="shell === 'participant'">
+    <router-view />
+  </ParticipantLayout>
   <el-container v-else class="shell" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <el-aside :width="sidebarCollapsed ? '72px' : '248px'" class="sidebar">
       <div class="brand">
@@ -42,11 +48,23 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import CreatorLayout from './layouts/CreatorLayout.vue'
+import ParticipantLayout from './layouts/ParticipantLayout.vue'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const sidebarCollapsed = ref(false)
+
+const adminPaths = ['/users', '/documents', '/configs']
+
+const shell = computed(() => {
+  if (route.meta.public) return 'public'
+  if (auth.user?.role === 'admin' && adminPaths.includes(route.path)) return 'admin'
+  if (auth.user?.canCreateTask) return 'creator'
+  if (auth.user?.role !== 'admin') return 'participant'
+  return 'admin'
+})
 
 const titleMap = {
   '/dashboard': '工作台',
@@ -62,6 +80,7 @@ const roleName = computed(() => {
   if (auth.user?.canCreateTask) return '任务创建者'
   return '任务参与者'
 })
+
 const menuItems = computed(() => {
   if (auth.user?.role === 'admin') {
     return [
@@ -70,16 +89,7 @@ const menuItems = computed(() => {
       { path: '/users', label: '用户管理' }
     ]
   }
-  if (auth.user?.canCreateTask) {
-    return [
-      { path: '/dashboard', label: '任务概览' },
-      { path: '/tasks', label: '任务管理' }
-    ]
-  }
-  return [
-    { path: '/dashboard', label: '我的任务' },
-    { path: '/tasks', label: '参与任务' }
-  ]
+  return []
 })
 
 function logout() {
