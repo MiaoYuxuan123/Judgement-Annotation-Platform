@@ -119,7 +119,7 @@
           <strong>完成命题与关系标注后生成图示</strong>
           <span>右下角“生成图示”按钮会刷新这里的节点和关系。</span>
         </div>
-        <GraphView v-else :propositions="graphPropositions" :relations="graphRelations" />
+        <GraphCanvas v-else :propositions="graphPropositions" :relations="graphRelations" />
         <div class="graph-footer">
           <el-button class="fullscreen-btn" :disabled="!graphGenerated" @click="fullscreen = true">↗ 全屏预览</el-button>
         </div>
@@ -193,7 +193,7 @@
     </div>
 
     <el-dialog v-model="fullscreen" title="论证图示全屏预览" fullscreen>
-      <GraphView v-if="graphGenerated" :propositions="graphPropositions" :relations="graphRelations" />
+      <GraphCanvas v-if="graphGenerated" :propositions="graphPropositions" :relations="graphRelations" />
       <el-empty v-else description="请先在关系生成区点击“生成图示”" />
     </el-dialog>
   </div>
@@ -204,7 +204,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import client from '../api/client'
-import GraphView from '../components/GraphView.vue'
+import GraphCanvas from '../components/GraphCanvas.vue'
 import { circledNo, findAvailableTextSpan, propByIdMap } from '../utils/reviewHelpers'
 
 const route = useRoute()

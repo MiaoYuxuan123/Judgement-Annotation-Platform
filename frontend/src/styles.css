@@ -386,8 +386,9 @@ body {
   border-radius: 8px;
 }
 
-.graph-card .graph {
-  min-height: 0;
+.graph-card .graph-canvas {
+  flex: 1;
+  min-height: 280px;
   border-radius: 8px;
 }
 
@@ -743,11 +744,9 @@ body {
   flex-direction: column;
 }
 
-.graph-card .graph {
+.graph-card .graph-canvas {
   flex: 1;
   min-height: 560px;
-  border-radius: 0;
-  background: #fff;
 }
 
 .graph-footer {
@@ -985,34 +984,6 @@ body {
   padding: 10px;
   margin-bottom: 8px;
   background: #fff;
-}
-
-.graph {
-  position: relative;
-  min-height: 420px;
-  background: #fbfcfe;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.graph svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.graph-node {
-  position: absolute;
-  width: 150px;
-  min-height: 64px;
-  padding: 8px;
-  border: 1px solid #3b82f6;
-  border-radius: 8px;
-  background: #eff6ff;
-  box-shadow: 0 10px 24px rgba(31, 42, 55, .08);
-  font-size: 12px;
 }
 
 .review-grid {
@@ -1267,8 +1238,9 @@ body {
   border-radius: 8px;
 }
 
-.graph-card .graph {
-  min-height: 0;
+.graph-card .graph-canvas {
+  flex: 1;
+  min-height: 280px;
   border-radius: 8px;
 }
 
