@@ -101,7 +101,9 @@ async function load() {
   const [reviewData, detailData] = await Promise.all([client.get(`/reviews/${taskId}`), client.get(`/tasks/${taskId}`)])
   review.value = reviewData
   detail.value = detailData
-  currentDocId.value = review.value.documents[0]?.document.id
+  const queryDocId = Number(route.query.dataId)
+  const docIds = review.value.documents.map((d) => d.document.id)
+  currentDocId.value = docIds.includes(queryDocId) ? queryDocId : review.value.documents[0]?.document.id
   selectedKey.value = versions.value[0]?.key || ''
 }
 
