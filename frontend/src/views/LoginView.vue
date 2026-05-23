@@ -20,7 +20,7 @@
         <el-form-item label="密码">
           <el-input v-model="form.password" type="password" show-password />
         </el-form-item>
-        <el-button type="primary" size="large" style="width: 100%" :loading="loading" @click="submit">进入工作台</el-button>
+        <el-button type="primary" size="large" style="width: 100%" :loading="loading" @click="submit">进入系统</el-button>
       </el-form>
     </section>
   </div>
@@ -30,6 +30,7 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { getDefaultRoute } from '../utils/defaultRoute'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -40,7 +41,7 @@ async function submit() {
   loading.value = true
   try {
     await auth.login(form)
-    router.push('/')
+    router.push(getDefaultRoute(auth))
   } finally {
     loading.value = false
   }

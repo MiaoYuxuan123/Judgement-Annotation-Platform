@@ -1,5 +1,11 @@
 <template>
-  <router-view v-if="route.meta.public" />
+  <router-view v-if="shell === 'public'" />
+  <CreatorLayout v-else-if="shell === 'creator'">
+    <router-view />
+  </CreatorLayout>
+  <ParticipantLayout v-else-if="shell === 'participant'">
+    <router-view />
+  </ParticipantLayout>
   <el-container v-else class="shell" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <el-aside :width="sidebarCollapsed ? '72px' : '248px'" class="sidebar">
       <div class="brand">
@@ -22,7 +28,7 @@
           <el-button text class="collapse-btn" @click="sidebarCollapsed = !sidebarCollapsed">{{ sidebarCollapsed ? '展开' : '收起' }}</el-button>
           <div>
             <div class="page-title">{{ title }}</div>
-            <div class="page-subtitle" v-if="auth.user?.role !== 'admin'">四阶段流程：创建任务 -> 标注 -> 裁定 -> 导出</div>
+            <div class="page-subtitle">四阶段流程：创建任务 -> 标注 -> 裁定 -> 导出</div>
           </div>
         </div>
         <div class="userbox">
@@ -42,11 +48,23 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import CreatorLayout from './layouts/CreatorLayout.vue'
+import ParticipantLayout from './layouts/ParticipantLayout.vue'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const sidebarCollapsed = ref(false)
+
+const adminPaths = ['/users', '/documents', '/configs']
+
+const shell = computed(() => {
+  if (route.meta.public) return 'public'
+  if (auth.user?.role === 'admin' && adminPaths.includes(route.path)) return 'admin'
+  if (auth.user?.canCreateTask) return 'creator'
+  if (auth.user?.role !== 'admin') return 'participant'
+  return 'admin'
+})
 
 const titleMap = {
   '/dashboard': '工作台',
@@ -57,20 +75,22 @@ const titleMap = {
 }
 
 const title = computed(() => titleMap[route.path] || '业务流程')
-const roleName = computed(() => ({ admin: '超级管理员', creator: '任务创建者', annotator: '标注员', reviewer: '裁定者' }[auth.user?.role] || '用户'))
+const roleName = computed(() => {
+  if (auth.user?.role === 'admin') return '超级管理员'
+  if (auth.user?.canCreateTask) return '任务创建者'
+  return '任务参与者'
+})
 
-const adminMenuItems = [
-  { path: '/users', label: '用户管理' },
-  { path: '/documents', label: '文书总库' },
-  { path: '/configs', label: '配置中心' }
-]
-
-const userMenuItems = [
-  { path: '/dashboard', label: '工作台' },
-  { path: '/tasks', label: '任务管理' }
-]
-
-const menuItems = computed(() => auth.user?.role === 'admin' ? adminMenuItems : userMenuItems)
+const menuItems = computed(() => {
+  if (auth.user?.role === 'admin') {
+    return [
+      { path: '/documents', label: '文书总库' },
+      { path: '/configs', label: '配置中心' },
+      { path: '/users', label: '用户管理' }
+    ]
+  }
+  return []
+})
 
 function logout() {
   auth.logout()
