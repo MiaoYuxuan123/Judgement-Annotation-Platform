@@ -1278,6 +1278,134 @@ body {
   }
 }
 
+/* Stable proposition selection and relation member editor fixes. */
+.source-text {
+  user-select: text;
+  cursor: text;
+}
+
+.floating-label-root {
+  z-index: 3000;
+}
+
+.annot-list-item .item-actions,
+.relation-row .item-actions {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+
+.annot-list-item:hover .item-actions,
+.relation-row:hover .item-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.center-work {
+  grid-template-rows: minmax(300px, 1fr) minmax(300px, auto);
+  min-height: 0;
+}
+
+.relation-builder {
+  overflow: hidden;
+}
+
+.relation-title {
+  flex-wrap: wrap;
+}
+
+.relation-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.relation-buttons {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.relation-buttons .el-button {
+  width: 100%;
+  min-width: 0;
+  margin-left: 0;
+}
+
+.relation-input-card.modern-builder {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(190px, 260px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 14px 18px;
+  overflow: hidden;
+}
+
+.relation-builder-head {
+  min-height: 0;
+  height: 100%;
+  padding: 18px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.member-builder {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-content: start;
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.member-slot {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.member-index {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.relation-select {
+  width: 100%;
+}
+
+.add-member-btn {
+  width: 100%;
+  min-height: 50px;
+  border-style: dashed;
+  border-radius: 8px;
+  font-size: 22px;
+}
+
+.relation-input-card.modern-builder .relation-actions {
+  grid-column: 2;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
 /* ==========================================================================
    司法文本裁定工作台 (Review Board Layout)
    ========================================================================== */
