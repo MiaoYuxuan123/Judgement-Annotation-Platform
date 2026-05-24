@@ -117,7 +117,7 @@ class DemoDataStore {
     final AtomicLong userSeq = new AtomicLong(10);
     final AtomicLong docSeq = new AtomicLong(100);
     final AtomicLong configSeq = new AtomicLong(1);
-    final AtomicLong taskSeq = new AtomicLong(1000);
+    final AtomicLong taskSeq = new AtomicLong(1003);
     final AtomicLong exportSeq = new AtomicLong(1);
 
     /** 返回当前文档表中未被占用的最小 ID（从 101 起扫描），删除后新增会复用该空位。 */
@@ -240,6 +240,37 @@ class DemoDataStore {
         );
 
         arbitrations.put(arbitrationKey(1002, 103), new ArbitrationResult(1002, 103, 5, p2, r2, "MANUAL", LocalDateTime.now().minusDays(1)));
+
+        // ==================== 1003 任务：待裁定演示 ====================
+        TaskItem pending = new TaskItem(1003, "劳动争议裁定演示", "演示从数据列表进入裁定界面的完整路径", "待裁定", 1,
+                List.of(102L), List.of(3L, 4L), 5L, 2L, LocalDateTime.now().minusDays(2), configs.get(1L));
+        tasks.put(pending.id, pending);
+
+        List<Proposition> p3a = List.of(
+                new Proposition("P1", 1, 5, 33, "劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定", "GM-L"),
+                new Proposition("P2", 2, 34, 62, "现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动", "SF"),
+                new Proposition("P3", 3, 63, 83, "公司主张双方不存在劳动关系，但未提交充分反证", "SF"),
+                new Proposition("P4", 4, 84, 89, "本院不予采纳", "SM")
+        );
+        List<Relation> r3a = List.of(
+                new Relation("R1", "S", "P1", "P4"),
+                new Relation("R2", "S", "P2", "P3"),
+                new Relation("R3", "S", "P3", "P4")
+        );
+
+        List<Proposition> p3b = List.of(
+                new Proposition("P1", 1, 5, 33, "劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定", "GF"),
+                new Proposition("P2", 2, 34, 62, "现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动", "SF"),
+                new Proposition("P3", 3, 63, 83, "公司主张双方不存在劳动关系，但未提交充分反证", "SF"),
+                new Proposition("P4", 4, 84, 89, "本院不予采纳", "SM")
+        );
+        List<Relation> r3b = List.of(
+                new Relation("R1", "S", "P2", "P4"),
+                new Relation("R2", "A", "P3", "P4")
+        );
+
+        annotations.put(annotationKey(1003, 102, 3), new AnnotationResult(1003, 102, 3, p3a, r3a, false, LocalDateTime.now().minusHours(3)));
+        annotations.put(annotationKey(1003, 102, 4), new AnnotationResult(1003, 102, 4, p3b, r3b, false, LocalDateTime.now().minusHours(2)));
     }
 
     User userFromHeader(String authorization) {

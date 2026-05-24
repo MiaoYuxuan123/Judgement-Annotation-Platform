@@ -14,7 +14,7 @@
               :value="item.document.id"
           />
         </el-select>
-        <el-button text @click="$router.push(`/tasks/${taskId}`)">返回任务</el-button>
+        <el-button text @click="$router.push(`/tasks/${taskId}/data`)">返回数据列表</el-button>
         <span class="review-user">{{ auth.user?.realName || '裁定者' }}</span>
       </div>
     </header>

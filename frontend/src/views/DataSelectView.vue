@@ -65,7 +65,7 @@
                 <button
                   v-if="canReview && detail.summary.status === '待裁定'"
                   class="task-action-btn orange"
-                  @click="$router.push(`/review/${id}?dataId=${row.id}`)"
+                  @click="$router.push(`/review/${id}?docId=${row.id}`)"
                 >
                   开始裁定
                 </button>
