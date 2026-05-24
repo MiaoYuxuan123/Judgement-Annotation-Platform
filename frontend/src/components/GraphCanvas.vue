@@ -14,7 +14,7 @@
     <div class="graph-canvas-viewport-wrap" ref="viewportRef">
       <VueFlow
         v-if="propositions.length && !layouting"
-        id="argument-graph"
+        :id="flowId"
         v-model:nodes="nodes"
         v-model:edges="edges"
         :node-types="nodeTypes"
@@ -67,6 +67,7 @@ const isFullscreen = ref(false)
 const layouting = ref(false)
 const nodes = ref([])
 const edges = ref([])
+const flowId = `argument-graph-${Math.random().toString(36).slice(2)}`
 
 const nodeTypes = {
   prop: markRaw(PropNode),
@@ -80,7 +81,7 @@ const edgeTypes = {
   'elk-orthogonal': markRaw(ElkOrthogonalEdge)
 }
 
-const { fitView, zoomIn, zoomOut } = useVueFlow({ id: 'argument-graph' })
+const { fitView, zoomIn, zoomOut } = useVueFlow({ id: flowId })
 
 let layoutToken = 0
 let resizeObserver = null

@@ -1,40 +1,54 @@
 /**
- * 论证图 ELK 自动布局：命题 + 关系 → 分层正交布局（Top→Down）
+ * 论证图 ELK 自动布局：命题节点 + 关系节点 -> 分层正交布局。
+ *
+ * 指南图示规则：
+ * - 命题：矩形节点。
+ * - S：实心圆关系节点，输入 -> ● -> 输出。
+ * - A：空心圆关系节点，输入 -> ○ -> 输出。
+ * - J：带 + 圆关系节点，多成员无向汇聚。
+ * - M：带 + 圆关系节点，输入 -> + -> 输出。
+ * - I：命题节点合并为 P1 / P2 形式。
  */
 import ELK from 'elkjs/lib/elk.bundled.js'
 
 const elk = new ELK()
 
 const PROP_H = 32
-const HUB_SIZE = { S: 10, A: 16, M: 22, J: 22 }
+const HUB_SIZE = { S: 12, A: 18, M: 24, J: 24 }
 
 const ROOT_LAYOUT = {
   'elk.algorithm': 'layered',
   'elk.direction': 'DOWN',
   'elk.edgeRouting': 'ORTHOGONAL',
-  'elk.spacing.nodeNode': '52',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '72',
-  'elk.layered.spacing.edgeNodeBetweenLayers': '36',
-  'elk.layered.spacing.edgeEdgeBetweenLayers': '24',
+  'elk.spacing.nodeNode': '54',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '76',
+  'elk.layered.spacing.edgeNodeBetweenLayers': '34',
+  'elk.layered.spacing.edgeEdgeBetweenLayers': '22',
   'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
   'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
   'elk.layered.layering.strategy': 'NETWORK_SIMPLEX',
   'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
-  'elk.padding': '[top=48,left=48,bottom=48,right=48]',
-  'elk.hierarchyHandling': 'INCLUDE_CHILDREN'
+  'elk.padding': '[top=48,left=48,bottom=48,right=48]'
+}
+
+function relationType(rel) {
+  return String(rel?.type || 'S').toUpperCase()
+}
+
+function relationId(rel, index) {
+  return rel?.relId || `R${index + 1}`
+}
+
+function relationMembers(rel) {
+  return (rel?.members?.length ? rel.members : [rel?.source, rel?.target]).filter(Boolean)
 }
 
 function propLabel(p) {
-  return `P${p.sequenceNo}`
+  return p.propId || `P${p.sequenceNo}`
 }
 
 function propBoxSize(label) {
-  return { width: Math.max(48, label.length * 9 + 20), height: PROP_H }
-}
-
-function getPropMembers(rel) {
-  const ids = rel.members?.length ? rel.members : [rel.source, rel.target]
-  return ids.filter((id) => typeof id === 'string' && id.startsWith('P'))
+  return { width: Math.max(52, label.length * 9 + 22), height: PROP_H }
 }
 
 class UnionFind {
@@ -43,15 +57,16 @@ class UnionFind {
   }
 
   find(id) {
-    let r = id
-    while (this.parent.get(r) !== r) r = this.parent.get(r)
-    let c = id
-    while (this.parent.get(c) !== c) {
-      const n = this.parent.get(c)
-      this.parent.set(c, r)
-      c = n
+    if (!this.parent.has(id)) this.parent.set(id, id)
+    let root = id
+    while (this.parent.get(root) !== root) root = this.parent.get(root)
+    let cursor = id
+    while (this.parent.get(cursor) !== cursor) {
+      const next = this.parent.get(cursor)
+      this.parent.set(cursor, root)
+      cursor = next
     }
-    return r
+    return root
   }
 
   union(a, b) {
@@ -61,32 +76,41 @@ class UnionFind {
   }
 }
 
-function buildElkGraph(propositions, relations) {
-  const rels = relations || []
-  const propMap = new Map((propositions || []).map((p) => [p.propId, p]))
-  const uf = new UnionFind((propositions || []).map((p) => p.propId))
+function createIdentityGroups(propositions, relations) {
+  const propIds = propositions.map((p) => p.propId)
+  const propSet = new Set(propIds)
+  const uf = new UnionFind(propIds)
 
-  rels
-    .filter((r) => String(r.type).toUpperCase() === 'I')
-    .forEach((r) => {
-      const members = getPropMembers(r).filter((id) => propMap.has(id))
-      for (let i = 1; i < members.length; i += 1) uf.union(members[0], members[i])
+  relations
+    .filter((rel) => relationType(rel) === 'I')
+    .forEach((rel) => {
+      const ids = relationMembers(rel).filter((id) => propSet.has(id))
+      for (let i = 1; i < ids.length; i += 1) uf.union(ids[0], ids[i])
     })
 
+  return uf
+}
+
+function buildElkGraph(propositions = [], relations = []) {
+  const rels = relations || []
+  const propMap = new Map(propositions.map((p) => [p.propId, p]))
+  const uf = createIdentityGroups(propositions, rels)
+
+  const propToNode = new Map()
+  const relToNode = new Map()
+  const nodeMeta = new Map()
+  const children = []
+  const edges = []
+
   const grouped = new Map()
-  ;(propositions || []).forEach((p) => {
+  propositions.forEach((p) => {
     const root = uf.find(p.propId)
     if (!grouped.has(root)) grouped.set(root, [])
     grouped.get(root).push(p)
   })
 
-  const propToNode = new Map()
-  const nodeMeta = new Map()
-  const children = []
-  const edges = []
-
   grouped.forEach((items, root) => {
-    const sorted = [...items].sort((a, b) => a.sequenceNo - b.sequenceNo)
+    const sorted = [...items].sort((a, b) => (a.sequenceNo || 0) - (b.sequenceNo || 0))
     const id = `prop-${root}`
     const label = sorted.map(propLabel).join(' / ')
     const size = propBoxSize(label)
@@ -96,51 +120,68 @@ function buildElkGraph(propositions, relations) {
   })
 
   rels.forEach((rel, index) => {
-    const type = String(rel.type || 'S').toUpperCase()
-    const key = rel.relId || `R${index + 1}`
-    if (type === 'I') return
+    const type = relationType(rel)
+    if (type === 'I' || !['S', 'A', 'J', 'M'].includes(type)) return
 
+    const key = relationId(rel, index)
+    const id = `hub-${type.toLowerCase()}-${key}`
+    const hubKind = type === 'S' ? 'hub-s' : type === 'A' ? 'hub-a' : type === 'J' ? 'hub-j' : 'hub-m'
+    const size = HUB_SIZE[type]
+    relToNode.set(key, id)
+    nodeMeta.set(id, {
+      kind: hubKind,
+      label: type === 'S' || type === 'A' ? '' : '+',
+      width: size,
+      height: size
+    })
+    children.push({ id, width: size, height: size })
+  })
+
+  function resolveMember(id) {
+    if (propToNode.has(id)) return propToNode.get(id)
+    if (relToNode.has(id)) return relToNode.get(id)
+    return null
+  }
+
+  rels.forEach((rel, index) => {
+    const type = relationType(rel)
+    if (type === 'I' || !['S', 'A', 'J', 'M'].includes(type)) return
+
+    const key = relationId(rel, index)
+    const hubId = relToNode.get(key)
+    if (!hubId) return
+
+    const members = relationMembers(rel)
     if (type === 'J') {
-      const members = getPropMembers(rel).filter((id) => propToNode.has(id))
-      if (members.length < 2) return
-      const memberIds = members.map((m) => propToNode.get(m))
-      const hubId = `hub-j-${key}`
-      const hubSize = HUB_SIZE.J
-      nodeMeta.set(hubId, { kind: 'hub-j', label: '+', width: hubSize, height: hubSize })
-      children.push({ id: hubId, width: hubSize, height: hubSize })
-
-      memberIds.forEach((mid) => {
-        edges.push({ id: `e-j-in-${key}-${mid}`, sources: [mid], targets: [hubId] })
-      })
-
-      const outboundProp = rel.target && !members.includes(rel.target) ? rel.target : null
-      if (outboundProp && propToNode.has(outboundProp)) {
+      const memberNodes = members.map(resolveMember).filter((id) => id && id !== hubId)
+      if (memberNodes.length < 2) return
+      ;[...new Set(memberNodes)].forEach((memberNode, memberIndex) => {
         edges.push({
-          id: `e-j-out-${key}`,
-          sources: [hubId],
-          targets: [propToNode.get(outboundProp)]
+          id: `e-j-${key}-${memberIndex}`,
+          sources: [memberNode],
+          targets: [hubId],
+          directed: false
         })
-      }
+      })
       return
     }
 
-    if (!['S', 'A', 'M'].includes(type)) return
-    const sourceId = propToNode.get(rel.source)
-    const targetId = propToNode.get(rel.target)
-    if (!sourceId || !targetId || sourceId === targetId) return
+    const sourceNode = resolveMember(members[0])
+    const targetNode = resolveMember(members[1])
+    if (!sourceNode || !targetNode || sourceNode === targetNode) return
 
-    const hubId = `hub-${type.toLowerCase()}-${key}`
-    const hubSize = HUB_SIZE[type]
-    const hubKind = type === 'S' ? 'hub-s' : type === 'A' ? 'hub-a' : 'hub-m'
-    nodeMeta.set(hubId, {
-      kind: hubKind,
-      label: type === 'S' ? '' : '+',
-      width: hubSize,
-      height: hubSize
+    edges.push({
+      id: `e-${type}-in-${key}`,
+      sources: [sourceNode],
+      targets: [hubId],
+      directed: false
     })
-    children.push({ id: hubId, width: hubSize, height: hubSize })
-    edges.push({ id: `e-${type}-in-${key}`, sources: [sourceId], targets: [hubId] })
-    edges.push({ id: `e-${type}-out-${key}`, sources: [hubId], targets: [targetId] })
+    edges.push({
+      id: `e-${type}-out-${key}`,
+      sources: [hubId],
+      targets: [targetNode],
+      directed: true
+    })
   })
 
   return {
@@ -148,10 +189,10 @@ function buildElkGraph(propositions, relations) {
       id: 'root',
       layoutOptions: ROOT_LAYOUT,
       children,
-      edges
+      edges: edges.map(({ directed, ...edge }) => edge)
     },
     nodeMeta,
-    edges
+    edgeDefs: edges
   }
 }
 
@@ -172,7 +213,7 @@ function pointsToSvgPath(points) {
  * @returns {Promise<{ nodes: Array, edges: Array, bounds: object }>}
  */
 export async function layoutArgumentGraphWithElk(propositions, relations) {
-  const { graph, nodeMeta, edges: edgeDefs } = buildElkGraph(propositions, relations)
+  const { graph, nodeMeta, edgeDefs } = buildElkGraph(propositions, relations)
   if (!graph.children.length) {
     return {
       nodes: [],
@@ -188,7 +229,7 @@ export async function layoutArgumentGraphWithElk(propositions, relations) {
   })
 
   const nodes = (layouted.children || []).map((n) => {
-    const meta = nodeMeta.get(n.id) || { kind: 'prop', label: n.id, width: 48, height: PROP_H }
+    const meta = nodeMeta.get(n.id) || { kind: 'prop', label: n.id, width: 52, height: PROP_H }
     return {
       id: n.id,
       type: meta.kind,
@@ -220,7 +261,7 @@ export async function layoutArgumentGraphWithElk(propositions, relations) {
       data: {
         points,
         path: points ? pointsToSvgPath(points) : null,
-        directed: /-(out|out-)/.test(e.id)
+        directed: e.directed
       }
     }
   })
@@ -228,7 +269,7 @@ export async function layoutArgumentGraphWithElk(propositions, relations) {
   let maxX = 0
   let maxY = 0
   nodes.forEach((n) => {
-    const w = parseFloat(n.style.width) || 48
+    const w = parseFloat(n.style.width) || 52
     const h = parseFloat(n.style.height) || PROP_H
     maxX = Math.max(maxX, n.position.x + w)
     maxY = Math.max(maxY, n.position.y + h)
