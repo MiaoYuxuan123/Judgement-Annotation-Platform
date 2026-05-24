@@ -23,7 +23,7 @@ const hubClass = computed(() => {
 
 const showPlus = computed(() => {
   const k = props.data.hubKind || ''
-  return k !== 'hub-s'
+  return ['hub-j', 'hub-m'].includes(k)
 })
 </script>
 

@@ -74,11 +74,11 @@
           </div>
           </div>
           <div class="relation-buttons">
-            <el-button
+              <el-button
               v-for="rel in orderedRelationTypes"
               :key="rel.shortName"
               :class="{ active: relationForm.type === rel.shortName }"
-              @click="relationForm.type = rel.shortName"
+              @click="setRelationType(rel.shortName)"
             >
               {{ rel.name }} ({{ rel.shortName }})
             </el-button>
@@ -119,7 +119,7 @@
           <strong>完成命题与关系标注后生成图示</strong>
           <span>右下角“生成图示”按钮会刷新这里的节点和关系。</span>
         </div>
-        <GraphView v-else :propositions="graphPropositions" :relations="graphRelations" />
+        <GraphCanvas v-else :propositions="graphPropositions" :relations="graphRelations" />
         <div class="graph-footer">
           <el-button class="fullscreen-btn" :disabled="!graphGenerated" @click="fullscreen = true">↗ 全屏预览</el-button>
         </div>
@@ -193,7 +193,7 @@
     </div>
 
     <el-dialog v-model="fullscreen" title="论证图示全屏预览" fullscreen>
-      <GraphView v-if="graphGenerated" :propositions="graphPropositions" :relations="graphRelations" />
+      <GraphCanvas v-if="graphGenerated" :propositions="graphPropositions" :relations="graphRelations" />
       <el-empty v-else description="请先在关系生成区点击“生成图示”" />
     </el-dialog>
   </div>
@@ -204,8 +204,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import client from '../api/client'
-import GraphView from '../components/GraphView.vue'
-import { circledNo, propByIdMap } from '../utils/reviewHelpers'
+import GraphCanvas from '../components/GraphCanvas.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -225,6 +224,7 @@ const fullscreen = ref(false)
 const selectedText = ref('')
 const selectedStart = ref(0)
 const selectedEnd = ref(0)
+const editingPropositionId = ref('')
 const labelPosition = ref({ left: 720, top: 160 })
 const primaryTag = ref('GM')
 const secondaryTag = ref('GM-L')
@@ -250,6 +250,7 @@ const orderedRelationTypes = computed(() => {
 
 const supportsMultiMember = computed(() => ['J', 'I'].includes(relationForm.type))
 const relationTypeName = computed(() => orderedRelationTypes.value.find((item) => item.shortName === relationForm.type)?.name || '关系')
+const selectedTag = computed(() => (primaryTag.value === 'GM' ? secondaryTag.value : primaryTag.value))
 
 const labelPopupStyle = computed(() => ({
   left: `${labelPosition.value.left}px`,
@@ -258,7 +259,9 @@ const labelPopupStyle = computed(() => ({
 
 const markedHtml = computed(() => {
   const text = data.value?.document.content || ''
-  const ranges = [...propositions.value.map((p) => ({ ...p, kind: 'confirmed' }))]
+  const ranges = [...propositions.value
+    .filter((p) => p.propId !== editingPropositionId.value)
+    .map((p) => ({ ...p, kind: 'confirmed' }))]
   if (labelDialog.value && selectedText.value) {
     ranges.push({ startPos: selectedStart.value, endPos: selectedEnd.value, propId: '待确认', kind: 'pending' })
   }
@@ -303,16 +306,23 @@ function redo() {
   graphDirty.value = true
 }
 
-function handleSelection() {
+function handleSelection(event) {
   const selection = window.getSelection()
   const text = selection?.toString().trim()
   if (!text) return
+  if (!event?.currentTarget?.contains(selection.anchorNode) || !event.currentTarget.contains(selection.focusNode)) return
   const range = selection.getRangeAt(0)
   const rect = range.getBoundingClientRect()
+  const start = findAvailableSelectionStart(text)
+  if (start < 0) {
+    ElMessage.warning('该文本已被标注或无法定位，请重新选择一段未标注的原文')
+    selection.removeAllRanges()
+    return
+  }
   selectedText.value = text
-  selectedStart.value = data.value.document.content.indexOf(text)
+  selectedStart.value = start
   selectedEnd.value = selectedStart.value + text.length
-  if (selectedStart.value >= 0 && overlapsExisting(selectedStart.value, selectedEnd.value)) {
+  if (overlapsExisting(selectedStart.value, selectedEnd.value, editingPropositionId.value)) {
     ElMessage.warning('该文本已被标注或与已有命题重叠，请选择其他文本')
     window.getSelection()?.removeAllRanges()
     return
@@ -331,37 +341,61 @@ function choosePrimary(tag) {
 
 function cancelLabel() {
   selectedText.value = ''
+  selectedStart.value = 0
+  selectedEnd.value = 0
+  editingPropositionId.value = ''
   labelDialog.value = false
   window.getSelection()?.removeAllRanges()
 }
 
 function confirmLabel() {
   if (!selectedText.value) return
+  if (selectedStart.value < 0 || selectedEnd.value <= selectedStart.value) {
+    ElMessage.warning('当前选区无效，请重新选择原文')
+    cancelLabel()
+    return
+  }
+  if (overlapsExisting(selectedStart.value, selectedEnd.value, editingPropositionId.value)) {
+    ElMessage.warning('该文本与已有命题重叠，请重新选择')
+    return
+  }
   snapshot()
-  const start = selectedStart.value < 0 ? propositions.value.length * 10 : selectedStart.value
   const prop = {
-    propId: `P${Date.now()}`,
+    propId: editingPropositionId.value || nextPropositionId(),
     sequenceNo: propositions.value.length + 1,
-    startPos: start < 0 ? propositions.value.length * 10 : start,
-    endPos: start < 0 ? propositions.value.length * 10 + selection.length : start + selection.length,
-    text: selection,
+    startPos: selectedStart.value,
+    endPos: selectedEnd.value,
+    text: selectedText.value,
     tag: selectedTag.value || 'SF'
   }
-  propositions.value.push(prop)
+  const existingIndex = propositions.value.findIndex((item) => item.propId === editingPropositionId.value)
+  if (existingIndex >= 0) propositions.value[existingIndex] = prop
+  else propositions.value.push(prop)
   reorder()
   graphDirty.value = true
   cancelLabel()
 }
 
 function reorder() {
+  const oldToNew = new Map()
   propositions.value.sort((a, b) => a.startPos - b.startPos)
-  propositions.value = propositions.value.map((p, i) => ({ ...p, propId: `P${i + 1}`, sequenceNo: i + 1 }))
+  propositions.value = propositions.value.map((p, i) => {
+    const nextId = `P${i + 1}`
+    oldToNew.set(p.propId, nextId)
+    return { ...p, propId: nextId, sequenceNo: i + 1 }
+  })
+  remapRelationMembers(oldToNew)
   renumberRelations()
 }
 
-function clearRelation() {
-  relationMembers.value = ['', '']
+function nextPropositionId() {
+  return `P${propositions.value.length + 1}`
+}
+
+function clearRelation(keepType = true) {
+  normalizeRelationMembers()
   editingRelationId.value = ''
+  if (!keepType) relationForm.type = 'S'
 }
 
 function addRelation() {
@@ -392,22 +426,22 @@ function addRelation() {
 }
 
 function editProposition(prop) {
-  snapshot()
   primaryTag.value = prop.tag.startsWith('GM') ? 'GM' : prop.tag
   secondaryTag.value = prop.tag.startsWith('GM') ? prop.tag : 'GM-L'
   selectedText.value = prop.text
   selectedStart.value = prop.startPos
   selectedEnd.value = prop.endPos
+  editingPropositionId.value = prop.propId
   labelPosition.value = { left: Math.round(window.innerWidth / 2 - 180), top: 140 }
   labelDialog.value = true
-  propositions.value = propositions.value.filter((item) => item.propId !== prop.propId)
-  graphDirty.value = true
 }
 
 function deleteProposition(prop) {
   snapshot()
   propositions.value = propositions.value.filter((item) => item.propId !== prop.propId)
-  relations.value = relations.value.filter((rel) => rel.source !== prop.propId && rel.target !== prop.propId)
+  relations.value = relations.value.filter((rel) => !relationMemberIds(rel).includes(prop.propId))
+  removeInvalidRelations()
+  if (editingPropositionId.value === prop.propId) cancelLabel()
   reorder()
   graphDirty.value = true
 }
@@ -415,7 +449,7 @@ function deleteProposition(prop) {
 function editRelation(rel) {
   relationForm.type = rel.type
   relationMembers.value = [...(rel.members || [rel.source, rel.target]).filter(Boolean)]
-  while (relationMembers.value.length < 2) relationMembers.value.push('')
+  normalizeRelationMembers()
   editingRelationId.value = rel.relId
   activeRelationId.value = rel.relId
 }
@@ -423,13 +457,20 @@ function editRelation(rel) {
 function deleteRelation(rel) {
   snapshot()
   relations.value = relations.value.filter((item) => item.relId !== rel.relId)
+  removeInvalidRelations()
   renumberRelations()
   activeRelationId.value = ''
   graphDirty.value = true
 }
 
 function renumberRelations() {
-  relations.value = relations.value.map((rel, index) => ({ ...rel, relId: `R${index + 1}` }))
+  const oldToNew = new Map()
+  relations.value = relations.value.map((rel, index) => {
+    const nextId = `R${index + 1}`
+    oldToNew.set(rel.relId, nextId)
+    return { ...rel, relId: nextId }
+  })
+  remapRelationMembers(oldToNew)
 }
 
 function addMember() {
@@ -440,6 +481,20 @@ function addMember() {
 function removeMember(index) {
   if (relationMembers.value.length <= 2) return
   relationMembers.value.splice(index, 1)
+}
+
+function setRelationType(type) {
+  relationForm.type = type
+  normalizeRelationMembers()
+}
+
+function normalizeRelationMembers() {
+  const kept = relationMembers.value.filter(Boolean)
+  if (supportsMultiMember.value) {
+    relationMembers.value = kept.length >= 2 ? kept : [...kept, ...Array(2 - kept.length).fill('')]
+    return
+  }
+  relationMembers.value = [kept[0] || '', kept[1] || '']
 }
 
 function generateGraph() {
@@ -503,8 +558,48 @@ function displayRelationMember(id) {
   return rel ? formula(rel) : id
 }
 
-function overlapsExisting(start, end) {
-  return propositions.value.some((p) => Math.max(start, p.startPos) < Math.min(end, p.endPos))
+function relationMemberIds(relation) {
+  return relation.members || [relation.source, relation.target].filter(Boolean)
+}
+
+function remapRelationMembers(idMap) {
+  if (!idMap.size) return
+  relations.value = relations.value.map((rel) => {
+    const members = relationMemberIds(rel).map((id) => idMap.get(id) || id)
+    return { ...rel, source: members[0], target: members[1], members }
+  })
+  relationMembers.value = relationMembers.value.map((id) => idMap.get(id) || id)
+}
+
+function removeInvalidRelations() {
+  let changed = true
+  while (changed) {
+    changed = false
+    const validIds = new Set([
+      ...propositions.value.map((item) => item.propId),
+      ...relations.value.map((item) => item.relId)
+    ])
+    const next = relations.value.filter((rel) => relationMemberIds(rel).every((id) => validIds.has(id)))
+    changed = next.length !== relations.value.length
+    relations.value = next
+  }
+}
+
+function overlapsExisting(start, end, ignoredPropId = '') {
+  return propositions.value.some((p) => p.propId !== ignoredPropId && Math.max(start, p.startPos) < Math.min(end, p.endPos))
+}
+
+function findAvailableSelectionStart(text) {
+  const content = data.value?.document.content || ''
+  let fromIndex = 0
+  while (fromIndex < content.length) {
+    const start = content.indexOf(text, fromIndex)
+    if (start < 0) return -1
+    const end = start + text.length
+    if (!overlapsExisting(start, end, editingPropositionId.value)) return start
+    fromIndex = start + 1
+  }
+  return -1
 }
 
 onMounted(load)

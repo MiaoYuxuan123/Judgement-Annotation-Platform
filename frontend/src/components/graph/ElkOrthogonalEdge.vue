@@ -14,8 +14,6 @@
 
 <script setup>
 import { computed } from 'vue'
-import { getSmoothStepPath } from '@vue-flow/core'
-
 const props = defineProps({
   id: String,
   source: String,
@@ -30,31 +28,27 @@ const props = defineProps({
 })
 
 const pathD = computed(() => {
-  if (props.data?.path) return props.data.path
-  const [d] = getSmoothStepPath({
-    sourceX: props.sourceX,
-    sourceY: props.sourceY,
-    targetX: props.targetX,
-    targetY: props.targetY,
-    sourcePosition: props.sourcePosition,
-    targetPosition: props.targetPosition,
-    borderRadius: 0
-  })
-  return d
+  const endpoints = edgeEndpoints.value
+  return `M ${endpoints.a.x} ${endpoints.a.y} L ${endpoints.b.x} ${endpoints.b.y}`
+})
+
+const edgeEndpoints = computed(() => {
+  const pts = props.data.points
+  if (pts?.length >= 2) {
+    return {
+      a: pts[0],
+      b: pts[pts.length - 1]
+    }
+  }
+  return {
+    a: { x: props.sourceX, y: props.sourceY },
+    b: { x: props.targetX, y: props.targetY }
+  }
 })
 
 const arrowPoints = computed(() => {
   if (!props.data?.directed) return null
-  const pts = props.data.points
-  let a
-  let b
-  if (pts?.length >= 2) {
-    a = pts[pts.length - 2]
-    b = pts[pts.length - 1]
-  } else {
-    b = { x: props.targetX, y: props.targetY }
-    a = { x: props.sourceX, y: props.sourceY }
-  }
+  const { a, b } = edgeEndpoints.value
   const ang = Math.atan2(b.y - a.y, b.x - a.x)
   const size = 7
   const x1 = b.x - size * Math.cos(ang - 0.4)
