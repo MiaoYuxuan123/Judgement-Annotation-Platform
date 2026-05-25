@@ -28,7 +28,6 @@
           <el-button text class="collapse-btn" @click="sidebarCollapsed = !sidebarCollapsed">{{ sidebarCollapsed ? '展开' : '收起' }}</el-button>
           <div>
             <div class="page-title">{{ title }}</div>
-            <div class="page-subtitle">四阶段流程：创建任务 -> 标注 -> 裁定 -> 导出</div>
           </div>
         </div>
         <div class="userbox">
