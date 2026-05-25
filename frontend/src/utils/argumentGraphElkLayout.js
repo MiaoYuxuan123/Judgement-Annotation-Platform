@@ -236,45 +236,49 @@ function tryBuildGuidelineLayout(propositions = [], relations = []) {
   const rels = filterGraphRelations(relations || [])
   const visiblePropIds = collectVisiblePropIds(rels)
   const visibleProps = (propositions || []).filter((p) => visiblePropIds.has(p.propId))
+  if (!rels.length) return null
   const propMap = new Map(visibleProps.map((p) => [p.propId, p]))
-  const relMap = new Map(rels.map((rel, index) => [relationKey(rel, index), rel]))
-  const jRelations = rels
-    .map((rel, index) => ({ rel, key: relationKey(rel, index) }))
-    .filter(({ rel }) => relationType(rel) === 'J')
-    .map((item) => ({
-      ...item,
-      members: relationMembers(item.rel).filter((id) => String(id).startsWith('P') && propMap.has(id))
-    }))
-    .filter((item) => item.members.length >= 2 && item.members.length <= 4)
-
-  const outerBySource = new Map()
-  rels.forEach((rel, index) => {
-    const type = relationType(rel)
-    const members = relationMembers(rel)
-    if (!['S', 'A', 'M'].includes(type) || members.length < 2) return
-    if (!relMap.has(members[0]) || !String(members[1]).startsWith('P') || !propMap.has(members[1])) return
-    outerBySource.set(members[0], { rel, key: relationKey(rel, index), target: members[1] })
+  const identityUf = createIdentityGroups(visibleProps, rels)
+  const groupedProps = new Map()
+  visibleProps.forEach((p) => {
+    const root = identityUf.find(p.propId)
+    if (!groupedProps.has(root)) groupedProps.set(root, [])
+    groupedProps.get(root).push(p)
   })
-
-  if (!jRelations.length && !outerBySource.size) return null
 
   const nodes = []
   const edges = []
   const placed = new Map()
   const nodeRects = new Map()
-  let offsetX = 48
-  let offsetY = 48
+  const relationEndpoints = new Map()
+  let componentIndex = 0
+
+  const nextBase = () => {
+    const base = {
+      x: 48,
+      y: 48 + componentIndex * 190
+    }
+    componentIndex += 1
+    return base
+  }
+
+  const propNodeInfo = (propId) => {
+    const root = identityUf.find(propId)
+    const items = [...(groupedProps.get(root) || [propMap.get(propId)])].filter(Boolean).sort((a, b) => (a.sequenceNo || 0) - (b.sequenceNo || 0))
+    const label = items.map(propLabel).join(' / ')
+    return { id: `prop-${root}`, label }
+  }
 
   const addProp = (propId, x, y) => {
-    const id = `prop-${propId}`
+    if (!propMap.has(propId)) return null
+    const info = propNodeInfo(propId)
+    const id = info.id
     if (!placed.has(id)) {
-      const p = propMap.get(propId)
-      const label = propLabel(p)
-      const size = propBoxSize(label)
+      const size = propBoxSize(info.label)
       const rect = { id, x, y, width: size.width, height: size.height, cx: x + size.width / 2, cy: y + size.height / 2 }
       placed.set(id, true)
       nodeRects.set(id, rect)
-      nodes.push(flowNode(id, 'prop', label, x, y, size.width, size.height))
+      nodes.push(flowNode(id, 'prop', info.label, x, y, size.width, size.height))
     }
     return nodeRects.get(id)
   }
@@ -288,44 +292,88 @@ function tryBuildGuidelineLayout(propositions = [], relations = []) {
     return nodeRects.get(id)
   }
 
-  const componentEndpoints = new Map()
-
-  jRelations.forEach((jr, sgIndex) => {
-    const baseX = offsetX + (sgIndex % 2) * 420
-    const baseY = offsetY + Math.floor(sgIndex / 2) * 240
-    const jHub = `hub-j-${jr.key}`
-    const propGap = 86
-    const firstY = baseY
-    const propX = baseX
-    const jCenter = {
-      x: baseX + 30,
-      y: firstY + ((jr.members.length - 1) * propGap) / 2 + PROP_H / 2
+  const ensureMember = (memberId, preferredX, preferredY) => {
+    if (String(memberId).startsWith('P')) {
+      const rect = addProp(memberId, preferredX, preferredY)
+      return rect ? { ...rect, nodeId: rect.id, x: rect.cx, y: rect.cy, rect } : null
     }
+    const endpoint = relationEndpoints.get(memberId)
+    return endpoint ? { ...endpoint } : null
+  }
 
-    jr.members.forEach((propId, i) => {
-      const y = firstY + i * propGap
-      const propRect = addProp(propId, propX, y)
-      const from = pointOnRectToward(propRect, jCenter)
-      edges.push(flowEdge(`e-j-${jr.key}-${i}`, `prop-${propId}`, jHub, false, [from, jCenter]))
+  const centerPoint = (rect) => ({ x: rect.cx, y: rect.cy })
+
+  const jItems = rels
+    .map((rel, index) => ({ rel, key: relationKey(rel, index) }))
+    .filter(({ rel }) => relationType(rel) === 'J')
+
+  jItems.forEach(({ rel, key }) => {
+    const members = relationMembers(rel).filter((id) => String(id).startsWith('P') && propMap.has(id))
+    if (members.length < 2) return
+    const base = nextBase()
+    const hubId = `hub-j-${key}`
+    const memberGap = 92
+    const rowY = base.y
+    const propRects = members
+      .map((propId, memberIndex) => addProp(propId, base.x + memberIndex * memberGap, rowY))
+      .filter(Boolean)
+    if (propRects.length < 2) return
+
+    const hubCenter =
+      propRects.length === 2
+        ? {
+            x: (propRects[0].cx + propRects[1].cx) / 2,
+            y: propRects[0].cy
+          }
+        : {
+            x: (propRects[0].cx + propRects[propRects.length - 1].cx) / 2,
+            y: rowY + PROP_H + 58
+          }
+
+    addHub(hubId, 'hub-j', '+', hubCenter.x - HUB_SIZE.J / 2, hubCenter.y - HUB_SIZE.J / 2, HUB_SIZE.J)
+    propRects.forEach((propRect, memberIndex) => {
+      const from =
+        propRects.length === 2
+          ? pointOnRectToward(propRect, hubCenter)
+          : { x: propRect.cx, y: propRect.y + propRect.height, side: 'bottom' }
+      edges.push(flowEdge(`e-j-${key}-${memberIndex}`, propRect.id, hubId, false, orthogonalPointsFromRect(from, hubCenter)))
     })
-
-    addHub(jHub, 'hub-j', '+', jCenter.x - HUB_SIZE.J / 2, jCenter.y - HUB_SIZE.J / 2, HUB_SIZE.J)
-    componentEndpoints.set(jr.key, { x: jCenter.x, y: jCenter.y, nodeId: jHub, index: sgIndex })
+    relationEndpoints.set(key, { x: hubCenter.x, y: hubCenter.y, nodeId: hubId, rect: nodeRects.get(hubId) })
   })
 
-  outerBySource.forEach((outer, sourceKey) => {
-    const start = componentEndpoints.get(sourceKey)
-    if (!start) return
-    const outerType = relationType(outer.rel)
-    const outerKind = outerType === 'S' ? 'hub-s' : outerType === 'A' ? 'hub-a' : 'hub-m'
-    const outerHub = `hub-${outerType.toLowerCase()}-${outer.key}`
-    const outerCenter = { x: start.x + 120, y: start.y }
-    const targetX = outerCenter.x + 94
-    const targetY = start.y - PROP_H / 2
-    addHub(outerHub, outerKind, outerType === 'M' ? '+' : '', outerCenter.x - HUB_SIZE[outerType] / 2, outerCenter.y - HUB_SIZE[outerType] / 2, HUB_SIZE[outerType])
-    const targetRect = addProp(outer.target, targetX, targetY)
-    edges.push(flowEdge(`e-${outerType}-in-${outer.key}`, start.nodeId, outerHub, false, [start, outerCenter]))
-    edges.push(flowEdge(`e-${outerType}-out-${outer.key}`, outerHub, `prop-${outer.target}`, true, [outerCenter, pointOnRectToward(targetRect, outerCenter)]))
+  rels.forEach((rel, index) => {
+    const type = relationType(rel)
+    if (!['S', 'A', 'M'].includes(type)) return
+    const members = relationMembers(rel)
+    if (members.length < 2) return
+    const key = relationKey(rel, index)
+    const base = nextBase()
+    const source = ensureMember(members[0], base.x, base.y)
+    if (!source) return
+    const hubKind = type === 'S' ? 'hub-s' : type === 'A' ? 'hub-a' : 'hub-m'
+    const hubId = `hub-${type.toLowerCase()}-${key}`
+    const sourceOutBase = source.rect ? pointOnRectToward(source.rect, { x: source.x + 120, y: source.y }) : { x: source.x, y: source.y }
+    const hubCenter = { x: sourceOutBase.x + 112, y: sourceOutBase.y }
+    addHub(hubId, hubKind, type === 'M' ? '+' : '', hubCenter.x - HUB_SIZE[type] / 2, hubCenter.y - HUB_SIZE[type] / 2, HUB_SIZE[type])
+
+    const targetPreferredX = hubCenter.x + 96
+    const targetPreferredY = hubCenter.y - PROP_H / 2
+    const target = ensureMember(members[1], targetPreferredX, targetPreferredY)
+    if (!target) return
+
+    const sourceOut = source.rect ? exitPointFromRect(source.rect, hubCenter) : { x: source.x, y: source.y }
+    const targetIn = target.rect ? entryPointToRect(target.rect, hubCenter) : { x: target.x, y: target.y }
+    edges.push(flowEdge(`e-${type}-in-${key}`, source.nodeId, hubId, false, orthogonalPointsFromRect(sourceOut, hubCenter)))
+    edges.push(flowEdge(`e-${type}-out-${key}`, hubId, target.nodeId, true, orthogonalPointsToRect(hubCenter, targetIn)))
+    relationEndpoints.set(key, { x: hubCenter.x, y: hubCenter.y, nodeId: hubId, rect: nodeRects.get(hubId) })
+  })
+
+  rels.forEach((rel, index) => {
+    if (relationType(rel) !== 'I') return
+    const members = relationMembers(rel).filter((id) => String(id).startsWith('P') && propMap.has(id))
+    if (!members.length) return
+    const base = nextBase()
+    members.forEach((propId) => addProp(propId, base.x, base.y))
   })
 
   return { nodes, edges, bounds: boundsFromNodes(nodes) }
@@ -336,15 +384,96 @@ function pointOnRectToward(rect, toward) {
   const dx = toward.x - rect.cx
   const dy = toward.y - rect.cy
   if (Math.abs(dx) >= Math.abs(dy)) {
+    const right = dx >= 0
     return {
-      x: dx >= 0 ? rect.x + rect.width : rect.x,
-      y: rect.cy
+      x: right ? rect.x + rect.width : rect.x,
+      y: rect.cy,
+      side: right ? 'right' : 'left'
+    }
+  }
+  const bottom = dy >= 0
+  return {
+    x: rect.cx,
+    y: bottom ? rect.y + rect.height : rect.y,
+    side: bottom ? 'bottom' : 'top'
+  }
+}
+
+function exitPointFromRect(rect, toward) {
+  return pointOnRectToward(rect, toward)
+}
+
+function entryPointToRect(rect, from) {
+  if (!rect) return from
+  const dx = from.x - rect.cx
+  const dy = from.y - rect.cy
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return {
+      x: dx < 0 ? rect.x : rect.x + rect.width,
+      y: rect.cy,
+      side: dx < 0 ? 'left' : 'right'
     }
   }
   return {
     x: rect.cx,
-    y: dy >= 0 ? rect.y + rect.height : rect.y
+    y: dy < 0 ? rect.y : rect.y + rect.height,
+    side: dy < 0 ? 'top' : 'bottom'
   }
+}
+
+function orthogonalPoints(from, to) {
+  if (!from || !to) return []
+  if (Math.abs(from.x - to.x) < 0.5 || Math.abs(from.y - to.y) < 0.5) {
+    return [from, to]
+  }
+  const midX = (from.x + to.x) / 2
+  return [
+    from,
+    { x: midX, y: from.y },
+    { x: midX, y: to.y },
+    to
+  ]
+}
+
+function orthogonalPointsFromRect(from, to) {
+  if (!from?.side || !to) return orthogonalPoints(from, to)
+  const clearance = 18
+  let first
+  if (from.side === 'left') first = { x: from.x - clearance, y: from.y }
+  else if (from.side === 'right') first = { x: from.x + clearance, y: from.y }
+  else if (from.side === 'top') first = { x: from.x, y: from.y - clearance }
+  else first = { x: from.x, y: from.y + clearance }
+
+  if (Math.abs(first.x - to.x) < 0.5 || Math.abs(first.y - to.y) < 0.5) {
+    return [from, first, to]
+  }
+  const midX = (first.x + to.x) / 2
+  return [
+    from,
+    first,
+    { x: midX, y: first.y },
+    { x: midX, y: to.y },
+    to
+  ]
+}
+
+function orthogonalPointsToRect(from, entry) {
+  if (!from || !entry) return []
+  if (Math.abs(from.x - entry.x) < 0.5 || Math.abs(from.y - entry.y) < 0.5) {
+    return [from, entry]
+  }
+  if (entry.side === 'left' || entry.side === 'right') {
+    return [
+      from,
+      { x: from.x, y: entry.y },
+      entry
+    ]
+  }
+  return [
+    from,
+    { x: entry.x, y: from.y },
+    entry
+  ]
 }
 
 function flowNode(id, type, label, x, y, width, height) {

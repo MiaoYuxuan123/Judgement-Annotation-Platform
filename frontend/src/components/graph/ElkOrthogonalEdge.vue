@@ -28,6 +28,10 @@ const props = defineProps({
 })
 
 const pathD = computed(() => {
+  const pts = props.data.points
+  if (pts?.length >= 2) {
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+  }
   const endpoints = edgeEndpoints.value
   return `M ${endpoints.a.x} ${endpoints.a.y} L ${endpoints.b.x} ${endpoints.b.y}`
 })
@@ -48,7 +52,9 @@ const edgeEndpoints = computed(() => {
 
 const arrowPoints = computed(() => {
   if (!props.data?.directed) return null
-  const { a, b } = edgeEndpoints.value
+  const pts = props.data.points
+  const a = pts?.length >= 2 ? pts[pts.length - 2] : edgeEndpoints.value.a
+  const b = pts?.length >= 2 ? pts[pts.length - 1] : edgeEndpoints.value.b
   const ang = Math.atan2(b.y - a.y, b.x - a.x)
   const size = 7
   const x1 = b.x - size * Math.cos(ang - 0.4)
