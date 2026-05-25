@@ -14,8 +14,8 @@
         <el-form-item label="账号"><el-input v-model="form.username" :disabled="Boolean(form.id)" /></el-form-item>
         <el-form-item label="姓名"><el-input v-model="form.realName" /></el-form-item>
         <el-form-item label="系统角色">
-          <el-select v-model="form.role" style="width: 100%">
-            <el-option label="超级管理员" value="admin" /><el-option label="任务创建者" value="creator" /><el-option label="普通用户" value="user" />
+          <el-select v-model="form.role" style="width: 100%" :disabled="!roleEditable">
+            <el-option v-for="opt in roleOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="允许创建任务"><el-switch v-model="form.canCreateTask" /></el-form-item>
@@ -26,10 +26,22 @@
   </section>
 </template>
 <script setup>
-import { onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import client from '../api/client'
+import { useAuthStore } from '../stores/auth'
 const users = ref([]), visible = ref(false), form = reactive({})
+const auth = useAuthStore()
+const roleEditable = computed(() => !form.id || form.id !== auth.user?.id)
+const roleOptions = computed(() => {
+  if (form.id && form.id === auth.user?.id) {
+    return [{ label: '超级管理员', value: 'admin' }]
+  }
+  return [
+    { label: '任务创建者', value: 'creator' },
+    { label: '普通用户', value: 'user' }
+  ]
+})
 const roleText = (row) => row.role === 'admin' ? '超级管理员' : (row.canCreateTask ? '任务创建者' : '普通用户')
 function isOnline(row) { if (!row.lastSeen) return false; return Date.now() - new Date(row.lastSeen).getTime() < 120000 }
 async function load() { users.value = await client.get('/users') }
