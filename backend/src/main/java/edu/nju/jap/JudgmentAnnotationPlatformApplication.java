@@ -618,13 +618,31 @@ class TaskController {
     }
 
     @GetMapping("/{taskId}/items/{dataId}")
-    ApiResponse<Map<String, Object>> item(@PathVariable long taskId, @PathVariable long dataId, HttpServletRequest request) {
+    ApiResponse<Map<String, Object>> item(@PathVariable long taskId, @PathVariable long dataId,
+                                          @RequestParam(required = false) Long sourceUserId,
+                                          @RequestParam(required = false) Boolean sourceArbitration,
+                                          HttpServletRequest request) {
         TaskItem task = task(store, taskId);
         DocumentItem doc = DocumentController.document(store, dataId);
         User user = store.current(request);
-        AnnotationResult annotation = store.annotations.get(DemoDataStore.annotationKey(taskId, dataId, user.id));
-        if (annotation == null) {
-            annotation = new AnnotationResult(taskId, dataId, user.id, List.of(), List.of(), true, null);
+        AnnotationResult annotation;
+        if (sourceUserId != null) {
+            annotation = store.annotations.get(DemoDataStore.annotationKey(taskId, dataId, sourceUserId));
+            if (annotation == null) {
+                annotation = new AnnotationResult(taskId, dataId, sourceUserId, List.of(), List.of(), false, null);
+            }
+        } else if (Boolean.TRUE.equals(sourceArbitration)) {
+            ArbitrationResult arb = store.arbitrations.get(DemoDataStore.arbitrationKey(taskId, dataId));
+            if (arb == null) {
+                annotation = new AnnotationResult(taskId, dataId, user.id, List.of(), List.of(), true, null);
+            } else {
+                annotation = new AnnotationResult(taskId, dataId, user.id, arb.propositions, arb.relations, false, arb.arbitratedAt);
+            }
+        } else {
+            annotation = store.annotations.get(DemoDataStore.annotationKey(taskId, dataId, user.id));
+            if (annotation == null) {
+                annotation = new AnnotationResult(taskId, dataId, user.id, List.of(), List.of(), true, null);
+            }
         }
         return ApiResponse.ok(Map.of("task", TaskSummary.from(task, store), "document", doc, "config", task.configSnapshot, "annotation", annotation));
     }
@@ -734,11 +752,38 @@ class ReviewController {
     @PostMapping("/manual")
     ApiResponse<Void> manual(@RequestBody ArbitrationSubmit body, HttpServletRequest request) {
         User user = store.current(request);
-        store.arbitrations.put(DemoDataStore.arbitrationKey(body.taskId(), body.dataId()), new ArbitrationResult(body.taskId(), body.dataId(), user.id,
+        ArbitrationResult result = new ArbitrationResult(body.taskId(), body.dataId(), user.id,
                 body.propositions() == null ? List.of() : body.propositions(),
-                body.relations() == null ? List.of() : body.relations(), "MANUAL", LocalDateTime.now()));
-        TaskController.task(store, body.taskId()).status = "可导出";
-        return ApiResponse.ok("裁定完成", null);
+                body.relations() == null ? List.of() : body.relations(), "MANUAL", LocalDateTime.now());
+        result.finalResult = false;
+        store.arbitrations.put(DemoDataStore.arbitrationKey(body.taskId(), body.dataId()), result);
+        return ApiResponse.ok("裁定草稿已保存，请在裁定界面确认", null);
+    }
+
+    @PostMapping("/confirm")
+    ApiResponse<Void> confirm(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        long taskId = TaskController.longValue(body.get("taskId"), 0);
+        long docId = TaskController.longValue(body.get("dataId"), TaskController.longValue(body.get("documentId"), 0));
+        ArbitrationResult arb = store.arbitrations.get(DemoDataStore.arbitrationKey(taskId, docId));
+        if (arb == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "暂无待确认的裁定结果");
+        if (arb.finalResult) throw new ResponseStatusException(HttpStatus.CONFLICT, "该文书裁定结果已确认");
+        store.current(request);
+        arb.finalResult = true;
+        arb.arbitratedAt = LocalDateTime.now();
+        TaskController.task(store, taskId).status = "可导出";
+        return ApiResponse.ok("裁定结果已确认", null);
+    }
+
+    @PostMapping("/cancel-pending")
+    ApiResponse<Void> cancelPending(@RequestBody Map<String, Object> body) {
+        long taskId = TaskController.longValue(body.get("taskId"), 0);
+        long docId = TaskController.longValue(body.get("dataId"), TaskController.longValue(body.get("documentId"), 0));
+        String key = DemoDataStore.arbitrationKey(taskId, docId);
+        ArbitrationResult arb = store.arbitrations.get(key);
+        if (arb == null) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "暂无待确认的裁定结果");
+        if (arb.finalResult) throw new ResponseStatusException(HttpStatus.CONFLICT, "已确认的裁定结果不可取消");
+        store.arbitrations.remove(key);
+        return ApiResponse.ok("已取消待确认的裁定结果", null);
     }
 }
 

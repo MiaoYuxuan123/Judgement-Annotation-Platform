@@ -8,7 +8,7 @@
       </div>
       <div>
         <el-button class="topbar-btn" @click="$router.push(`/tasks/${route.params.taskId}/data`)">返回</el-button>
-        <el-button class="topbar-btn" @click="submit(true)">暂存</el-button>
+        <el-button v-if="!isArbitration" class="topbar-btn" @click="submit(true)">暂存</el-button>
         <el-button type="primary" class="submit-btn" @click="submit(false)">提交</el-button>
       </div>
     </section>
@@ -516,7 +516,7 @@ async function submit(isDraft) {
       propositions: propositions.value,
       relations: relations.value
     })
-    ElMessage.success('裁定结果已保存')
+    ElMessage.success('已保存裁定草稿，请在裁定界面确认')
     const returnTo = route.query.returnTo || `/review/${taskId}?docId=${dataId}&select=final`
     router.push(returnTo)
     return
@@ -534,7 +534,17 @@ async function submit(isDraft) {
 }
 
 async function load() {
-  data.value = await client.get(`/tasks/${route.params.taskId}/items/${route.params.dataId}`)
+  const taskId = route.params.taskId
+  const dataId = route.params.dataId
+  let url = `/tasks/${taskId}/items/${dataId}`
+  const params = new URLSearchParams()
+  if (isArbitration.value && route.query.fromUserId) {
+    params.set('sourceUserId', route.query.fromUserId)
+  } else if (isArbitration.value && route.query.fromFinal === '1') {
+    params.set('sourceArbitration', '1')
+  }
+  if (params.toString()) url += `?${params.toString()}`
+  data.value = await client.get(url)
   propositions.value = [...(data.value.annotation.propositions || [])]
   relations.value = [...(data.value.annotation.relations || [])]
   graphPropositions.value = []

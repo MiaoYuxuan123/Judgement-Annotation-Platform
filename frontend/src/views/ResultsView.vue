@@ -159,7 +159,7 @@ const sidebarItems = computed(() => {
     }
   })
   const final = currentDoc.value?.finalResult
-  if (final && typeof final === 'object' && final.propositions) {
+  if (final && typeof final === 'object' && final.propositions && final.finalResult !== false) {
     const props = final.propositions || []
     const rels = final.relations || []
     items.push({

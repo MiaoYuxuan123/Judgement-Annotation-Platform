@@ -136,7 +136,7 @@ export async function exportTaskZip({ review, taskDetail, currentDocId, onProgre
   }
 
   const final = docEntry.finalResult
-  if (final && typeof final === 'object' && final.propositions) {
+  if (final && typeof final === 'object' && final.propositions && final.finalResult !== false) {
     const folder = root.folder('最终裁定结果')
     await addVersionFolder(
       folder,

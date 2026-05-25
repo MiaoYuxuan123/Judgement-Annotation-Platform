@@ -73,7 +73,11 @@
           </el-table>
         </div>
 
-        <footer class="review-actions">
+        <footer v-if="showPendingActions" class="review-actions">
+          <el-button size="large" @click="cancelPending">取消</el-button>
+          <el-button type="primary" size="large" @click="confirmFinal">确认</el-button>
+        </footer>
+        <footer v-else class="review-actions">
           <el-button size="large" :disabled="!canAdopt" @click="adoptAll">全部采纳</el-button>
           <el-button type="primary" size="large" :disabled="!canEdit" @click="partialModify">部分修改</el-button>
         </footer>
@@ -137,7 +141,14 @@ const sidebarItems = computed(() => {
   }))
   const final = currentDoc.value?.finalResult
   if (final && typeof final === 'object' && final.propositions) {
-    items.push({ key: 'final', label: '裁定结果', icon: '✓', type: 'final' })
+    const pending = final.finalResult === false
+    items.push({
+      key: 'final',
+      label: pending ? '裁定结果（待确认）' : '裁定结果',
+      icon: pending ? '⏳' : '✓',
+      type: 'final',
+      pending
+    })
   }
   return items
 })
@@ -174,6 +185,13 @@ const relationRows = computed(() =>
       formula: formatRelationFormula(rel, activeData.value.propositions, index)
     }))
 )
+
+const pendingFinal = computed(() => {
+  const f = currentDoc.value?.finalResult
+  return f && typeof f === 'object' && f.propositions && f.finalResult === false
+})
+
+const showPendingActions = computed(() => selectedKey.value === 'final' && pendingFinal.value)
 
 const canAdopt = computed(() => activeData.value.type === 'annotator' && activeData.value.userId)
 const canEdit = computed(() => selectedKey.value && activeData.value.propositions.length >= 0)
@@ -249,16 +267,49 @@ async function adoptAll() {
   }
 }
 
+function isDocArbitrated(docEntry) {
+  const f = docEntry?.finalResult
+  return f && typeof f === 'object' && f.propositions && f.finalResult !== false
+}
+
 function findNextPendingDoc() {
   const docs = review.value?.documents || []
-  const pending = docs.filter((d) => !d.finalResult || typeof d.finalResult !== 'object' || !d.finalResult.propositions)
+  const pending = docs.filter((d) => !isDocArbitrated(d))
   return pending.find((d) => d.document.id !== currentDocId.value)?.document.id
+}
+
+async function confirmFinal() {
+  if (!showPendingActions.value) return
+  await ElMessageBox.confirm('确认将该裁定结果作为最终版？', '确认裁定', { type: 'warning' })
+  await client.post('/reviews/confirm', { taskId: taskId.value, dataId: currentDocId.value })
+  ElMessage.success('裁定结果已确认')
+  await load()
+  const nextDoc = findNextPendingDoc()
+  if (nextDoc) {
+    currentDocId.value = nextDoc
+    await load()
+    ElMessage.info('已加载下一份待裁定文书')
+  } else {
+    ElMessage.success('本任务裁定已完成')
+    router.push('/tasks')
+  }
+}
+
+async function cancelPending() {
+  if (!showPendingActions.value) return
+  await ElMessageBox.confirm('取消后将丢弃本次部分修改的裁定草稿，是否继续？', '取消裁定', { type: 'warning' })
+  await client.post('/reviews/cancel-pending', { taskId: taskId.value, dataId: currentDocId.value })
+  ElMessage.info('已取消待确认的裁定结果')
+  await load()
+  if (sidebarItems.value.length) {
+    selectedKey.value = sidebarItems.value.find((i) => i.type === 'annotator')?.key || sidebarItems.value[0].key
+  }
 }
 
 function partialModify() {
   const query = {
     mode: 'arbitration',
-    returnTo: `/review/${taskId.value}?docId=${currentDocId.value}`
+    returnTo: `/review/${taskId.value}?docId=${currentDocId.value}&select=final`
   }
   if (activeData.value.type === 'annotator' && activeData.value.userId) {
     query.fromUserId = String(activeData.value.userId)
