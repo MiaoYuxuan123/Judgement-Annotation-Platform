@@ -1,4 +1,4 @@
-package edu.nju.jap;
+package edu.nju.jap.util;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -16,15 +16,15 @@ import java.util.Locale;
  * 从上传文件中提取全部纯文本，不做段落截取或内容改写。
  * 支持格式：TXT、PDF、DOCX。旧版 .doc 格式不支持，请转换为 .docx 后上传。
  */
-final class DocumentTextExtractor {
+public final class DocumentTextExtractor {
 
     private DocumentTextExtractor() {
     }
 
-    record ParsedDocument(String title, String type, String content) {
+    public record ParsedDocument(String title, String type, String content) {
     }
 
-    static ParsedDocument parse(MultipartFile file) throws IOException {
+    public static ParsedDocument parse(MultipartFile file) throws IOException {
         String filename = file.getOriginalFilename();
         if (filename == null || filename.isBlank()) {
             throw new IllegalArgumentException("文件名为空");
@@ -71,7 +71,6 @@ final class DocumentTextExtractor {
         }
     }
 
-    /** 仅统一换行符，不合并空格、不删行、不截取段落。 */
     private static String preserveLineEndings(String text) {
         if (text == null || text.isEmpty()) {
             return "";
