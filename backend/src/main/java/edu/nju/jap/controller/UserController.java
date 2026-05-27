@@ -1,6 +1,7 @@
 package edu.nju.jap.controller;
 
 import edu.nju.jap.common.ApiResponse;
+import edu.nju.jap.model.dto.response.UserVO;
 import edu.nju.jap.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
@@ -18,12 +19,12 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    ApiResponse<Map<String, Object>> me(HttpServletRequest request) {
+    ApiResponse<UserVO> me(HttpServletRequest request) {
         return ApiResponse.ok(userService.me(request));
     }
 
     @GetMapping
-    ApiResponse<List<Map<String, Object>>> list() {
+    ApiResponse<List<UserVO>> list() {
         return ApiResponse.ok(userService.list());
     }
 

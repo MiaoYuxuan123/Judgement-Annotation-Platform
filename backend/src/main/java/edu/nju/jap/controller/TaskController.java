@@ -1,8 +1,8 @@
 package edu.nju.jap.controller;
 
 import edu.nju.jap.common.ApiResponse;
-import edu.nju.jap.model.ArbitrationResult;
-import edu.nju.jap.model.TaskDetail;
+import edu.nju.jap.model.dto.response.TaskDetail;
+import edu.nju.jap.model.entity.ArbitrationResult;
 import edu.nju.jap.service.TaskService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;

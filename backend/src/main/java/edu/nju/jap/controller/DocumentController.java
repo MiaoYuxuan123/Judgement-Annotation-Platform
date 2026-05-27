@@ -1,7 +1,7 @@
 package edu.nju.jap.controller;
 
 import edu.nju.jap.common.ApiResponse;
-import edu.nju.jap.model.DocumentItem;
+import edu.nju.jap.model.entity.DocumentItem;
 import edu.nju.jap.service.DocumentService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;

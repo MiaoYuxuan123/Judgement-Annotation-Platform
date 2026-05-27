@@ -1,8 +1,9 @@
 package edu.nju.jap.service;
 
 import edu.nju.jap.dao.DemoDataStore;
-import edu.nju.jap.model.LoginRequest;
-import edu.nju.jap.model.User;
+import edu.nju.jap.model.dto.request.LoginRequest;
+import edu.nju.jap.model.dto.response.UserVO;
+import edu.nju.jap.model.entity.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,6 +23,6 @@ public class AuthService {
                 .filter(u -> u.username.equals(request.username()) && u.password.equals(request.password()))
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户名或密码错误"));
-        return Map.of("token", store.issueToken(user), "user", user.safe());
+        return Map.of("token", store.issueToken(user), "user", UserVO.from(user));
     }
 }

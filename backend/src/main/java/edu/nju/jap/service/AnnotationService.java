@@ -1,10 +1,10 @@
 package edu.nju.jap.service;
 
 import edu.nju.jap.dao.DemoDataStore;
-import edu.nju.jap.model.AnnotationResult;
-import edu.nju.jap.model.AnnotationSubmit;
-import edu.nju.jap.model.Proposition;
-import edu.nju.jap.model.User;
+import edu.nju.jap.model.dto.request.AnnotationSubmit;
+import edu.nju.jap.model.entity.AnnotationResult;
+import edu.nju.jap.model.entity.Proposition;
+import edu.nju.jap.model.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 

@@ -2,7 +2,10 @@ package edu.nju.jap.service;
 
 import edu.nju.jap.common.MapBodyUtils;
 import edu.nju.jap.dao.DemoDataStore;
-import edu.nju.jap.model.*;
+import edu.nju.jap.model.dto.response.TaskDetail;
+import edu.nju.jap.model.dto.response.TaskSummary;
+import edu.nju.jap.model.dto.response.UserVO;
+import edu.nju.jap.model.entity.*;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -151,8 +154,8 @@ public class TaskService {
     public TaskDetail toDetail(TaskItem task) {
         return new TaskDetail(toSummary(task),
                 task.documentIds.stream().map(store.documents::get).filter(Objects::nonNull).toList(),
-                task.annotatorIds.stream().map(id -> store.users.get(id).safe()).toList(),
-                store.users.get(task.reviewerId).safe(),
+                task.annotatorIds.stream().map(id -> UserVO.from(store.users.get(id))).toList(),
+                UserVO.from(store.users.get(task.reviewerId)),
                 task.configSnapshot);
     }
 

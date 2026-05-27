@@ -1,4 +1,7 @@
-package edu.nju.jap.model;
+package edu.nju.jap.model.dto.request;
+
+import edu.nju.jap.model.entity.Proposition;
+import edu.nju.jap.model.entity.Relation;
 
 import java.util.List;
 

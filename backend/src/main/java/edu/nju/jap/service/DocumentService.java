@@ -2,8 +2,8 @@ package edu.nju.jap.service;
 
 import edu.nju.jap.common.MapBodyUtils;
 import edu.nju.jap.dao.DemoDataStore;
-import edu.nju.jap.model.DocumentItem;
-import edu.nju.jap.model.User;
+import edu.nju.jap.model.entity.DocumentItem;
+import edu.nju.jap.model.entity.User;
 import edu.nju.jap.util.DocumentTextExtractor;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;

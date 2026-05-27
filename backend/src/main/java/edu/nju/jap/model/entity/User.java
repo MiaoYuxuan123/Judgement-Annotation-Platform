@@ -1,8 +1,6 @@
-package edu.nju.jap.model;
+package edu.nju.jap.model.entity;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 public class User {
     public long id;
@@ -23,17 +21,5 @@ public class User {
         this.role = role;
         this.canCreateTask = canCreateTask;
         this.status = status;
-    }
-
-    public Map<String, Object> safe() {
-        var m = new LinkedHashMap<String, Object>();
-        m.put("id", id);
-        m.put("username", username);
-        m.put("realName", realName);
-        m.put("role", role);
-        m.put("canCreateTask", canCreateTask);
-        m.put("status", status);
-        m.put("lastSeen", lastSeen == null ? null : lastSeen.toString());
-        return m;
     }
 }

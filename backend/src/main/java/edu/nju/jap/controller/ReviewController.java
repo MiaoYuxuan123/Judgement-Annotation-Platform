@@ -1,7 +1,7 @@
 package edu.nju.jap.controller;
 
 import edu.nju.jap.common.ApiResponse;
-import edu.nju.jap.model.ArbitrationSubmit;
+import edu.nju.jap.model.dto.request.ArbitrationSubmit;
 import edu.nju.jap.service.ReviewService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;

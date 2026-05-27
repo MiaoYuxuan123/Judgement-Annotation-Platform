@@ -1,6 +1,6 @@
 package edu.nju.jap.dao;
 
-import edu.nju.jap.model.*;
+import edu.nju.jap.model.entity.*;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Repository;
 

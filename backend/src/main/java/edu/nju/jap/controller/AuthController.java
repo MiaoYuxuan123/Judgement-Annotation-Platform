@@ -1,7 +1,7 @@
 package edu.nju.jap.controller;
 
 import edu.nju.jap.common.ApiResponse;
-import edu.nju.jap.model.LoginRequest;
+import edu.nju.jap.model.dto.request.LoginRequest;
 import edu.nju.jap.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;

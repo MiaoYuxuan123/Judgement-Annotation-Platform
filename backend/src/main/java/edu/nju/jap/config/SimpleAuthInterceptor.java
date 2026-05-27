@@ -1,7 +1,7 @@
 package edu.nju.jap.config;
 
 import edu.nju.jap.dao.DemoDataStore;
-import edu.nju.jap.model.User;
+import edu.nju.jap.model.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;

@@ -2,8 +2,8 @@ package edu.nju.jap.service;
 
 import edu.nju.jap.common.MapBodyUtils;
 import edu.nju.jap.dao.DemoDataStore;
-import edu.nju.jap.model.GuideConfig;
-import edu.nju.jap.model.LabelDef;
+import edu.nju.jap.model.entity.GuideConfig;
+import edu.nju.jap.model.entity.LabelDef;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;

@@ -1,4 +1,4 @@
-package edu.nju.jap.model;
+package edu.nju.jap.model.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 

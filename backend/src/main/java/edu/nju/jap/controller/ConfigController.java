@@ -1,7 +1,7 @@
 package edu.nju.jap.controller;
 
 import edu.nju.jap.common.ApiResponse;
-import edu.nju.jap.model.GuideConfig;
+import edu.nju.jap.model.entity.GuideConfig;
 import edu.nju.jap.service.ConfigService;
 import org.springframework.web.bind.annotation.*;
 

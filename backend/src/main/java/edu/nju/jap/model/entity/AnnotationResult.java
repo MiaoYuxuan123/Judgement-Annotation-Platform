@@ -1,4 +1,4 @@
-package edu.nju.jap.model;
+package edu.nju.jap.model.entity;
 
 import java.time.LocalDateTime;
 import java.util.List;

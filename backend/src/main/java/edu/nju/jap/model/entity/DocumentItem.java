@@ -1,4 +1,4 @@
-package edu.nju.jap.model;
+package edu.nju.jap.model.entity;
 
 public class DocumentItem {
     public long id;

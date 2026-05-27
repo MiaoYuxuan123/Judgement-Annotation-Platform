@@ -2,7 +2,8 @@ package edu.nju.jap.service;
 
 import edu.nju.jap.common.MapBodyUtils;
 import edu.nju.jap.dao.DemoDataStore;
-import edu.nju.jap.model.User;
+import edu.nju.jap.model.dto.response.UserVO;
+import edu.nju.jap.model.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,12 +20,12 @@ public class UserService {
         this.store = store;
     }
 
-    public Map<String, Object> me(HttpServletRequest request) {
-        return store.current(request).safe();
+    public UserVO me(HttpServletRequest request) {
+        return UserVO.from(store.current(request));
     }
 
-    public List<Map<String, Object>> list() {
-        return store.users.values().stream().map(User::safe).toList();
+    public List<UserVO> list() {
+        return store.users.values().stream().map(UserVO::from).toList();
     }
 
     public long create(Map<String, Object> body) {
