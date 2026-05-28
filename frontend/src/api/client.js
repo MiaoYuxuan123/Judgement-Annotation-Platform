@@ -24,7 +24,7 @@ client.interceptors.response.use(
     (error) => {
         const status = error.response?.status
         const message = error.response?.data?.message || error.message || '网络异常'
-        // 后端重启后内存 Token 会失效，需清除浏览器里残留的旧 Token
+        // JWT 过期、签名无效或账号被禁用时清除本地会话
         if (status === 401) {
             localStorage.removeItem('jap_token')
             localStorage.removeItem('jap_user')
