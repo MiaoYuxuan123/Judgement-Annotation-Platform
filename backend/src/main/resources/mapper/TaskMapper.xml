@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.nju.jap.mapper.TaskMapper">
+    <select id="selectById" resultType="edu.nju.jap.model.po.Task">SELECT * FROM task WHERE id=#{id}</select>
+    <select id="selectAll" resultType="edu.nju.jap.model.po.Task">
+        SELECT * FROM task
+        <where>
+            <if test="status != null and status != ''">AND status=#{status}</if>
+            <if test="keyword != null and keyword != ''">AND title LIKE CONCAT('%',#{keyword},'%')</if>
+        </where>
+        ORDER BY id DESC
+    </select>
+    <select id="selectByUserId" resultType="edu.nju.jap.model.po.Task">
+        SELECT DISTINCT t.* FROM task t
+        LEFT JOIN task_member m ON t.id = m.task_id
+        WHERE t.creator_id = #{userId} OR m.user_id = #{userId}
+        ORDER BY t.id DESC
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO task(title, description, status, creator_id, guide_version_id)
+        VALUES (#{title}, #{description}, #{status}, #{creatorId}, #{guideVersionId})
+    </insert>
+    <update id="updateStatus">UPDATE task SET status=#{status}, stage_changed_at=NOW() WHERE id=#{id}</update>
+</mapper>
+

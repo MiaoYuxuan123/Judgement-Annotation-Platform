@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.nju.jap.mapper.LabelL1Mapper">
+    <select id="selectByVersionId" resultType="edu.nju.jap.model.po.LabelL1">
+        SELECT * FROM label_l1 WHERE guide_version_id=#{versionId}
+    </select>
+    <delete id="deleteByVersionId">DELETE FROM label_l1 WHERE guide_version_id=#{versionId}</delete>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO label_l1(guide_version_id, name, abbr, description) VALUES (#{guideVersionId}, #{name}, #{abbr}, #{description})
+    </insert>
+</mapper>
+

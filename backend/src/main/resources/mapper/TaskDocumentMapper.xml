@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.nju.jap.mapper.TaskDocumentMapper">
+    <select id="selectById" resultType="edu.nju.jap.model.po.TaskDocument">
+        SELECT * FROM task_document WHERE id=#{id}
+    </select>
+    <select id="selectByTaskAndDataId" resultType="edu.nju.jap.model.po.TaskDocument">
+        SELECT * FROM task_document WHERE task_id=#{taskId}
+        AND (id=#{dataId} OR global_doc_id=#{dataId}) LIMIT 1
+    </select>
+    <select id="selectByTaskId" resultType="edu.nju.jap.model.po.TaskDocument">
+        SELECT * FROM task_document WHERE task_id=#{taskId} ORDER BY id
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO task_document(task_id, source_type, global_doc_id, file_name, file_path, extracted_text, status)
+        VALUES (#{taskId}, #{sourceType}, #{globalDocId}, #{fileName}, #{filePath}, #{extractedText}, #{status})
+    </insert>
+    <delete id="deleteByTaskId">DELETE FROM task_document WHERE task_id=#{taskId}</delete>
+</mapper>
+

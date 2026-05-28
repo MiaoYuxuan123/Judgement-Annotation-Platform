@@ -1,6 +1,8 @@
 package edu.nju.jap.exception;
 
 import edu.nju.jap.common.ApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -9,6 +11,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(ResponseStatusException.class)
     ApiResponse<Void> responseStatus(ResponseStatusException ex) {
         return ApiResponse.error(ex.getStatusCode().value(), ex.getReason());
@@ -21,6 +25,18 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ApiResponse<Void> serverError(Exception ex) {
-        return ApiResponse.error(500, ex.getMessage() == null ? "服务器异常" : ex.getMessage());
+        log.error("Unhandled exception", ex);
+        return ApiResponse.error(500, rootMessage(ex));
+    }
+
+    private static String rootMessage(Throwable ex) {
+        Throwable root = ex;
+        while (root.getCause() != null) {
+            root = root.getCause();
+        }
+        if (root.getMessage() != null && !root.getMessage().isBlank()) {
+            return root.getMessage();
+        }
+        return root.getClass().getSimpleName();
     }
 }

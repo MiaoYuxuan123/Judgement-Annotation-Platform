@@ -7,7 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import edu.nju.jap.model.dto.response.LoginResponse;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -20,8 +20,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    ApiResponse<Map<String, Object>> login(@Valid @RequestBody LoginRequest request) {
-        Map<String, Object> result = authService.login(request);
-        return ApiResponse.ok("登录成功", result);
+    ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ApiResponse.ok("登录成功", authService.login(request));
     }
 }

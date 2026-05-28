@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.nju.jap.mapper.GlobalDocumentMapper">
+    <select id="selectById" resultType="edu.nju.jap.model.po.GlobalDocument">
+        SELECT * FROM global_document WHERE id=#{id}
+    </select>
+    <select id="selectAll" resultType="edu.nju.jap.model.po.GlobalDocument">
+        SELECT * FROM global_document
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (title LIKE CONCAT('%',#{keyword},'%') OR document_id LIKE CONCAT('%',#{keyword},'%'))
+            </if>
+        </where>
+        ORDER BY id
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO global_document(document_id, title, file_name, file_path, file_type, extracted_text, uploaded_by_id)
+        VALUES (#{documentId}, #{title}, #{fileName}, #{filePath}, #{fileType}, #{extractedText}, #{uploadedById})
+    </insert>
+    <delete id="deleteById">DELETE FROM global_document WHERE id=#{id}</delete>
+</mapper>
+

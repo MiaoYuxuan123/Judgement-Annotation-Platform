@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.nju.jap.mapper.ArbitrationSnapshotMapper">
+    <select id="selectByTaskAndDoc" resultType="edu.nju.jap.model.po.ArbitrationSnapshot">
+        SELECT * FROM arbitration_snapshot WHERE task_id=#{taskId} AND task_document_id=#{taskDocumentId}
+    </select>
+    <select id="selectByTaskId" resultType="edu.nju.jap.model.po.ArbitrationSnapshot">
+        SELECT * FROM arbitration_snapshot WHERE task_id=#{taskId}
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO arbitration_snapshot(task_id, task_document_id, arbitrator_id, adopted_from, final_result, arbitrated_at)
+        VALUES (#{taskId}, #{taskDocumentId}, #{arbitratorId}, #{adoptedFrom}, #{finalResult}, #{arbitratedAt})
+    </insert>
+    <update id="update">
+        UPDATE arbitration_snapshot SET adopted_from=#{adoptedFrom}, final_result=#{finalResult}, arbitrated_at=#{arbitratedAt},
+        arbitrator_id=#{arbitratorId} WHERE id=#{id}
+    </update>
+    <delete id="deleteByTaskAndDoc">
+        DELETE FROM arbitration_snapshot WHERE task_id=#{taskId} AND task_document_id=#{taskDocumentId}
+    </delete>
+</mapper>
+

@@ -1,7 +1,7 @@
 package edu.nju.jap.config;
 
-import edu.nju.jap.dao.DemoDataStore;
 import edu.nju.jap.model.entity.User;
+import edu.nju.jap.service.support.AuthTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
@@ -11,10 +11,10 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 @Component
 public class SimpleAuthInterceptor implements HandlerInterceptor {
-    private final DemoDataStore store;
+    private final AuthTokenService authTokenService;
 
-    public SimpleAuthInterceptor(DemoDataStore store) {
-        this.store = store;
+    public SimpleAuthInterceptor(AuthTokenService authTokenService) {
+        this.authTokenService = authTokenService;
     }
 
     @Override
@@ -22,7 +22,7 @@ public class SimpleAuthInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
-        User user = store.userFromHeader(request.getHeader("Authorization"));
+        User user = authTokenService.resolveUser(request.getHeader("Authorization"));
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "未登录或 Token 无效");
         }

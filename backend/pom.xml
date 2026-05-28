@@ -15,7 +15,7 @@
     <artifactId>judgment-annotation-platform</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>Judgment Annotation Platform</name>
-    <description>In-memory MVP backend for judgment annotation workflows.</description>
+    <description>Judgment annotation platform backend with MyBatis and MySQL.</description>
 
     <properties>
         <java.version>17</java.version>
@@ -29,6 +29,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
