@@ -1,47 +1,97 @@
-CREATE TABLE IF NOT EXISTS `proposition` (
-    `id` INT AUTO_INCREMENT,
-    `task_id` INT NOT NULL,
-    `task_document_id` INT NOT NULL,
+DROP TABLE IF EXISTS `relation_member`;
+DROP TABLE IF EXISTS `argument_relation`;
+DROP TABLE IF EXISTS `proposition`;
+DROP TABLE IF EXISTS `annotation`;
+
+-- 标注结果
+CREATE TABLE IF NOT EXISTS `annotation` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `task_id` BIGINT UNSIGNED NOT NULL,
+    `document_id` BIGINT UNSIGNED NOT NULL,
     `user_id` BIGINT UNSIGNED NOT NULL,
-    `display_id` VARCHAR(20) NOT NULL COMMENT 'P1 / P2',
-    `content` TEXT NOT NULL,
-    `start_offset` INT NOT NULL,
-    `end_offset` INT NOT NULL,
+    `status` VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    `is_final` TINYINT NOT NULL DEFAULT 0,
+    `guide_version_id` BIGINT UNSIGNED DEFAULT NULL,
+    `guide_snapshot` JSON DEFAULT NULL,
+    `submitted_at` DATETIME DEFAULT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_annotation_task_doc_user` (`task_id`, `document_id`, `user_id`),
+    KEY `idx_annotation_task` (`task_id`),
+    KEY `idx_annotation_doc` (`document_id`),
+    KEY `idx_annotation_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标注结果表';
+
+-- 命题
+CREATE TABLE IF NOT EXISTS `proposition` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `annotation_id` BIGINT UNSIGNED NOT NULL,
+    `display_id` VARCHAR(20) NOT NULL,
+    `sequence_no` INT NOT NULL,
+    `start_pos` INT NOT NULL,
+    `end_pos` INT NOT NULL,
+    `selected_text` TEXT NOT NULL,
     `label_l1` VARCHAR(10) NOT NULL,
     `label_l2` VARCHAR(30) DEFAULT NULL,
-    `status` TINYINT NOT NULL DEFAULT 0 COMMENT '0=草稿 1=已提交 2=已采纳',
-    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `label_path` VARCHAR(50) NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_prop_scope_display` (`task_id`, `task_document_id`, `user_id`, `display_id`),
-    KEY `idx_prop_scope` (`task_id`, `task_document_id`, `user_id`),
-    KEY `idx_prop_range` (`task_document_id`, `start_offset`, `end_offset`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标注命题表';
+    UNIQUE KEY `uk_prop_annotation_display` (`annotation_id`, `display_id`),
+    UNIQUE KEY `uk_prop_annotation_sequence` (`annotation_id`, `sequence_no`),
+    KEY `idx_prop_annotation_range` (`annotation_id`, `start_pos`, `end_pos`),
+    CONSTRAINT `fk_prop_annotation`
+        FOREIGN KEY (`annotation_id`) REFERENCES `annotation` (`id`)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='命题表';
 
-CREATE TABLE IF NOT EXISTS `relation` (
-    `id` INT AUTO_INCREMENT,
-    `task_id` INT NOT NULL,
-    `task_document_id` INT NOT NULL,
-    `user_id` BIGINT UNSIGNED NOT NULL,
-    `display_id` VARCHAR(20) NOT NULL COMMENT 'R1 / R2',
-    `type` CHAR(1) NOT NULL COMMENT 'S/A/J/M/I',
-    `target_type` CHAR(1) DEFAULT NULL COMMENT 'P/R',
-    `target_id` VARCHAR(20) DEFAULT NULL COMMENT '目标 display_id',
+-- 关系
+CREATE TABLE IF NOT EXISTS `argument_relation` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `annotation_id` BIGINT UNSIGNED NOT NULL,
+    `display_id` VARCHAR(20) NOT NULL,
+    `sequence_no` INT NOT NULL,
+    `relation_type` VARCHAR(10) NOT NULL,
     `expression` VARCHAR(500) DEFAULT NULL,
-    `status` TINYINT NOT NULL DEFAULT 0 COMMENT '0=草稿 1=已提交 2=已采纳',
-    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_rel_scope_display` (`task_id`, `task_document_id`, `user_id`, `display_id`),
-    KEY `idx_rel_scope` (`task_id`, `task_document_id`, `user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标注关系表';
+    UNIQUE KEY `uk_rel_annotation_display` (`annotation_id`, `display_id`),
+    UNIQUE KEY `uk_rel_annotation_sequence` (`annotation_id`, `sequence_no`),
+    KEY `idx_rel_annotation_type` (`annotation_id`, `relation_type`),
+    CONSTRAINT `fk_rel_annotation`
+        FOREIGN KEY (`annotation_id`) REFERENCES `annotation` (`id`)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='关系表';
 
+-- 关系成员
 CREATE TABLE IF NOT EXISTS `relation_member` (
-    `id` INT AUTO_INCREMENT,
-    `relation_id` INT NOT NULL,
-    `source_type` CHAR(1) NOT NULL COMMENT 'P/R',
-    `source_id` VARCHAR(20) NOT NULL COMMENT '来源 display_id',
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `relation_id` BIGINT UNSIGNED NOT NULL,
+    `member_type` VARCHAR(1) NOT NULL,
+    `proposition_id` BIGINT UNSIGNED DEFAULT NULL,
+    `child_relation_id` BIGINT UNSIGNED DEFAULT NULL,
+    `member_role` VARCHAR(10) NOT NULL DEFAULT 'MEMBER',
+    `member_order` INT NOT NULL DEFAULT 1,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    KEY `idx_relation_id` (`relation_id`),
-    CONSTRAINT `fk_relation_member_relation` FOREIGN KEY (`relation_id`) REFERENCES `relation` (`id`) ON DELETE CASCADE
+    KEY `idx_member_relation` (`relation_id`),
+    KEY `idx_member_relation_order` (`relation_id`, `member_order`),
+    KEY `idx_member_prop_ref` (`proposition_id`),
+    KEY `idx_member_rel_ref` (`child_relation_id`),
+    CONSTRAINT `fk_member_relation`
+        FOREIGN KEY (`relation_id`) REFERENCES `argument_relation` (`id`)
+        ON DELETE CASCADE,
+    CONSTRAINT `fk_member_prop`
+        FOREIGN KEY (`proposition_id`) REFERENCES `proposition` (`id`)
+        ON DELETE CASCADE,
+    CONSTRAINT `fk_member_child_relation`
+        FOREIGN KEY (`child_relation_id`) REFERENCES `argument_relation` (`id`)
+        ON DELETE CASCADE,
+    CONSTRAINT `chk_member_ref` CHECK (
+        (`member_type` = 'P' AND `proposition_id` IS NOT NULL AND `child_relation_id` IS NULL)
+        OR
+        (`member_type` = 'R' AND `proposition_id` IS NULL AND `child_relation_id` IS NOT NULL)
+    )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='关系成员表';
