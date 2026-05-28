@@ -8,9 +8,9 @@ import java.util.List;
 
 @Mapper
 public interface RelationMemberMapper {
-    List<RelationMember> selectByRelationId(@Param("relationId") int relationId);
+    List<RelationMember> selectByRelationId(@Param("relationId") long relationId);
 
-    int deleteByRelationId(@Param("relationId") int relationId);
+    int deleteByAnnotationId(@Param("annotationId") long annotationId);
 
     int insert(RelationMember member);
 }

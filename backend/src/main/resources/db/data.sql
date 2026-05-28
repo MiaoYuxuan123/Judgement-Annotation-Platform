@@ -27,7 +27,7 @@ INSERT INTO relation_type (guide_version_id, name, abbr, description, is_binary)
 (1, '反对关系', 'A', '为另一命题不成立提供理由', 1),
 (1, '组合关系', 'J', '多个命题共同构成理由', 0),
 (1, '匹配关系', 'M', '规范要件与事实对应', 1),
-(1, '同一关系', 'I', '语义上表达同一判断', 1);
+(1, '同一关系', 'I', '语义上表达同一判断', 0);
 
 INSERT INTO global_document (id, document_id, title, file_name, file_path, file_type, extracted_text, uploaded_by_id) VALUES
 (101, 'W101', '合同纠纷一审判决书', '合同纠纷一审判决书.txt', '', 'txt',
@@ -57,121 +57,149 @@ INSERT INTO task_document (task_id, source_type, global_doc_id, file_name, extra
 (1003, 'GLOBAL', 102, '劳动争议仲裁审查裁定.txt',
  (SELECT extracted_text FROM global_document WHERE id = 102), '待标注');
 
--- =============================================================================
--- 演示标注 / 裁定数据（原 DemoDataStore 内存种子，接入 MySQL 后写在此处）
--- 若库中已有任务 1001–1003，可先执行：DELETE FROM proposition WHERE task_id IN (1001,1002,1003);
--- =============================================================================
-
 SET @td_1001_101 := (SELECT id FROM task_document WHERE task_id = 1001 AND global_doc_id = 101 LIMIT 1);
-SET @td_1001_102 := (SELECT id FROM task_document WHERE task_id = 1001 AND global_doc_id = 102 LIMIT 1);
 SET @td_1002_103 := (SELECT id FROM task_document WHERE task_id = 1002 AND global_doc_id = 103 LIMIT 1);
 SET @td_1003_102 := (SELECT id FROM task_document WHERE task_id = 1003 AND global_doc_id = 102 LIMIT 1);
 
--- ---------- 任务 1001 / 文书 101 / 标注员 3（annotator1）----------
-INSERT INTO proposition (task_id, task_document_id, user_id, display_id, content, start_offset, end_offset, label_l1, label_l2, status) VALUES
-(1001, @td_1001_101, 3, 'P1', '依法成立的合同', 5, 12, 'GM', 'GM-L', 1),
-(1001, @td_1001_101, 3, 'P2', '对当事人具有法律约束力', 13, 24, 'GM', 'GM-I', 1),
-(1001, @td_1001_101, 3, 'P3', '被告未按期支付货款', 44, 53, 'SF', NULL, 1),
-(1001, @td_1001_101, 3, 'P4', '构成违约', 56, 60, 'SM', NULL, 1),
-(1001, @td_1001_101, 3, 'P5', '支付货款并承担逾期付款责任', 97, 110, 'SF', NULL, 1);
+-- 任务 1001 / 文书 101 / 标注员 3
+INSERT INTO annotation(task_id, document_id, user_id, status, is_final, submitted_at)
+VALUES (1001, @td_1001_101, 3, 'SUBMITTED', 0, NOW() - INTERVAL 8 HOUR);
+SET @ann := LAST_INSERT_ID();
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1001, @td_1001_101, 3, 'R1', 'S', 'P', 'P2', 'S(P1,P2)', 1);
+INSERT INTO proposition(annotation_id, display_id, sequence_no, start_pos, end_pos, selected_text, label_l1, label_l2, label_path) VALUES
+(@ann, 'P1', 1, 5, 12, '依法成立的合同', 'GM', 'GM-L', 'GM-L'),
+(@ann, 'P2', 2, 13, 24, '对当事人具有法律约束力', 'GM', 'GM-I', 'GM-I'),
+(@ann, 'P3', 3, 44, 53, '被告未按期支付货款', 'SF', NULL, 'SF'),
+(@ann, 'P4', 4, 56, 60, '构成违约', 'SM', NULL, 'SM'),
+(@ann, 'P5', 5, 97, 110, '支付货款并承担逾期付款责任', 'SF', NULL, 'SF');
+
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R1', 1, 'S', 'S(P1, P2)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P1');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P1'), 'SOURCE', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P2'), 'TARGET', 2);
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1001, @td_1001_101, 3, 'R2', 'S', 'P', 'P4', 'S(P3,P4)', 1);
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R2', 2, 'S', 'S(P3, P4)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P3');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P3'), 'SOURCE', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P4'), 'TARGET', 2);
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1001, @td_1001_101, 3, 'R3', 'A', 'P', 'P4', 'A(P5,P4)', 1);
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R3', 3, 'A', 'A(P5, P4)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P5');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P5'), 'SOURCE', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P4'), 'TARGET', 2);
 
--- ---------- 任务 1001 / 文书 101 / 标注员 4（annotator2，部分命题）----------
-INSERT INTO proposition (task_id, task_document_id, user_id, display_id, content, start_offset, end_offset, label_l1, label_l2, status) VALUES
-(1001, @td_1001_101, 4, 'P1', '依法成立的合同', 5, 12, 'GM', 'GM-L', 1),
-(1001, @td_1001_101, 4, 'P3', '被告未按期支付货款', 44, 53, 'SF', NULL, 1),
-(1001, @td_1001_101, 4, 'P4', '构成违约', 56, 60, 'SM', NULL, 1);
+-- 任务 1001 / 文书 101 / 标注员 4
+INSERT INTO annotation(task_id, document_id, user_id, status, is_final, submitted_at)
+VALUES (1001, @td_1001_101, 4, 'SUBMITTED', 0, NOW() - INTERVAL 7 HOUR);
+SET @ann := LAST_INSERT_ID();
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1001, @td_1001_101, 4, 'R1', 'S', 'P', 'P4', 'S(P3,P4)', 1);
+INSERT INTO proposition(annotation_id, display_id, sequence_no, start_pos, end_pos, selected_text, label_l1, label_l2, label_path) VALUES
+(@ann, 'P1', 1, 5, 12, '依法成立的合同', 'GM', 'GM-L', 'GM-L'),
+(@ann, 'P2', 2, 44, 53, '被告未按期支付货款', 'SF', NULL, 'SF'),
+(@ann, 'P3', 3, 56, 60, '构成违约', 'SM', NULL, 'SM');
+
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R1', 1, 'S', 'S(P2, P3)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P3');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P2'), 'SOURCE', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P3'), 'TARGET', 2);
 
--- ---------- 任务 1002 / 文书 103 / 裁定结果（reviewer，五种关系演示）----------
-INSERT INTO proposition (task_id, task_document_id, user_id, display_id, content, start_offset, end_offset, label_l1, label_l2, status) VALUES
-(1002, @td_1002_103, 5, 'P1', '行为人因过错侵害他人民事权益', 5, 19, 'SF', NULL, 2),
-(1002, @td_1002_103, 5, 'P2', '应当承担侵权责任', 25, 33, 'GM', 'GM-L', 2),
-(1002, @td_1002_103, 5, 'P3', '被告车辆倒车时未尽到合理注意义务', 41, 57, 'SF', NULL, 2),
-(1002, @td_1002_103, 5, 'P4', '与原告车辆发生碰撞', 58, 67, 'SF', NULL, 2),
-(1002, @td_1002_103, 5, 'P5', '承担全部责任', 77, 83, 'GM', 'GM-L', 2);
+-- 任务 1002 / 文书 103 / 裁定者最终结果
+INSERT INTO annotation(task_id, document_id, user_id, status, is_final, submitted_at)
+VALUES (1002, @td_1002_103, 5, 'SUBMITTED', 1, NOW() - INTERVAL 1 DAY);
+SET @ann := LAST_INSERT_ID();
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1002, @td_1002_103, 5, 'R1', 'S', 'P', 'P2', 'S(P1,P2)', 2);
+INSERT INTO proposition(annotation_id, display_id, sequence_no, start_pos, end_pos, selected_text, label_l1, label_l2, label_path) VALUES
+(@ann, 'P1', 1, 5, 19, '行为人因过错侵害他人民事权益', 'SF', NULL, 'SF'),
+(@ann, 'P2', 2, 25, 33, '应当承担侵权责任', 'GM', 'GM-L', 'GM-L'),
+(@ann, 'P3', 3, 41, 57, '被告车辆倒车时未尽到合理注意义务', 'SF', NULL, 'SF'),
+(@ann, 'P4', 4, 58, 67, '与原告车辆发生碰撞', 'SF', NULL, 'SF'),
+(@ann, 'P5', 5, 77, 83, '承担全部责任', 'GM', 'GM-L', 'GM-L');
+
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R1', 1, 'S', 'S(P1, P2)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P1');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P1'), 'SOURCE', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P2'), 'TARGET', 2);
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1002, @td_1002_103, 5, 'R2', 'A', 'P', 'P2', 'A(P3,P2)', 2);
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R2', 2, 'A', 'A(P3, P2)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P3');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P3'), 'SOURCE', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P2'), 'TARGET', 2);
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1002, @td_1002_103, 5, 'R3', 'J', 'P', 'P4', 'J(P1,P4)', 2);
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R3', 3, 'J', 'J(P3, P4)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P1');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P3'), 'MEMBER', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P4'), 'MEMBER', 2);
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1002, @td_1002_103, 5, 'R4', 'M', 'P', 'P4', 'M(P2,P4)', 2);
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R4', 4, 'M', 'M(P2, P4)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P2');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P2'), 'SOURCE', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P4'), 'TARGET', 2);
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1002, @td_1002_103, 5, 'R5', 'I', 'P', 'P5', 'I(P1,P5)', 2);
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R5', 5, 'I', 'I(P1, P5)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P1');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P1'), 'MEMBER', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P5'), 'MEMBER', 2);
 
 INSERT INTO arbitration_snapshot (task_id, task_document_id, arbitrator_id, adopted_from, final_result, arbitrated_at) VALUES
 (1002, @td_1002_103, 5, 'MANUAL', 1, NOW() - INTERVAL 1 DAY);
 
--- ---------- 任务 1003 / 文书 102 / 标注员 3（待裁定对比）----------
-INSERT INTO proposition (task_id, task_document_id, user_id, display_id, content, start_offset, end_offset, label_l1, label_l2, status) VALUES
-(1003, @td_1003_102, 3, 'P1', '劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定', 5, 33, 'GM', 'GM-L', 1),
-(1003, @td_1003_102, 3, 'P2', '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 34, 62, 'SF', NULL, 1),
-(1003, @td_1003_102, 3, 'P3', '公司主张双方不存在劳动关系，但未提交充分反证', 63, 83, 'SF', NULL, 1),
-(1003, @td_1003_102, 3, 'P4', '本院不予采纳', 84, 89, 'SM', NULL, 1);
+-- 任务 1003 / 文书 102 / 标注员 3
+INSERT INTO annotation(task_id, document_id, user_id, status, is_final, submitted_at)
+VALUES (1003, @td_1003_102, 3, 'SUBMITTED', 0, NOW() - INTERVAL 5 HOUR);
+SET @ann := LAST_INSERT_ID();
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1003, @td_1003_102, 3, 'R1', 'S', 'P', 'P4', 'S(P1,P4)', 1);
+INSERT INTO proposition(annotation_id, display_id, sequence_no, start_pos, end_pos, selected_text, label_l1, label_l2, label_path) VALUES
+(@ann, 'P1', 1, 5, 33, '劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定', 'GM', 'GM-L', 'GM-L'),
+(@ann, 'P2', 2, 34, 62, '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 'SF', NULL, 'SF'),
+(@ann, 'P3', 3, 63, 83, '公司主张双方不存在劳动关系，但未提交充分反证', 'SF', NULL, 'SF'),
+(@ann, 'P4', 4, 84, 89, '本院不予采纳', 'SM', NULL, 'SM');
+
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R1', 1, 'S', 'S(P1, P4)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P1');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P1'), 'SOURCE', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P4'), 'TARGET', 2);
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1003, @td_1003_102, 3, 'R2', 'S', 'P', 'P3', 'S(P2,P3)', 1);
+-- 任务 1003 / 文书 102 / 标注员 4
+INSERT INTO annotation(task_id, document_id, user_id, status, is_final, submitted_at)
+VALUES (1003, @td_1003_102, 4, 'SUBMITTED', 0, NOW() - INTERVAL 4 HOUR);
+SET @ann := LAST_INSERT_ID();
+
+INSERT INTO proposition(annotation_id, display_id, sequence_no, start_pos, end_pos, selected_text, label_l1, label_l2, label_path) VALUES
+(@ann, 'P1', 1, 5, 33, '劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定', 'GF', NULL, 'GF'),
+(@ann, 'P2', 2, 34, 62, '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 'SF', NULL, 'SF'),
+(@ann, 'P3', 3, 63, 83, '公司主张双方不存在劳动关系，但未提交充分反证', 'SF', NULL, 'SF'),
+(@ann, 'P4', 4, 84, 89, '本院不予采纳', 'SM', NULL, 'SM');
+
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R1', 1, 'S', 'S(P2, P4)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P2');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P2'), 'SOURCE', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P4'), 'TARGET', 2);
 
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1003, @td_1003_102, 3, 'R3', 'S', 'P', 'P4', 'S(P3,P4)', 1);
+INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
+VALUES (@ann, 'R2', 2, 'A', 'A(P3, P4)');
 SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P3');
-
--- ---------- 任务 1003 / 文书 102 / 标注员 4（与 3 有差异，用于裁定对比）----------
-INSERT INTO proposition (task_id, task_document_id, user_id, display_id, content, start_offset, end_offset, label_l1, label_l2, status) VALUES
-(1003, @td_1003_102, 4, 'P1', '劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定', 5, 33, 'GF', NULL, 1),
-(1003, @td_1003_102, 4, 'P2', '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 34, 62, 'SF', NULL, 1),
-(1003, @td_1003_102, 4, 'P3', '公司主张双方不存在劳动关系，但未提交充分反证', 63, 83, 'SF', NULL, 1),
-(1003, @td_1003_102, 4, 'P4', '本院不予采纳', 84, 89, 'SM', NULL, 1);
-
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1003, @td_1003_102, 4, 'R1', 'S', 'P', 'P4', 'S(P2,P4)', 1);
-SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P2');
-
-INSERT INTO relation (task_id, task_document_id, user_id, display_id, type, target_type, target_id, expression, status) VALUES
-(1003, @td_1003_102, 4, 'R2', 'A', 'P', 'P4', 'A(P3,P4)', 1);
-SET @r := LAST_INSERT_ID();
-INSERT INTO relation_member (relation_id, source_type, source_id) VALUES (@r, 'P', 'P3');
+INSERT INTO relation_member(relation_id, member_type, proposition_id, member_role, member_order) VALUES
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P3'), 'SOURCE', 1),
+(@r, 'P', (SELECT id FROM proposition WHERE annotation_id=@ann AND display_id='P4'), 'TARGET', 2);

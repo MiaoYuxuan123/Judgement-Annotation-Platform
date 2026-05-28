@@ -8,11 +8,9 @@ import java.util.List;
 
 @Mapper
 public interface RelationMapper {
-    List<RelationPo> selectByScope(@Param("taskId") int taskId, @Param("taskDocumentId") int taskDocumentId,
-                                   @Param("userId") long userId);
+    List<RelationPo> selectByAnnotationId(@Param("annotationId") long annotationId);
 
-    int deleteByScope(@Param("taskId") int taskId, @Param("taskDocumentId") int taskDocumentId,
-                      @Param("userId") long userId);
+    int deleteByAnnotationId(@Param("annotationId") long annotationId);
 
     int insert(RelationPo relation);
 }

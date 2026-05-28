@@ -81,21 +81,24 @@ public final class DomainConverter {
     }
 
     public static Proposition toProposition(PropositionPo po, int sequence) {
-        String tag = po.getLabelL2() != null && !po.getLabelL2().isBlank() ? po.getLabelL2() : po.getLabelL1();
-        return new Proposition(po.getDisplayId(), sequence, po.getStartOffset(), po.getEndOffset(), po.getContent(), tag);
+        String tag = po.getLabelPath() != null && !po.getLabelPath().isBlank()
+                ? po.getLabelPath()
+                : (po.getLabelL2() != null && !po.getLabelL2().isBlank() ? po.getLabelL2() : po.getLabelL1());
+        return new Proposition(po.getDisplayId(), sequence, po.getStartPos(), po.getEndPos(), po.getSelectedText(), tag);
     }
 
     public static Relation toRelation(RelationPo po, List<RelationMember> members) {
-        String source = members.isEmpty() ? "" : members.get(0).getSourceId();
-        return new Relation(po.getDisplayId(), po.getType(), source, po.getTargetId());
+        return new Relation(po.getDisplayId(), po.getRelationType(), "", "", List.of());
     }
 
     public static void splitTag(String tag, PropositionPo po) {
         if (tag == null || tag.isBlank()) {
             po.setLabelL1("");
             po.setLabelL2(null);
+            po.setLabelPath("");
             return;
         }
+        po.setLabelPath(tag);
         int dash = tag.indexOf('-');
         if (dash > 0 && tag.length() > dash + 1) {
             po.setLabelL1(tag.substring(0, dash));

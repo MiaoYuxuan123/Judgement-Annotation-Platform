@@ -8,11 +8,9 @@ import java.util.List;
 
 @Mapper
 public interface PropositionMapper {
-    List<PropositionPo> selectByScope(@Param("taskId") int taskId, @Param("taskDocumentId") int taskDocumentId,
-                                      @Param("userId") long userId);
+    List<PropositionPo> selectByAnnotationId(@Param("annotationId") long annotationId);
 
-    int deleteByScope(@Param("taskId") int taskId, @Param("taskDocumentId") int taskDocumentId,
-                      @Param("userId") long userId);
+    int deleteByAnnotationId(@Param("annotationId") long annotationId);
 
     int insert(PropositionPo proposition);
 }

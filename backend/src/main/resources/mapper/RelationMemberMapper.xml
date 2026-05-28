@@ -2,11 +2,21 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="edu.nju.jap.mapper.RelationMemberMapper">
     <select id="selectByRelationId" resultType="edu.nju.jap.model.po.RelationMember">
-        SELECT * FROM relation_member WHERE relation_id=#{relationId}
+        SELECT *
+        FROM relation_member
+        WHERE relation_id = #{relationId}
+        ORDER BY member_order
     </select>
-    <delete id="deleteByRelationId">DELETE FROM relation_member WHERE relation_id=#{relationId}</delete>
+
+    <delete id="deleteByAnnotationId">
+        DELETE rm
+        FROM relation_member rm
+        INNER JOIN argument_relation ar ON ar.id = rm.relation_id
+        WHERE ar.annotation_id = #{annotationId}
+    </delete>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO relation_member(relation_id, source_type, source_id) VALUES (#{relationId}, #{sourceType}, #{sourceId})
+        INSERT INTO relation_member(relation_id, member_type, proposition_id, child_relation_id, member_role, member_order)
+        VALUES (#{relationId}, #{memberType}, #{propositionId}, #{childRelationId}, #{memberRole}, #{memberOrder})
     </insert>
 </mapper>
-

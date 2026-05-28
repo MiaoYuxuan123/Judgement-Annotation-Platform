@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.nju.jap.mapper.AnnotationMapper">
+    <select id="selectByScope" resultType="edu.nju.jap.model.po.AnnotationPo">
+        SELECT *
+        FROM annotation
+        WHERE task_id = #{taskId}
+          AND document_id = #{documentId}
+          AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO annotation(task_id, document_id, user_id, status, is_final, guide_version_id, guide_snapshot, submitted_at)
+        VALUES (#{taskId}, #{documentId}, #{userId}, #{status}, #{isFinal}, #{guideVersionId}, #{guideSnapshot}, #{submittedAt})
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE annotation
+        SET status = #{status},
+            is_final = #{isFinal},
+            submitted_at = #{submittedAt}
+        WHERE id = #{id}
+    </update>
+</mapper>

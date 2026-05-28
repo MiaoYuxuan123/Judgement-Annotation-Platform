@@ -1,16 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="edu.nju.jap.mapper.PropositionMapper">
-    <select id="selectByScope" resultType="edu.nju.jap.model.po.PropositionPo">
-        SELECT * FROM proposition WHERE task_id=#{taskId} AND task_document_id=#{taskDocumentId} AND user_id=#{userId}
-        ORDER BY start_offset
+    <select id="selectByAnnotationId" resultType="edu.nju.jap.model.po.PropositionPo">
+        SELECT *
+        FROM proposition
+        WHERE annotation_id = #{annotationId}
+        ORDER BY sequence_no
     </select>
-    <delete id="deleteByScope">
-        DELETE FROM proposition WHERE task_id=#{taskId} AND task_document_id=#{taskDocumentId} AND user_id=#{userId}
+
+    <delete id="deleteByAnnotationId">
+        DELETE FROM proposition WHERE annotation_id = #{annotationId}
     </delete>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO proposition(task_id, task_document_id, user_id, display_id, content, start_offset, end_offset, label_l1, label_l2, status)
-        VALUES (#{taskId}, #{taskDocumentId}, #{userId}, #{displayId}, #{content}, #{startOffset}, #{endOffset}, #{labelL1}, #{labelL2}, #{status})
+        INSERT INTO proposition(annotation_id, display_id, sequence_no, start_pos, end_pos, selected_text, label_l1, label_l2, label_path)
+        VALUES (#{annotationId}, #{displayId}, #{sequenceNo}, #{startPos}, #{endPos}, #{selectedText}, #{labelL1}, #{labelL2}, #{labelPath})
     </insert>
 </mapper>
-
