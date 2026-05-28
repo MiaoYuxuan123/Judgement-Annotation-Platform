@@ -1,8 +1,6 @@
--- 在 DataGrip 中选中 judgment_annotation 库后执行本脚本
+-- 在 DataGrip / MySQL Workbench 中选中当前项目库后执行本脚本
 -- 用于补齐「你们原 DDL」与「当前后端代码」之间的字段差异
 -- 若某条报 Duplicate column name，说明该列已存在，可忽略继续执行后面的语句
-
-USE `judgment_annotation`;
 
 -- ========== proposition 表 ==========
 ALTER TABLE `proposition`

@@ -1,5 +1,3 @@
-USE `judgment_annotation`;
-
 INSERT INTO sys_user (id, username, password_hash, real_name, role, can_create_task, status) VALUES
 (1, 'admin', '123456', '系统管理员', 'admin', 0, 1),
 (2, 'creator', '123456', '任务创建者', 'creator', 1, 1),
