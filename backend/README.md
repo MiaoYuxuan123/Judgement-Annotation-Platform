@@ -30,7 +30,10 @@ jdbc:mysql://localhost:3306/jap
 
 如果 `jap` 数据库不存在，JDBC 会自动创建；随后 Spring Boot 会自动执行：
 
-- `src/main/resources/db/schema.sql`
+- `src/main/resources/db/admin.sql`
+- `src/main/resources/db/creator.sql`
+- `src/main/resources/db/annotator.sql`
+- `src/main/resources/db/reviewer.sql`
 - `src/main/resources/db/data.sql`
 
 因此不需要手动建库、手动建表或手动导入演示数据。
@@ -89,7 +92,7 @@ src/main/resources/mapper
 
 ## 注意
 
-当前 `spring.sql.init.mode=always`，并且 `schema.sql` 会重建表，适合课程开发阶段快速恢复演示数据。若后续要保留真实标注结果，请改为：
+当前 `spring.sql.init.mode=always`，并且四个建表脚本会重建表，适合课程开发阶段快速恢复演示数据。若后续要保留真实标注结果，请改为：
 
 ```yaml
 spring:
