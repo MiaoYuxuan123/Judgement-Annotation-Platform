@@ -31,7 +31,10 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
-  if (!to.meta.public && !auth.isLoggedIn) return '/login'
+  auth.ensureSession()
+  if (!to.meta.public && !auth.isLoggedIn) {
+    return to.path === '/login' ? true : { path: '/login', query: { redirect: to.fullPath } }
+  }
   if (to.path === '/login' && auth.isLoggedIn) return getDefaultRoute(auth)
   if (['/users', '/documents', '/configs'].includes(to.path) && auth.user?.role !== 'admin') {
     return '/tasks'

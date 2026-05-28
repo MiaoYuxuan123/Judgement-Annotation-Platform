@@ -1,16 +1,8 @@
-DROP TABLE IF EXISTS `arbitration_snapshot`;
-DROP TABLE IF EXISTS `relation_member`;
-DROP TABLE IF EXISTS `relation`;
-DROP TABLE IF EXISTS `proposition`;
-DROP TABLE IF EXISTS `task_document`;
-DROP TABLE IF EXISTS `task_member`;
-DROP TABLE IF EXISTS `task`;
 DROP TABLE IF EXISTS `global_document`;
 DROP TABLE IF EXISTS `relation_type`;
 DROP TABLE IF EXISTS `label_l2`;
 DROP TABLE IF EXISTS `label_l1`;
 DROP TABLE IF EXISTS `guide_version`;
-DROP TABLE IF EXISTS `auth_token`;
 DROP TABLE IF EXISTS `sys_user`;
 
 CREATE TABLE IF NOT EXISTS `sys_user` (
@@ -25,14 +17,6 @@ CREATE TABLE IF NOT EXISTS `sys_user` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
-
-CREATE TABLE IF NOT EXISTS `auth_token` (
-    `token` VARCHAR(128) NOT NULL,
-    `user_id` BIGINT UNSIGNED NOT NULL,
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`token`),
-    KEY `idx_user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='登录令牌';
 
 CREATE TABLE IF NOT EXISTS `guide_version` (
     `id` INT UNSIGNED AUTO_INCREMENT,
