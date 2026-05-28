@@ -1,54 +1,76 @@
 package edu.nju.jap.service;
 
 import edu.nju.jap.common.MapBodyUtils;
-import edu.nju.jap.dao.DemoDataStore;
+import edu.nju.jap.mapper.GlobalDocumentMapper;
+import edu.nju.jap.mapper.TaskDocumentMapper;
+import edu.nju.jap.mapper.TaskMapper;
+import edu.nju.jap.mapper.TaskMemberMapper;
 import edu.nju.jap.model.dto.response.TaskDetail;
 import edu.nju.jap.model.dto.response.TaskSummary;
-import edu.nju.jap.model.dto.response.UserVO;
-import edu.nju.jap.model.entity.*;
+import edu.nju.jap.model.entity.AnnotationResult;
+import edu.nju.jap.model.entity.ArbitrationResult;
+import edu.nju.jap.model.entity.TaskItem;
+import edu.nju.jap.model.entity.User;
+import edu.nju.jap.model.po.Task;
+import edu.nju.jap.model.po.TaskDocument;
+import edu.nju.jap.model.po.TaskMember;
+import edu.nju.jap.service.support.*;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 @Service
 public class TaskService {
-    private final DemoDataStore store;
-    private final DocumentService documentService;
+    private final TaskMapper taskMapper;
+    private final TaskMemberMapper taskMemberMapper;
+    private final TaskDocumentMapper taskDocumentMapper;
+    private final GlobalDocumentMapper globalDocumentMapper;
+    private final TaskAggregateService taskAggregateService;
+    private final TaskDocumentResolver taskDocumentResolver;
+    private final CurrentUserService currentUserService;
+    private final AnnotationPersistenceService annotationPersistenceService;
+    private final edu.nju.jap.mapper.ArbitrationSnapshotMapper arbitrationSnapshotMapper;
 
-    public TaskService(DemoDataStore store, DocumentService documentService) {
-        this.store = store;
-        this.documentService = documentService;
+    public TaskService(TaskMapper taskMapper, TaskMemberMapper taskMemberMapper, TaskDocumentMapper taskDocumentMapper,
+                       GlobalDocumentMapper globalDocumentMapper, TaskAggregateService taskAggregateService,
+                       TaskDocumentResolver taskDocumentResolver, CurrentUserService currentUserService,
+                       AnnotationPersistenceService annotationPersistenceService,
+                       edu.nju.jap.mapper.ArbitrationSnapshotMapper arbitrationSnapshotMapper) {
+        this.taskMapper = taskMapper;
+        this.taskMemberMapper = taskMemberMapper;
+        this.taskDocumentMapper = taskDocumentMapper;
+        this.globalDocumentMapper = globalDocumentMapper;
+        this.taskAggregateService = taskAggregateService;
+        this.taskDocumentResolver = taskDocumentResolver;
+        this.currentUserService = currentUserService;
+        this.annotationPersistenceService = annotationPersistenceService;
+        this.arbitrationSnapshotMapper = arbitrationSnapshotMapper;
     }
 
     public Map<String, Object> list(String status, String keyword) {
-        List<TaskSummary> list = store.tasks.values().stream()
-                .filter(t -> status == null || status.isBlank() || t.status.equals(status))
-                .filter(t -> keyword == null || keyword.isBlank() || t.taskName.contains(keyword))
-                .sorted(Comparator.comparing((TaskItem t) -> t.id).reversed())
-                .map(this::toSummary)
+        List<TaskSummary> list = taskMapper.selectAll(status, keyword).stream()
+                .map(t -> taskAggregateService.toSummary(taskAggregateService.loadTaskItem(t.getId())))
                 .toList();
         return Map.of("total", list.size(), "list", list);
     }
 
     public Map<String, Object> myTasks(HttpServletRequest request) {
-        User user = store.current(request);
-        List<TaskSummary> list = store.tasks.values().stream()
-                .filter(t -> t.creatorId == user.id || t.annotatorIds.contains(user.id) || t.reviewerId == user.id)
-                .sorted(Comparator.comparing((TaskItem t) -> t.id).reversed())
-                .map(this::toSummary)
+        long userId = currentUserService.requireCurrent(request).id;
+        List<TaskSummary> list = taskMapper.selectByUserId(userId).stream()
+                .map(t -> taskAggregateService.toSummary(taskAggregateService.loadTaskItem(t.getId())))
                 .toList();
         return Map.of("total", list.size(), "list", list);
     }
 
+    @Transactional
     public long create(Map<String, Object> body, HttpServletRequest request) {
-        User user = store.current(request);
+        User user = currentUserService.requireCurrent(request);
         List<Long> documentIds = MapBodyUtils.longList(body.get("documentIds"));
         if (documentIds.isEmpty()) {
             documentIds = List.of(101L);
@@ -58,17 +80,54 @@ public class TaskService {
             annotators = List.of(3L, 4L);
         }
         long reviewerId = MapBodyUtils.longValue(body.get("reviewerId"), 5);
-        long configId = MapBodyUtils.longValue(body.get("configId"), 1);
-        long id = store.taskSeq.incrementAndGet();
-        TaskItem task = new TaskItem(id, MapBodyUtils.text(body, "taskName", "新建标注任务" + id),
-                MapBodyUtils.text(body, "description", "课程演示任务"), "标注中", configId, documentIds,
-                annotators, reviewerId, user.id, LocalDateTime.now(), store.configs.get(configId));
-        store.tasks.put(id, task);
-        return id;
+        int configId = (int) MapBodyUtils.longValue(body.get("configId"), 1);
+
+        Task task = new Task();
+        task.setTitle(MapBodyUtils.text(body, "taskName", "新建标注任务"));
+        task.setDescription(MapBodyUtils.text(body, "description", "课程演示任务"));
+        task.setStatus("标注中");
+        task.setCreatorId(user.id);
+        task.setGuideVersionId(configId);
+        taskMapper.insert(task);
+
+        for (Long uid : annotators) {
+            TaskMember m = new TaskMember();
+            m.setTaskId(task.getId());
+            m.setUserId(uid);
+            m.setRoleInTask("标注员");
+            taskMemberMapper.insert(m);
+        }
+        TaskMember reviewer = new TaskMember();
+        reviewer.setTaskId(task.getId());
+        reviewer.setUserId(reviewerId);
+        reviewer.setRoleInTask("裁定者");
+        taskMemberMapper.insert(reviewer);
+
+        for (Long docId : documentIds) {
+            var global = globalDocumentMapper.selectById(docId);
+            if (global == null) {
+                continue;
+            }
+            TaskDocument td = new TaskDocument();
+            td.setTaskId(task.getId());
+            td.setSourceType("GLOBAL");
+            td.setGlobalDocId(docId);
+            td.setFileName(global.getFileName());
+            td.setExtractedText(global.getExtractedText());
+            td.setStatus("待标注");
+            taskDocumentMapper.insert(td);
+        }
+        return task.getId();
     }
 
     public TaskDetail detail(long id) {
-        return toDetail(requireTask(id));
+        TaskItem task = requireTask(id);
+        return new TaskDetail(taskAggregateService.toSummary(task),
+                taskAggregateService.listTaskDocuments((int) task.id).stream()
+                        .map(taskDocumentResolver::toDocumentItem).toList(),
+                taskAggregateService.annotatorVos(task),
+                taskAggregateService.reviewerVo(task),
+                task.configSnapshot);
     }
 
     public TaskDetail advance(long id, Map<String, Object> body) {
@@ -78,54 +137,61 @@ public class TaskService {
         if (order.indexOf(target) < order.indexOf(task.status)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "任务阶段不可回退");
         }
-        task.status = target;
-        task.stageChangedAt = LocalDateTime.now();
-        return toDetail(task);
+        taskMapper.updateStatus((int) id, target);
+        return detail(id);
     }
 
     public List<Map<String, Object>> items(long taskId) {
+        int tid = (int) taskId;
         TaskItem task = requireTask(taskId);
-        return task.documentIds.stream().map(docId -> {
-            DocumentItem doc = store.documents.get(docId);
-            return Map.<String, Object>of("dataId", docId, "documentId", doc.documentId, "title", doc.title,
-                    "status", task.status);
+        return taskAggregateService.listTaskDocuments(tid).stream().map(td -> {
+            long dataId = taskDocumentResolver.apiDataId(td);
+            edu.nju.jap.model.po.GlobalDocument global = td.getGlobalDocId() == null ? null
+                    : globalDocumentMapper.selectById(td.getGlobalDocId());
+            String docCode = global != null ? global.getDocumentId() : ("D" + td.getId());
+            String title = global != null ? global.getTitle() : td.getFileName();
+            return Map.<String, Object>of("dataId", dataId, "documentId", docCode, "title", title, "status", task.status);
         }).toList();
     }
 
     public Map<String, Object> item(long taskId, long dataId, Long sourceUserId, Boolean sourceArbitration,
                                     HttpServletRequest request) {
+        int tid = (int) taskId;
         TaskItem task = requireTask(taskId);
-        DocumentItem doc = documentService.getById(dataId);
-        User user = store.current(request);
+        TaskDocument td = taskDocumentResolver.requireTaskDocument(tid, dataId);
+        int taskDocId = td.getId();
+        long apiDataId = taskDocumentResolver.apiDataId(td);
+        User user = currentUserService.requireCurrent(request);
         AnnotationResult annotation;
         if (sourceUserId != null) {
-            annotation = store.annotations.get(DemoDataStore.annotationKey(taskId, dataId, sourceUserId));
-            if (annotation == null) {
-                annotation = new AnnotationResult(taskId, dataId, sourceUserId, List.of(), List.of(), false, null);
-            }
+            annotation = annotationPersistenceService.loadAnnotation(tid, taskDocId, sourceUserId, apiDataId);
         } else if (Boolean.TRUE.equals(sourceArbitration)) {
-            ArbitrationResult arb = store.arbitrations.get(DemoDataStore.arbitrationKey(taskId, dataId));
-            if (arb == null) {
-                annotation = new AnnotationResult(taskId, dataId, user.id, List.of(), List.of(), true, null);
+            var snapshot = arbitrationSnapshotMapper.selectByTaskAndDoc(tid, taskDocId);
+            if (snapshot == null) {
+                annotation = new AnnotationResult(taskId, apiDataId, user.id, List.of(), List.of(), true, null);
             } else {
-                annotation = new AnnotationResult(taskId, dataId, user.id, arb.propositions, arb.relations, false,
-                        arb.arbitratedAt);
+                ArbitrationResult arb = annotationPersistenceService.loadArbitration(tid, taskDocId, apiDataId,
+                        snapshot.getArbitratorId(), snapshot);
+                annotation = new AnnotationResult(taskId, apiDataId, user.id, arb.propositions, arb.relations,
+                        false, arb.arbitratedAt);
             }
         } else {
-            annotation = store.annotations.get(DemoDataStore.annotationKey(taskId, dataId, user.id));
-            if (annotation == null) {
-                annotation = new AnnotationResult(taskId, dataId, user.id, List.of(), List.of(), true, null);
-            }
+            annotation = annotationPersistenceService.loadAnnotation(tid, taskDocId, user.id, apiDataId);
         }
-        return Map.of("task", toSummary(task), "document", doc, "config", task.configSnapshot, "annotation",
-                annotation);
+        return Map.of("task", taskAggregateService.toSummary(task), "document", taskDocumentResolver.toDocumentItem(td),
+                "config", task.configSnapshot, "annotation", annotation);
     }
 
     public List<ArbitrationResult> results(long taskId) {
-        TaskItem task = requireTask(taskId);
-        return task.documentIds.stream()
-                .map(docId -> store.arbitrations.get(DemoDataStore.arbitrationKey(taskId, docId)))
-                .filter(Objects::nonNull)
+        int tid = (int) taskId;
+        requireTask(taskId);
+        return arbitrationSnapshotMapper.selectByTaskId(tid).stream()
+                .map(s -> {
+                    TaskDocument td = taskDocumentMapper.selectById(s.getTaskDocumentId());
+                    long apiDataId = taskDocumentResolver.apiDataId(td);
+                    return annotationPersistenceService.loadArbitration(tid, s.getTaskDocumentId(), apiDataId,
+                            s.getArbitratorId(), s);
+                })
                 .toList();
     }
 
@@ -136,27 +202,11 @@ public class TaskService {
     }
 
     public TaskItem requireTask(long id) {
-        TaskItem task = store.tasks.get(id);
-        if (task == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "任务不存在");
-        }
-        return task;
+        return taskAggregateService.loadTaskItem((int) id);
     }
 
     public TaskSummary toSummary(TaskItem task) {
-        User reviewer = store.users.get(task.reviewerId);
-        User creator = store.users.get(task.creatorId);
-        return new TaskSummary(task.id, task.taskName, task.description, task.status, task.documentIds.size(),
-                task.annotatorIds.size(), reviewer == null ? "-" : reviewer.realName,
-                creator == null ? "-" : creator.realName, task.createdAt);
-    }
-
-    public TaskDetail toDetail(TaskItem task) {
-        return new TaskDetail(toSummary(task),
-                task.documentIds.stream().map(store.documents::get).filter(Objects::nonNull).toList(),
-                task.annotatorIds.stream().map(id -> UserVO.from(store.users.get(id))).toList(),
-                UserVO.from(store.users.get(task.reviewerId)),
-                task.configSnapshot);
+        return taskAggregateService.toSummary(task);
     }
 
     public static String nextStatus(String status) {

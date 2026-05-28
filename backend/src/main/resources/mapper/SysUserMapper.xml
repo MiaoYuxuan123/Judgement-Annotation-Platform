@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.nju.jap.mapper.SysUserMapper">
+    <resultMap id="SysUserMap" type="edu.nju.jap.model.po.SysUser">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="passwordHash" column="password_hash"/>
+        <result property="realName" column="real_name"/>
+        <result property="role" column="role"/>
+        <result property="canCreateTask" column="can_create_task"/>
+        <result property="lastSeen" column="last_seen"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="SysUserMap">
+        SELECT * FROM sys_user WHERE id = #{id}
+    </select>
+    <select id="selectByUsername" resultMap="SysUserMap">
+        SELECT * FROM sys_user WHERE username = #{username}
+    </select>
+    <select id="selectAll" resultMap="SysUserMap">
+        SELECT * FROM sys_user ORDER BY id
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user(username, password_hash, real_name, role, can_create_task, status)
+        VALUES (#{username}, #{passwordHash}, #{realName}, #{role}, #{canCreateTask}, #{status})
+    </insert>
+    <update id="update">
+        UPDATE sys_user SET password_hash=#{passwordHash}, real_name=#{realName}, role=#{role},
+        can_create_task=#{canCreateTask}, status=#{status} WHERE id=#{id}
+    </update>
+    <delete id="deleteById">DELETE FROM sys_user WHERE id=#{id}</delete>
+</mapper>

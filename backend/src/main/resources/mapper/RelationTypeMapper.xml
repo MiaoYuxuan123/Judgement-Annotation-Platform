@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.nju.jap.mapper.RelationTypeMapper">
+    <select id="selectByVersionId" resultType="edu.nju.jap.model.po.RelationType">
+        SELECT * FROM relation_type WHERE guide_version_id=#{versionId}
+    </select>
+    <delete id="deleteByVersionId">DELETE FROM relation_type WHERE guide_version_id=#{versionId}</delete>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO relation_type(guide_version_id, name, abbr, description, is_binary)
+        VALUES (#{guideVersionId}, #{name}, #{abbr}, #{description}, #{isBinary})
+    </insert>
+</mapper>
