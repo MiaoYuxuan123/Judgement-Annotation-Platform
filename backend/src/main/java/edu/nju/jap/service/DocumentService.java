@@ -47,15 +47,11 @@ public class DocumentService {
     }
 
     public long create(Map<String, Object> body, HttpServletRequest request) {
-        long userId = currentUserService.requireCurrent(request).id;
         GlobalDocument doc = new GlobalDocument();
-        doc.setDocumentId("W" + System.currentTimeMillis());
         doc.setTitle(MapBodyUtils.text(body, "title", "新文书"));
         doc.setFileName(doc.getTitle() + ".txt");
-        doc.setFilePath("");
         doc.setFileType(MapBodyUtils.text(body, "type", "民事判决书"));
         doc.setExtractedText(MapBodyUtils.text(body, "content", "本院认为，案涉事实清楚，证据充分。"));
-        doc.setUploadedById(userId);
         globalDocumentMapper.insert(doc);
         return doc.getId();
     }

@@ -19,4 +19,10 @@ public interface SysUserMapper {
     int update(SysUser user);
 
     int deleteById(@Param("id") long id);
+
+    int updateOnline(@Param("id") long id);
+
+    int updateOffline(@Param("id") long id);
+
+    int updateOfflineByTimeout();
 }

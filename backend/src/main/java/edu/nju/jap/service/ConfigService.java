@@ -57,7 +57,6 @@ public class ConfigService {
         GuideVersion version = new GuideVersion();
         version.setVersionName(MapBodyUtils.text(body, "versionName", "V-new"));
         version.setDescription(MapBodyUtils.text(body, "description", "自定义指南版本"));
-        version.setIsActive(0);
         guideVersionMapper.insert(version);
         saveLabels(version.getId(), labelDefs(body.get("primaryTags"), base.primaryTags),
                 labelDefs(body.get("secondaryTags"), base.secondaryTags),

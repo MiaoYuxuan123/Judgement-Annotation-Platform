@@ -1,12 +1,12 @@
 INSERT INTO sys_user (id, username, password_hash, real_name, role, can_create_task, status) VALUES
-(1, 'admin', '123456', '系统管理员', 'admin', 0, 1),
-(2, 'creator', '123456', '任务创建者', 'creator', 1, 1),
-(3, 'annotator1', '123456', '参与者一', 'user', 0, 1),
-(4, 'annotator2', '123456', '参与者二', 'user', 0, 1),
-(5, 'reviewer', '123456', '参与者三', 'user', 0, 1);
+(1, 'admin', '123456', '系统管理员', 'admin', 0, 0),
+(2, 'creator', '123456', '任务创建者', 'creator', 1, 0),
+(3, 'annotator1', '123456', '参与者一', 'user', 0, 0),
+(4, 'annotator2', '123456', '参与者二', 'user', 0, 0),
+(5, 'reviewer', '123456', '参与者三', 'user', 0, 0);
 
-INSERT INTO guide_version (id, version_name, description, is_active, created_at) VALUES
-(1, 'V1.0 标准指南', '默认裁判文书论证标签体系', 1, '2026-05-01 00:00:00');
+INSERT INTO guide_version (id, version_name, description, created_at) VALUES
+(1, 'V1.0 标准指南', '默认裁判文书论证标签体系', '2026-05-01 00:00:00');
 
 INSERT INTO label_l1 (guide_version_id, name, abbr, description) VALUES
 (1, '个别事实判断', 'SF', '关于案件中个别对象的事实判断'),
@@ -29,13 +29,13 @@ INSERT INTO relation_type (guide_version_id, name, abbr, description, is_binary)
 (1, '匹配关系', 'M', '规范要件与事实对应', 1),
 (1, '同一关系', 'I', '语义上表达同一判断', 1);
 
-INSERT INTO global_document (id, document_id, title, file_name, file_path, file_type, extracted_text, uploaded_by_id) VALUES
-(101, 'W101', '合同纠纷一审判决书', '合同纠纷一审判决书.txt', '', 'txt',
- '本院认为，依法成立的合同，对当事人具有法律约束力。当事人应当按照约定全面履行自己的义务。被告未按期支付货款，已经构成违约。原告提交的送货单、对账单能够相互印证，本院予以采信。因此，被告应当向原告支付货款并承担逾期付款责任。', 1),
-(102, 'W102', '劳动争议仲裁审查裁定', '劳动争议仲裁审查裁定.txt', '', 'txt',
- '本院认为，劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定。现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动。公司主张双方不存在劳动关系，但未提交充分反证，本院不予采纳。', 1),
-(103, 'W103', '侵权责任纠纷判决书', '侵权责任纠纷判决书.txt', '', 'txt',
- '本院认为，行为人因过错侵害他人民事权益造成损害的，应当承担侵权责任。监控视频显示，被告车辆倒车时未尽到合理注意义务，与原告车辆发生碰撞。事故认定书载明被告承担全部责任，故原告要求赔偿维修费具有事实和法律依据。', 1);
+INSERT INTO global_document (id, title, file_name, file_type, extracted_text) VALUES
+(101, '合同纠纷一审判决书', '合同纠纷一审判决书.txt', '民事判决书',
+ '本院认为，依法成立的合同，对当事人具有法律约束力。当事人应当按照约定全面履行自己的义务。被告未按期支付货款，已经构成违约。原告提交的送货单、对账单能够相互印证，本院予以采信。因此，被告应当向原告支付货款并承担逾期付款责任。'),
+(102, '劳动争议仲裁审查裁定', '劳动争议仲裁审查裁定.txt', '民事裁定书',
+ '本院认为，劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定。现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动。公司主张双方不存在劳动关系，但未提交充分反证，本院不予采纳。'),
+(103, '侵权责任纠纷判决书', '侵权责任纠纷判决书.txt', '民事判决书',
+ '本院认为，行为人因过错侵害他人民事权益造成损害的，应当承担侵权责任。监控视频显示，被告车辆倒车时未尽到合理注意义务，与原告车辆发生碰撞。事故认定书载明被告承担全部责任，故原告要求赔偿维修费具有事实和法律依据。');
 
 INSERT INTO task (id, title, description, status, creator_id, guide_version_id, created_at, stage_changed_at) VALUES
 (1001, '合同法标注演示任务', '标注合同纠纷裁判理由中的事实、规范与关系', '标注中', 2, 1, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 1 DAY),

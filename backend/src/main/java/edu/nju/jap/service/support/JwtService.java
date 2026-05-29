@@ -56,9 +56,10 @@ public class JwtService {
             return null;
         }
         SysUser po = sysUserMapper.selectById(userId);
-        if (po == null || po.getStatus() == null || po.getStatus() != 1) {
+        if (po == null) {
             return null;
         }
+        sysUserMapper.updateOnline(userId);
         return DomainConverter.toUser(po);
     }
 

@@ -16,6 +16,15 @@ client.interceptors.response.use(
     (response) => {
         const body = response.data
         if (body && typeof body.code === 'number' && body.code !== 200) {
+            if (body.code === 401) {
+                localStorage.removeItem('jap_token')
+                localStorage.removeItem('jap_user')
+                if (window.location.pathname !== '/login') {
+                    ElMessage.warning('登录已过期，请重新登录')
+                    window.location.assign('/login')
+                }
+                return Promise.reject(new Error(body.message || '未授权'))
+            }
             ElMessage.error(body.message || '请求失败')
             return Promise.reject(new Error(body.message || '请求失败'))
         }
@@ -23,17 +32,16 @@ client.interceptors.response.use(
     },
     (error) => {
         const status = error.response?.status
-        const message = error.response?.data?.message || error.message || '网络异常'
-        // JWT 过期、签名无效或账号被禁用时清除本地会话
         if (status === 401) {
             localStorage.removeItem('jap_token')
             localStorage.removeItem('jap_user')
-            if (!window.location.pathname.startsWith('/login')) {
+            if (window.location.pathname !== '/login') {
                 ElMessage.warning('登录已过期，请重新登录')
                 window.location.assign('/login')
-                return Promise.reject(error)
             }
+            return Promise.reject(error)
         }
+        const message = error.response?.data?.message || error.message || '网络异常'
         ElMessage.error(message)
         return Promise.reject(error)
     }

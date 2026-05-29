@@ -23,7 +23,7 @@ public final class DomainConverter {
         }
         User user = new User(po.getId(), po.getUsername(), po.getPasswordHash(), po.getRealName(), po.getRole(),
                 po.getCanCreateTask() != null && po.getCanCreateTask() == 1,
-                po.getStatus() != null && po.getStatus() == 1 ? "正常" : "禁用");
+                po.getStatus() != null && po.getStatus() == 1 ? "在线" : "离线");
         user.lastSeen = po.getLastSeen();
         return user;
     }
@@ -36,7 +36,7 @@ public final class DomainConverter {
         po.setRealName(user.realName);
         po.setRole(user.role);
         po.setCanCreateTask(user.canCreateTask ? 1 : 0);
-        po.setStatus("正常".equals(user.status) ? 1 : 0);
+        po.setStatus("在线".equals(user.status) ? 1 : 0);
         po.setLastSeen(user.lastSeen);
         return po;
     }
@@ -46,8 +46,8 @@ public final class DomainConverter {
             return null;
         }
         String date = po.getUploadedAt() == null ? "" : po.getUploadedAt().toLocalDate().toString();
-        return new DocumentItem(po.getId(), po.getDocumentId(), po.getTitle(), po.getFileType(), date,
-                po.getExtractedText(), po.getUploadedById() == null ? 0 : po.getUploadedById());
+        return new DocumentItem(po.getId(), String.valueOf(po.getId()), po.getTitle(), po.getFileType(), date,
+                po.getExtractedText(), 0);
     }
 
     public static DocumentItem toDocumentItem(TaskDocument td, GlobalDocument global) {
@@ -55,7 +55,7 @@ public final class DomainConverter {
             return null;
         }
         long dataId = td.getGlobalDocId() != null ? td.getGlobalDocId() : td.getId();
-        String docCode = global != null ? global.getDocumentId() : ("D" + td.getId());
+        String docCode = global != null ? String.valueOf(global.getId()) : ("D" + td.getId());
         String title = global != null ? global.getTitle() : td.getFileName();
         String type = global != null ? global.getFileType() : "txt";
         String date = td.getUploadedAt() == null ? "" : td.getUploadedAt().toLocalDate().toString();
@@ -77,7 +77,7 @@ public final class DomainConverter {
                 .toList();
         String created = version.getCreatedAt() == null ? "" : version.getCreatedAt().toLocalDate().toString();
         return new GuideConfig(version.getId(), version.getVersionName(), version.getDescription(),
-                version.getIsActive() != null && version.getIsActive() == 1, created, primary, secondary, relations);
+                false, created, primary, secondary, relations);
     }
 
     public static Proposition toProposition(PropositionPo po, int sequence) {

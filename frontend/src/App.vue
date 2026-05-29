@@ -44,9 +44,10 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import client from './api/client'
 import CreatorLayout from './layouts/CreatorLayout.vue'
 import ParticipantLayout from './layouts/ParticipantLayout.vue'
 
@@ -58,7 +59,7 @@ const sidebarCollapsed = ref(false)
 const adminPaths = ['/users', '/documents', '/configs']
 
 const shell = computed(() => {
-  if (route.meta.public) return 'public'
+  if (route.meta.public || !auth.user) return 'public'
   if (auth.user?.role === 'admin' && adminPaths.includes(route.path)) return 'admin'
   if (auth.user?.canCreateTask) return 'creator'
   if (auth.user?.role !== 'admin') return 'participant'
@@ -91,8 +92,18 @@ const menuItems = computed(() => {
   return []
 })
 
-function logout() {
-  auth.logout()
+async function logout() {
+  await auth.logout()
   router.push('/login')
 }
+
+let heartbeat = null
+onMounted(() => {
+  heartbeat = setInterval(() => {
+    if (auth.isLoggedIn) client.get('/users/me').catch(() => {})
+  }, 60_000)
+})
+onUnmounted(() => {
+  if (heartbeat) clearInterval(heartbeat)
+})
 </script>
