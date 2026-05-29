@@ -30,5 +30,17 @@
         can_create_task=#{canCreateTask}, status=#{status} WHERE id=#{id}
     </update>
     <delete id="deleteById">DELETE FROM sys_user WHERE id=#{id}</delete>
+
+    <update id="updateOnline">
+        UPDATE sys_user SET last_seen = NOW(), status = 1 WHERE id = #{id}
+    </update>
+
+    <update id="updateOffline">
+        UPDATE sys_user SET status = 0 WHERE id = #{id}
+    </update>
+
+    <update id="updateOfflineByTimeout">
+        UPDATE sys_user SET status = 0 WHERE status = 1 AND last_seen &lt; NOW() - INTERVAL 120 SECOND
+    </update>
 </mapper>
 

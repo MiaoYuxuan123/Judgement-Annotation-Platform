@@ -8,15 +8,14 @@
         SELECT * FROM global_document
         <where>
             <if test="keyword != null and keyword != ''">
-                AND (title LIKE CONCAT('%',#{keyword},'%') OR document_id LIKE CONCAT('%',#{keyword},'%'))
+                AND title LIKE CONCAT('%',#{keyword},'%')
             </if>
         </where>
         ORDER BY id
     </select>
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO global_document(document_id, title, file_name, file_path, file_type, extracted_text, uploaded_by_id)
-        VALUES (#{documentId}, #{title}, #{fileName}, #{filePath}, #{fileType}, #{extractedText}, #{uploadedById})
+        INSERT INTO global_document(title, file_name, file_type, extracted_text)
+        VALUES (#{title}, #{fileName}, #{fileType}, #{extractedText})
     </insert>
     <delete id="deleteById">DELETE FROM global_document WHERE id=#{id}</delete>
 </mapper>
-

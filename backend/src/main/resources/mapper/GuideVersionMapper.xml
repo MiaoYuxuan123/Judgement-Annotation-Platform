@@ -5,17 +5,16 @@
         SELECT * FROM guide_version WHERE id=#{id}
     </select>
     <select id="selectActive" resultType="edu.nju.jap.model.po.GuideVersion">
-        SELECT * FROM guide_version WHERE is_active=1 LIMIT 1
+        SELECT * FROM guide_version ORDER BY id LIMIT 1
     </select>
     <select id="selectAll" resultType="edu.nju.jap.model.po.GuideVersion">
         SELECT * FROM guide_version ORDER BY id
     </select>
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO guide_version(version_name, description, is_active) VALUES (#{versionName}, #{description}, #{isActive})
+        INSERT INTO guide_version(version_name, description) VALUES (#{versionName}, #{description})
     </insert>
     <update id="update">
-        UPDATE guide_version SET version_name=#{versionName}, description=#{description}, is_active=#{isActive} WHERE id=#{id}
+        UPDATE guide_version SET version_name=#{versionName}, description=#{description} WHERE id=#{id}
     </update>
     <delete id="deleteById">DELETE FROM guide_version WHERE id=#{id}</delete>
 </mapper>
-

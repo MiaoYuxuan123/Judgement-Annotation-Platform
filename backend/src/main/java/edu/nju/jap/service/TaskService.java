@@ -148,7 +148,7 @@ public class TaskService {
             long dataId = taskDocumentResolver.apiDataId(td);
             edu.nju.jap.model.po.GlobalDocument global = td.getGlobalDocId() == null ? null
                     : globalDocumentMapper.selectById(td.getGlobalDocId());
-            String docCode = global != null ? global.getDocumentId() : ("D" + td.getId());
+            String docCode = global != null ? String.valueOf(global.getId()) : ("D" + td.getId());
             String title = global != null ? global.getTitle() : td.getFileName();
             return Map.<String, Object>of("dataId", dataId, "documentId", docCode, "title", title, "status", task.status);
         }).toList();

@@ -3,6 +3,7 @@ package edu.nju.jap.controller;
 import edu.nju.jap.common.ApiResponse;
 import edu.nju.jap.model.dto.request.LoginRequest;
 import edu.nju.jap.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -22,5 +23,11 @@ public class AuthController {
     @PostMapping("/login")
     ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.ok("登录成功", authService.login(request));
+    }
+
+    @PostMapping("/logout")
+    ApiResponse<Void> logout(HttpServletRequest request) {
+        authService.logout(request);
+        return ApiResponse.ok("已退出", null);
     }
 }

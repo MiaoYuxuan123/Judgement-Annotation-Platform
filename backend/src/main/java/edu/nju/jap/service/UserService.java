@@ -51,8 +51,8 @@ public class UserService {
         old.setRealName(MapBodyUtils.text(body, "realName", old.getRealName()));
         old.setRole(MapBodyUtils.text(body, "role", old.getRole()));
         old.setCanCreateTask(MapBodyUtils.bool(body, "canCreateTask", old.getCanCreateTask() == 1) ? 1 : 0);
-        String statusText = MapBodyUtils.text(body, "status", old.getStatus() == 1 ? "正常" : "禁用");
-        old.setStatus("正常".equals(statusText) ? 1 : 0);
+        String statusText = MapBodyUtils.text(body, "status", old.getStatus() == 1 ? "在线" : "离线");
+        old.setStatus("在线".equals(statusText) ? 1 : 0);
         sysUserMapper.update(old);
     }
 
