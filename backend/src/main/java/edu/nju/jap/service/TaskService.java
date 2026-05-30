@@ -143,6 +143,78 @@ public class TaskService {
         return detail(id);
     }
 
+    @Transactional
+    public TaskDetail updateConfig(long id, Map<String, Object> body, HttpServletRequest request) {
+        User user = currentUserService.requireCurrent(request);
+        Task task = taskAggregateService.requireTaskPo((int) id);
+        if (!Objects.equals(task.getCreatorId(), user.id)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "仅任务创建者可修改配置");
+        }
+        rejectImmutableFieldChanges(body, task);
+
+        int taskId = task.getId();
+        java.util.Set<Long> existingAnnotators = taskMemberMapper.selectByTaskId(taskId).stream()
+                .filter(m -> "标注员".equals(m.getRoleInTask()))
+                .map(TaskMember::getUserId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        for (Long uid : MapBodyUtils.longList(body.get("addAnnotatorIds"))) {
+            if (existingAnnotators.contains(uid)) {
+                continue;
+            }
+            TaskMember member = new TaskMember();
+            member.setTaskId(taskId);
+            member.setUserId(uid);
+            member.setRoleInTask("标注员");
+            taskMemberMapper.insert(member);
+            existingAnnotators.add(uid);
+        }
+
+        List<TaskDocument> existingDocs = new java.util.ArrayList<>(taskDocumentMapper.selectByTaskId(taskId));
+        for (Map<String, Object> spec : MapBodyUtils.mapList(body.get("documents"))) {
+            assertDocumentNotDuplicate(existingDocs, spec);
+            TaskDocument td = taskDocumentFactory.buildForCreate(taskId, spec, user.id);
+            taskDocumentMapper.insert(td);
+            existingDocs.add(td);
+        }
+        return detail(id);
+    }
+
+    private void rejectImmutableFieldChanges(Map<String, Object> body, Task task) {
+        if (body.containsKey("taskName")
+                && !MapBodyUtils.text(body, "taskName", task.getTitle()).equals(task.getTitle())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不允许修改任务名称");
+        }
+        if (body.containsKey("description")
+                && !MapBodyUtils.text(body, "description", nullToEmpty(task.getDescription()))
+                .equals(nullToEmpty(task.getDescription()))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不允许修改任务描述");
+        }
+        if (body.containsKey("configId") && task.getGuideVersionId() != null) {
+            int configId = (int) MapBodyUtils.longValue(body.get("configId"), task.getGuideVersionId());
+            if (configId != task.getGuideVersionId()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不允许修改指南版本");
+            }
+        }
+    }
+
+    private void assertDocumentNotDuplicate(List<TaskDocument> existingDocs, Map<String, Object> spec) {
+        String sourceType = MapBodyUtils.text(spec, "sourceType", "GLOBAL").toUpperCase();
+        if (!"GLOBAL".equals(sourceType)) {
+            return;
+        }
+        long globalDocId = MapBodyUtils.longValue(spec.get("globalDocId"), 0);
+        boolean exists = existingDocs.stream()
+                .anyMatch(d -> "GLOBAL".equals(d.getSourceType()) && Objects.equals(d.getGlobalDocId(), globalDocId));
+        if (exists) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "该文书已在任务中");
+        }
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
     public List<Map<String, Object>> items(long taskId) {
         int tid = (int) taskId;
         TaskItem task = requireTask(taskId);
@@ -152,7 +224,8 @@ public class TaskService {
                     : globalDocumentMapper.selectById(td.getGlobalDocId());
             String docCode = global != null ? String.valueOf(global.getId()) : ("D" + td.getId());
             String title = global != null ? global.getTitle() : td.getFileName();
-            return Map.<String, Object>of("dataId", dataId, "documentId", docCode, "title", title, "status", task.status);
+            String docStatus = td.getStatus() != null ? td.getStatus() : task.status;
+            return Map.<String, Object>of("dataId", dataId, "documentId", docCode, "title", title, "status", docStatus);
         }).toList();
     }
 

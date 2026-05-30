@@ -1,8 +1,19 @@
 <template>
   <section class="panel task-doc-picker-page">
     <div class="task-create-header">
-      <el-button text @click="goBack">← 返回创建任务</el-button>
+      <el-button text @click="goBack">← {{ editTaskId ? '返回任务详情' : '返回创建任务' }}</el-button>
       <h2>选取 / 上传文书</h2>
+    </div>
+
+    <div v-if="editTaskId && existingDocuments.length" class="existing-panel">
+      <h3>任务已有文书（{{ existingDocuments.length }}）</h3>
+      <ul class="task-doc-selected-list existing-list">
+        <li v-for="doc in existingDocuments" :key="`ex-${doc.id}`">
+          <span class="task-doc-source-tag">{{ sourceTypeLabel(doc.sourceType) }}</span>
+          <span>{{ doc.title || doc.fileName }}</span>
+          <span class="locked-label">已在任务中</span>
+        </li>
+      </ul>
     </div>
 
     <el-tabs v-model="activeTab">
@@ -12,10 +23,13 @@
           <el-table-column prop="documentId" label="ID" width="90" />
           <el-table-column prop="title" label="标题" min-width="220" />
           <el-table-column prop="type" label="类型" width="120" />
-          <el-table-column label="操作" width="260">
+          <el-table-column label="操作" width="300">
             <template #default="{ row }">
-              <el-button link type="primary" @click.stop="addGlobal(row)">直接使用</el-button>
-              <el-button link type="warning" @click.stop="openRecreate(row)">修改范围</el-button>
+              <el-tag v-if="isExistingGlobal(row.id)" type="info" size="small">已在任务中</el-tag>
+              <template v-else>
+                <el-button link type="primary" @click.stop="addGlobal(row)">直接使用</el-button>
+                <el-button link type="warning" @click.stop="openRecreate(row)">修改范围</el-button>
+              </template>
             </template>
           </el-table-column>
         </el-table>
@@ -99,8 +113,8 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import client from '../../api/client'
 import {
@@ -109,8 +123,15 @@ import {
   saveTaskCreateDraft,
   sourceTypeLabel
 } from '../../utils/taskCreateDraft'
+import { loadTaskUpdateDraft, saveTaskUpdateDraft } from '../../utils/taskUpdateDraft'
+import { tasksReturnRoute } from '../../utils/navigationReturn'
 
 const router = useRouter()
+const route = useRoute()
+const editTaskId = computed(() => {
+  const id = route.params.taskId
+  return id ? Number(id) : null
+})
 const activeTab = ref('global')
 const globalDocuments = ref([])
 const selected = ref([])
@@ -122,16 +143,37 @@ const uploadRef = ref(null)
 const uploadPreviewVisible = ref(false)
 const uploadPreviewItems = ref([])
 const uploadPreviewTab = ref(0)
+const existingDocuments = ref([])
+
+function isExistingGlobal(globalDocId) {
+  return existingDocuments.value.some(
+    (d) => d.sourceType === 'GLOBAL' && Number(d.globalDocId || d.id) === Number(globalDocId)
+  )
+}
 
 function goBack() {
+  if (editTaskId.value) {
+    router.push(tasksReturnRoute(editTaskId.value))
+    return
+  }
   router.push('/tasks/create')
 }
 
 function loadSelectedFromDraft() {
+  if (editTaskId.value) {
+    selected.value = [...(loadTaskUpdateDraft(editTaskId.value).addDocuments || [])]
+    return
+  }
   selected.value = [...(loadTaskCreateDraft().documents || [])]
 }
 
 function persistSelected() {
+  if (editTaskId.value) {
+    const draft = loadTaskUpdateDraft(editTaskId.value)
+    draft.addDocuments = selected.value
+    saveTaskUpdateDraft(editTaskId.value, draft)
+    return
+  }
   const draft = loadTaskCreateDraft()
   draft.documents = selected.value
   saveTaskCreateDraft(draft)
@@ -152,6 +194,10 @@ function removeSelected(doc) {
 }
 
 function addGlobal(row) {
+  if (isExistingGlobal(row.id)) {
+    ElMessage.warning('该文书已在任务中')
+    return
+  }
   addDocument({
     sourceType: 'GLOBAL',
     globalDocId: row.id,
@@ -183,6 +229,11 @@ function confirmRecreate() {
   const modified = recreateForm.value.extractedText?.trim()
   if (!modified) {
     ElMessage.warning('正文不能为空')
+    return
+  }
+  if (isExistingGlobal(recreateForm.value.globalDocId)) {
+    ElMessage.warning('该文书已在任务中')
+    recreateVisible.value = false
     return
   }
   const originalText = (recreateForm.value._originalText || '').trim()
@@ -248,11 +299,19 @@ function confirmUploadPreview() {
 function confirm() {
   persistSelected()
   ElMessage.success('文书选取已保存')
+  if (editTaskId.value) {
+    router.push(tasksReturnRoute(editTaskId.value))
+    return
+  }
   router.push('/tasks/create')
 }
 
 onMounted(async () => {
   loadSelectedFromDraft()
+  if (editTaskId.value) {
+    const detail = await client.get(`/tasks/${editTaskId.value}`)
+    existingDocuments.value = detail.documents || []
+  }
   const data = await client.get('/documents')
   globalDocuments.value = data.list || []
 })
@@ -275,6 +334,21 @@ onMounted(async () => {
 .task-create-header h2 {
   margin: 0;
   font-size: 20px;
+}
+
+.existing-panel {
+  margin-bottom: 20px;
+}
+
+.existing-panel h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.existing-list .locked-label {
+  margin-left: auto;
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 .hint {

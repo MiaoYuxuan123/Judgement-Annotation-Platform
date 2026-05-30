@@ -94,6 +94,7 @@
                     :detail="details[row.taskId]"
                     :show-reviewer="false"
                     mode="participant"
+                    :return-row-key="row.key"
                   />
                 </td>
               </tr>
@@ -121,6 +122,7 @@ import { useAuthStore } from '../../stores/auth'
 import TaskDirectorySidebar from '../../components/task/TaskDirectorySidebar.vue'
 import TaskInlineDetail from '../../components/task/TaskInlineDetail.vue'
 import { buildParticipantRows, participantAction } from '../../utils/taskRows'
+import { syncTasksRoute } from '../../utils/navigationReturn'
 
 const router = useRouter()
 const route = useRoute()
@@ -175,11 +177,33 @@ function goAction(action) {
 
 function toggleDetail(key, taskId) {
   expandedKey.value = expandedKey.value === key ? null : key
-  if (expandedKey.value && !details.value[taskId]) loadDetail(taskId)
+  if (expandedKey.value) {
+    syncTasksRoute(router, taskId, key)
+    if (!details.value[taskId]) loadDetail(taskId)
+  }
+}
+
+async function restoreFromRoute() {
+  const taskId = Number(route.query.taskId)
+  if (!taskId) {
+    activeTaskId.value = null
+    expandedKey.value = null
+    return
+  }
+  activeTaskId.value = taskId
+  const task = tasks.value.find((t) => t.taskId === taskId)
+  if (!details.value[taskId]) await loadDetail(taskId, task?.status)
+  if (route.query.rowKey) {
+    expandedKey.value = route.query.rowKey
+  } else if (route.query.expand === '1') {
+    const rows = tableRows.value.filter((r) => r.taskId === taskId)
+    if (rows.length) expandedKey.value = rows[0].key
+  }
 }
 
 async function selectSidebarTask(taskId) {
   activeTaskId.value = taskId
+  syncTasksRoute(router, taskId)
   if (taskId == null) {
     expandedKey.value = null
     return
@@ -187,6 +211,7 @@ async function selectSidebarTask(taskId) {
   const rows = tableRows.value.filter((r) => r.taskId === taskId)
   if (rows.length) {
     expandedKey.value = rows[0].key
+    syncTasksRoute(router, taskId, rows[0].key)
     if (!details.value[taskId]) {
       const task = tasks.value.find((t) => t.taskId === taskId)
       await loadDetail(taskId, task?.status)
@@ -229,21 +254,13 @@ function resetFilters() {
 
 onMounted(async () => {
   await load()
-  const taskId = Number(route.query.taskId)
-  if (taskId) {
-    await selectSidebarTask(taskId)
-  }
+  await restoreFromRoute()
 })
 
 watch(
-  () => route.query.taskId,
-  async (id) => {
-    if (!id) {
-      activeTaskId.value = null
-      expandedKey.value = null
-      return
-    }
-    await selectSidebarTask(Number(id))
+  () => [route.query.taskId, route.query.rowKey, route.query.expand],
+  async () => {
+    await restoreFromRoute()
   }
 )
 </script>

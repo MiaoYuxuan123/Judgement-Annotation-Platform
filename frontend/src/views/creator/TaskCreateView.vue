@@ -5,19 +5,16 @@
       <h2>新增任务</h2>
     </div>
 
-    <el-form :model="form" label-position="top" class="task-form">
-      <el-form-item label="任务名称" required>
-        <el-input v-model="form.taskName" placeholder="请输入任务名称" />
-      </el-form-item>
-      <el-form-item label="任务描述">
-        <el-input v-model="form.description" type="textarea" placeholder="请输入任务描述" />
-      </el-form-item>
-      <el-form-item label="指南版本" required>
-        <el-select v-model="form.configId" placeholder="请选择指南版本" style="width: 100%">
-          <el-option v-for="cfg in configs" :key="cfg.id" :label="cfg.versionName" :value="cfg.id" />
-        </el-select>
-      </el-form-item>
+    <TaskForm
+      :form="form"
+      :documents="[]"
+      :users="users"
+      :configs="configs"
+      mode="create"
+      @pick-members="goPickMembers"
+    />
 
+    <el-form :model="form" label-position="top" class="task-form-extra">
       <el-form-item label="任务文书" required>
         <div class="task-doc-picker-summary">
           <p v-if="!form.documents.length" class="muted">尚未选取文书，请前往选取或上传。</p>
@@ -31,17 +28,6 @@
           <el-button type="primary" plain @click="goPickDocuments">选取 / 上传文书</el-button>
         </div>
       </el-form-item>
-
-      <el-form-item label="标注者" required>
-        <el-select v-model="form.annotatorIds" multiple placeholder="请选择标注者" style="width: 100%">
-          <el-option v-for="user in annotators" :key="user.id" :label="user.realName" :value="user.id" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="裁决者" required>
-        <el-select v-model="form.reviewerId" placeholder="请选择裁决者" style="width: 100%">
-          <el-option v-for="user in reviewers" :key="user.id" :label="user.realName" :value="user.id" />
-        </el-select>
-      </el-form-item>
     </el-form>
 
     <div class="task-create-actions">
@@ -52,10 +38,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import client from '../../api/client'
+import TaskForm from '../../components/task/TaskForm.vue'
 import {
   clearTaskCreateDraft,
   documentKey,
@@ -71,10 +58,6 @@ const users = ref([])
 const configs = ref([])
 const form = reactive(loadTaskCreateDraft())
 
-const normalUsers = computed(() => users.value.filter((u) => u.role !== 'admin' && !u.canCreateTask))
-const annotators = computed(() => normalUsers.value)
-const reviewers = computed(() => normalUsers.value.filter((u) => !form.annotatorIds.includes(u.id)))
-
 function persistDraft() {
   saveTaskCreateDraft(form)
 }
@@ -87,6 +70,11 @@ function goBack() {
 function goPickDocuments() {
   persistDraft()
   router.push('/tasks/create/documents')
+}
+
+function goPickMembers() {
+  persistDraft()
+  router.push('/tasks/create/members')
 }
 
 function removeDocument(doc) {
@@ -108,12 +96,12 @@ async function submit() {
     ElMessage.warning('请至少选取一篇文书')
     return
   }
-  if (!form.annotatorIds.length) {
-    ElMessage.warning('请选择标注者')
+  if (!form.annotatorIds?.length) {
+    ElMessage.warning('请选取参与者（至少一名标注员）')
     return
   }
   if (!form.reviewerId) {
-    ElMessage.warning('请选择裁决者')
+    ElMessage.warning('请选取裁定者')
     return
   }
   submitting.value = true
@@ -158,6 +146,10 @@ onMounted(async () => {
 .task-create-header h2 {
   margin: 0;
   font-size: 20px;
+}
+
+.task-form-extra {
+  max-width: 720px;
 }
 
 .task-doc-picker-summary {

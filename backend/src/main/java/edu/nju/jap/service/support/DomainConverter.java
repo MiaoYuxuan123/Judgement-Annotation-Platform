@@ -60,7 +60,8 @@ public final class DomainConverter {
         String type = global != null ? global.getFileType() : "txt";
         String date = td.getUploadedAt() == null ? "" : td.getUploadedAt().toLocalDate().toString();
         String content = resolveExtractedText(td, global);
-        return new DocumentItem(dataId, docCode, title, type, date, content, 0, td.getSourceType(), td.getGlobalDocId());
+        return new DocumentItem(dataId, docCode, title, type, date, content, 0, td.getSourceType(), td.getGlobalDocId(),
+                td.getStatus());
     }
 
     public static String resolveExtractedText(TaskDocument td, GlobalDocument global) {

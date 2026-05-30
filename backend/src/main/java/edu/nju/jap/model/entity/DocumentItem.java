@@ -10,14 +10,20 @@ public class DocumentItem {
     public long uploadedBy;
     public String sourceType;
     public Long globalDocId;
+    public String status;
 
     public DocumentItem(long id, String documentId, String title, String type, String uploadDate, String content,
                         long uploadedBy) {
-        this(id, documentId, title, type, uploadDate, content, uploadedBy, null, null);
+        this(id, documentId, title, type, uploadDate, content, uploadedBy, null, null, null);
     }
 
     public DocumentItem(long id, String documentId, String title, String type, String uploadDate, String content,
                         long uploadedBy, String sourceType, Long globalDocId) {
+        this(id, documentId, title, type, uploadDate, content, uploadedBy, sourceType, globalDocId, null);
+    }
+
+    public DocumentItem(long id, String documentId, String title, String type, String uploadDate, String content,
+                        long uploadedBy, String sourceType, Long globalDocId, String status) {
         this.id = id;
         this.documentId = documentId;
         this.title = title;
@@ -27,5 +33,6 @@ public class DocumentItem {
         this.uploadedBy = uploadedBy;
         this.sourceType = sourceType;
         this.globalDocId = globalDocId;
+        this.status = status;
     }
 }

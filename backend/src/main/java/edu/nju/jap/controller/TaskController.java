@@ -55,6 +55,12 @@ public class TaskController {
         return ApiResponse.ok("阶段已推进", taskService.advance(id, body));
     }
 
+    @PutMapping("/{id}/config")
+    ApiResponse<TaskDetail> updateConfig(@PathVariable long id, @RequestBody Map<String, Object> body,
+                                         HttpServletRequest request) {
+        return ApiResponse.ok("配置已更新", taskService.updateConfig(id, body, request));
+    }
+
     @GetMapping("/{taskId}/items")
     ApiResponse<List<Map<String, Object>>> items(@PathVariable long taskId) {
         return ApiResponse.ok(taskService.items(taskId));

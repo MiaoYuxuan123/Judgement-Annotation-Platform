@@ -94,10 +94,16 @@
                       :documents="details[row.taskId]?.documents || []"
                       :users="users"
                       :configs="configs"
+                      mode="edit"
+                      :context-task-id="row.taskId"
+                      @add-documents="goAddDocuments(row.taskId)"
+                      @add-members="goAddMembers(row.taskId)"
                     />
                     <div class="task-detail-actions">
-                      <el-button type="primary" @click="saveDetail(row.taskId)">修改配置</el-button>
-                      <el-button @click="expandedKey = null">取消</el-button>
+                      <el-button type="primary" :loading="savingTaskId === row.taskId" @click="saveDetail(row.taskId)">
+                        修改配置
+                      </el-button>
+                      <el-button @click="cancelDetail(row.taskId)">取消</el-button>
                     </div>
                   </div>
                 </td>
@@ -121,11 +127,18 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import client from '../../api/client'
 import TaskDirectorySidebar from '../../components/task/TaskDirectorySidebar.vue'
 import TaskForm from '../../components/task/TaskForm.vue'
 import { taskFormFromDetail } from '../../utils/taskForm'
 import { creatorAction } from '../../utils/taskRows'
+import {
+  clearTaskUpdateDraft,
+  loadTaskUpdateDraft,
+  toUpdatePayload
+} from '../../utils/taskUpdateDraft'
+import { syncTasksRoute, tasksReturnRoute } from '../../utils/navigationReturn'
 
 const router = useRouter()
 const route = useRoute()
@@ -139,6 +152,7 @@ const activeTaskId = ref(null)
 const sidebarKeyword = ref('')
 const sortBy = ref('createdDesc')
 const filters = reactive({ status: '', assign: '' })
+const savingTaskId = ref(null)
 
 const displayRows = computed(() => {
   let rows = tasks.value.map((t) => ({
@@ -181,19 +195,50 @@ async function ensureFormResources() {
   await Promise.all(jobs)
 }
 
-async function toggleDetail(taskId) {
-  if (expandedKey.value === taskId) {
+async function buildEditForm(taskId) {
+  const draft = loadTaskUpdateDraft(taskId)
+  Object.assign(editForms, {
+    [taskId]: taskFormFromDetail(
+      details.value[taskId],
+      draft.addDocuments || [],
+      draft.addAnnotatorIds || []
+    )
+  })
+}
+
+async function restoreFromRoute() {
+  const taskId = Number(route.query.taskId)
+  if (!taskId) {
+    activeTaskId.value = null
     expandedKey.value = null
     return
   }
-  expandedKey.value = taskId
+  activeTaskId.value = taskId
+  if (route.query.expand === '1') {
+    expandedKey.value = taskId
+  }
   if (!details.value[taskId]) await loadDetail(taskId)
   await ensureFormResources()
-  Object.assign(editForms, { [taskId]: taskFormFromDetail(details.value[taskId]) })
+  await buildEditForm(taskId)
+}
+
+async function toggleDetail(taskId) {
+  if (expandedKey.value === taskId) {
+    expandedKey.value = null
+    syncTasksRoute(router, activeTaskId.value ?? taskId, null, false)
+    return
+  }
+  expandedKey.value = taskId
+  activeTaskId.value = taskId
+  syncTasksRoute(router, taskId)
+  if (!details.value[taskId]) await loadDetail(taskId)
+  await ensureFormResources()
+  await buildEditForm(taskId)
 }
 
 async function selectSidebarTask(taskId) {
   activeTaskId.value = taskId
+  syncTasksRoute(router, taskId)
   if (taskId == null) {
     expandedKey.value = null
     return
@@ -201,7 +246,7 @@ async function selectSidebarTask(taskId) {
   expandedKey.value = taskId
   if (!details.value[taskId]) await loadDetail(taskId)
   await ensureFormResources()
-  Object.assign(editForms, { [taskId]: taskFormFromDetail(details.value[taskId]) })
+  await buildEditForm(taskId)
 }
 
 async function loadDetail(taskId) {
@@ -232,27 +277,53 @@ function openCreate() {
   router.push('/tasks/create')
 }
 
-function saveDetail(taskId) {
-  expandedKey.value = null
+function goAddDocuments(taskId) {
+  syncTasksRoute(router, taskId)
+  router.push(`/tasks/${taskId}/documents/add`)
+}
+
+function goAddMembers(taskId) {
+  syncTasksRoute(router, taskId)
+  router.push(`/tasks/${taskId}/members/add`)
+}
+
+async function saveDetail(taskId) {
+  const form = editForms[taskId]
+  if (!form) return
+  savingTaskId.value = taskId
+  try {
+    const payload = toUpdatePayload(form)
+    if (!payload.addAnnotatorIds.length && !payload.documents.length) {
+      ElMessage.info('没有新增标注员或文书')
+      return
+    }
+    details.value[taskId] = await client.put(`/tasks/${taskId}/config`, payload)
+    clearTaskUpdateDraft(taskId)
+    await load()
+    await buildEditForm(taskId)
+    expandedKey.value = taskId
+    activeTaskId.value = taskId
+    syncTasksRoute(router, taskId)
+    ElMessage.success('配置已保存')
+  } finally {
+    savingTaskId.value = null
+  }
+}
+
+function cancelDetail(taskId) {
+  clearTaskUpdateDraft(taskId)
+  Object.assign(editForms, { [taskId]: taskFormFromDetail(details.value[taskId], []) })
 }
 
 onMounted(async () => {
   await load()
-  const taskId = Number(route.query.taskId)
-  if (taskId) {
-    await selectSidebarTask(taskId)
-  }
+  await restoreFromRoute()
 })
 
 watch(
-  () => route.query.taskId,
-  async (id) => {
-    if (!id) {
-      activeTaskId.value = null
-      expandedKey.value = null
-      return
-    }
-    await selectSidebarTask(Number(id))
+  () => [route.query.taskId, route.query.expand],
+  async () => {
+    await restoreFromRoute()
   }
 )
 </script>
