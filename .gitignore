@@ -33,6 +33,7 @@ yarn-error.log*
 
 backend/target/
 target/
+backend/data/
 
 backend/src/main/resources/application-local.yml
 

@@ -47,15 +47,11 @@ INSERT INTO task_member (task_id, user_id, role_in_task) VALUES
 (1002, 3, '标注员'), (1002, 4, '标注员'), (1002, 5, '裁定者'),
 (1003, 3, '标注员'), (1003, 4, '标注员'), (1003, 5, '裁定者');
 
-INSERT INTO task_document (task_id, source_type, global_doc_id, file_name, extracted_text, status) VALUES
-(1001, 'GLOBAL', 101, '合同纠纷一审判决书.txt',
- (SELECT extracted_text FROM global_document WHERE id = 101), '待标注'),
-(1001, 'GLOBAL', 102, '劳动争议仲裁审查裁定.txt',
- (SELECT extracted_text FROM global_document WHERE id = 102), '待标注'),
-(1002, 'GLOBAL', 103, '侵权责任纠纷判决书.txt',
- (SELECT extracted_text FROM global_document WHERE id = 103), '已裁定'),
-(1003, 'GLOBAL', 102, '劳动争议仲裁审查裁定.txt',
- (SELECT extracted_text FROM global_document WHERE id = 102), '待标注');
+INSERT INTO task_document (task_id, source_type, global_doc_id, file_name, status) VALUES
+(1001, 'GLOBAL', 101, '合同纠纷一审判决书.txt', '待标注'),
+(1001, 'GLOBAL', 102, '劳动争议仲裁审查裁定.txt', '待标注'),
+(1002, 'GLOBAL', 103, '侵权责任纠纷判决书.txt', '已裁定'),
+(1003, 'GLOBAL', 102, '劳动争议仲裁审查裁定.txt', '待标注');
 
 SET @td_1001_101 := (SELECT id FROM task_document WHERE task_id = 1001 AND global_doc_id = 101 LIMIT 1);
 SET @td_1002_103 := (SELECT id FROM task_document WHERE task_id = 1002 AND global_doc_id = 103 LIMIT 1);
