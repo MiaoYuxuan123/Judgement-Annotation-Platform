@@ -17,6 +17,8 @@ const routes = [
   { path: '/users', component: () => import('../views/UsersView.vue') },
   { path: '/dashboard', redirect: '/tasks' },
   { path: '/tasks', component: () => import('../views/TaskListEntry.vue') },
+  { path: '/tasks/create', component: () => import('../views/creator/TaskCreateView.vue'), meta: { creatorOnly: true } },
+  { path: '/tasks/create/documents', component: () => import('../views/creator/TaskDocumentPickerView.vue'), meta: { creatorOnly: true } },
   { path: '/tasks/:id', redirect: (to) => ({ path: '/tasks', query: { taskId: to.params.id } }) },
   { path: '/tasks/:id/data', component: () => import('../views/DataSelectView.vue') },
   { path: '/annotate/:taskId/:dataId', component: () => import('../views/AnnotateView.vue') },
@@ -37,6 +39,9 @@ router.beforeEach((to) => {
   }
   if (to.path === '/login' && auth.isLoggedIn) return getDefaultRoute(auth)
   if (['/users', '/documents', '/configs'].includes(to.path) && auth.user?.role !== 'admin') {
+    return '/tasks'
+  }
+  if (to.meta.creatorOnly && !auth.user?.canCreateTask) {
     return '/tasks'
   }
   if (to.path === '/dashboard' && isParticipant(auth)) return '/tasks'

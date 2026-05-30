@@ -91,7 +91,7 @@
                     <TaskForm
                       v-if="editForms[row.taskId]"
                       :form="editForms[row.taskId]"
-                      :documents="documents"
+                      :documents="details[row.taskId]?.documents || []"
                       :users="users"
                       :configs="configs"
                     />
@@ -112,32 +112,19 @@
 
       <div class="task-note-box creator">
         <strong>【创建者视图说明】</strong>
-        左侧为任务目录，支持搜索与滚轮浏览；详情在列表内展开，无需跳转。已裁定任务需先进入数据目录，再查看单条数据结果。
+        左侧为任务目录，默认展示全部任务；点击某一任务后右侧仅显示该任务并展开详情。新增任务时可从文书总库选取或自主上传文书。
       </div>
     </main>
-
-    <el-dialog v-model="createVisible" title="新增任务" width="720px">
-      <TaskForm
-        :form="createForm"
-        :documents="documents"
-        :users="users"
-        :configs="configs"
-      />
-      <template #footer>
-        <el-button @click="createVisible = false">取消</el-button>
-        <el-button type="primary" @click="createTask">创建</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '../../api/client'
 import TaskDirectorySidebar from '../../components/task/TaskDirectorySidebar.vue'
 import TaskForm from '../../components/task/TaskForm.vue'
-import { emptyTaskForm, taskFormFromDetail } from '../../utils/taskForm'
+import { taskFormFromDetail } from '../../utils/taskForm'
 import { creatorAction } from '../../utils/taskRows'
 
 const router = useRouter()
@@ -145,10 +132,7 @@ const route = useRoute()
 const tasks = ref([])
 const details = ref({})
 const users = ref([])
-const documents = ref([])
 const configs = ref([])
-const createVisible = ref(false)
-const createForm = reactive(emptyTaskForm())
 const editForms = reactive({})
 const expandedKey = ref(null)
 const activeTaskId = ref(null)
@@ -162,6 +146,7 @@ const displayRows = computed(() => {
     annotatorText: details.value[t.taskId]?.annotators?.map((u) => u.realName).join('、') || `${t.annotatorCount} 人`
   }))
   if (filters.status) rows = rows.filter((r) => r.status === filters.status)
+  if (activeTaskId.value != null) rows = rows.filter((r) => r.taskId === activeTaskId.value)
   rows.sort((a, b) => {
     const ta = new Date(details.value[a.taskId]?.summary?.createdAt || 0).getTime()
     const tb = new Date(details.value[b.taskId]?.summary?.createdAt || 0).getTime()
@@ -191,7 +176,6 @@ function goAction(action) {
 
 async function ensureFormResources() {
   const jobs = []
-  if (!documents.value.length) jobs.push(client.get('/documents').then((d) => { documents.value = d.list || [] }))
   if (!users.value.length) jobs.push(client.get('/users').then((d) => { users.value = d }))
   if (!configs.value.length) jobs.push(client.get('/configs/versions').then((d) => { configs.value = d || [] }))
   await Promise.all(jobs)
@@ -208,11 +192,16 @@ async function toggleDetail(taskId) {
   Object.assign(editForms, { [taskId]: taskFormFromDetail(details.value[taskId]) })
 }
 
-function selectSidebarTask(taskId) {
+async function selectSidebarTask(taskId) {
   activeTaskId.value = taskId
-  nextTick(() => {
-    document.querySelector(`[data-task-id="${taskId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  })
+  if (taskId == null) {
+    expandedKey.value = null
+    return
+  }
+  expandedKey.value = taskId
+  if (!details.value[taskId]) await loadDetail(taskId)
+  await ensureFormResources()
+  Object.assign(editForms, { [taskId]: taskFormFromDetail(details.value[taskId]) })
 }
 
 async function loadDetail(taskId) {
@@ -234,19 +223,13 @@ function resetFilters() {
   filters.assign = ''
   sidebarKeyword.value = ''
   sortBy.value = 'createdDesc'
+  activeTaskId.value = null
+  expandedKey.value = null
   load()
 }
 
-async function openCreate() {
-  Object.assign(createForm, emptyTaskForm())
-  await ensureFormResources()
-  createVisible.value = true
-}
-
-async function createTask() {
-  await client.post('/tasks', createForm)
-  createVisible.value = false
-  await load()
+function openCreate() {
+  router.push('/tasks/create')
 }
 
 function saveDetail(taskId) {
@@ -257,20 +240,19 @@ onMounted(async () => {
   await load()
   const taskId = Number(route.query.taskId)
   if (taskId) {
-    activeTaskId.value = taskId
-    await toggleDetail(taskId)
-    nextTick(() => selectSidebarTask(taskId))
+    await selectSidebarTask(taskId)
   }
 })
 
 watch(
   () => route.query.taskId,
   async (id) => {
-    if (!id) return
-    const taskId = Number(id)
-    activeTaskId.value = taskId
-    await toggleDetail(taskId)
-    nextTick(() => selectSidebarTask(taskId))
+    if (!id) {
+      activeTaskId.value = null
+      expandedKey.value = null
+      return
+    }
+    await selectSidebarTask(Number(id))
   }
 )
 </script>

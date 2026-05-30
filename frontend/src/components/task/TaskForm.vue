@@ -16,10 +16,13 @@
         />
       </el-select>
     </el-form-item>
-    <el-form-item label="文书">
-      <el-select v-model="form.documentIds" multiple placeholder="请选择文书" style="width: 100%">
-        <el-option v-for="doc in documents" :key="doc.id" :label="doc.title" :value="doc.id" />
-      </el-select>
+    <el-form-item v-if="documents.length" label="文书">
+      <ul class="task-form-doc-list">
+        <li v-for="doc in documents" :key="doc.id || doc.documentId">
+          <span v-if="doc.sourceType" class="task-doc-source-tag">{{ sourceLabel(doc.sourceType) }}</span>
+          {{ doc.title || doc.fileName }}
+        </li>
+      </ul>
     </el-form-item>
     <el-form-item label="标注者">
       <el-select v-model="form.annotatorIds" multiple placeholder="请选择标注者" style="width: 100%">
@@ -47,10 +50,39 @@ const props = defineProps({
 const normalUsers = computed(() => props.users.filter((u) => u.role !== 'admin' && !u.canCreateTask))
 const annotators = computed(() => normalUsers.value)
 const reviewers = computed(() => normalUsers.value.filter((u) => !props.form.annotatorIds.includes(u.id)))
+
+function sourceLabel(sourceType) {
+  if (sourceType === 'UPLOAD') return '自主上传'
+  if (sourceType === 'RECREATE') return '范围修改'
+  return '文书总库'
+}
 </script>
 
 <style scoped>
 .task-form {
   max-width: 720px;
+}
+
+.task-form-doc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: 100%;
+}
+
+.task-form-doc-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-doc-source-tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 </style>

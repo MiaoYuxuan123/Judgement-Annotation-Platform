@@ -4,8 +4,10 @@ import edu.nju.jap.common.ApiResponse;
 import edu.nju.jap.model.dto.response.TaskDetail;
 import edu.nju.jap.model.entity.ArbitrationResult;
 import edu.nju.jap.service.TaskService;
+import edu.nju.jap.service.TaskDocumentUploadService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -14,9 +16,11 @@ import java.util.Map;
 @RequestMapping("/api/tasks")
 public class TaskController {
     private final TaskService taskService;
+    private final TaskDocumentUploadService taskDocumentUploadService;
 
-    public TaskController(TaskService taskService) {
+    public TaskController(TaskService taskService, TaskDocumentUploadService taskDocumentUploadService) {
         this.taskService = taskService;
+        this.taskDocumentUploadService = taskDocumentUploadService;
     }
 
     @GetMapping
@@ -34,6 +38,11 @@ public class TaskController {
     ApiResponse<Map<String, Object>> create(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         long id = taskService.create(body, request);
         return ApiResponse.ok("任务创建成功", Map.of("taskId", id));
+    }
+
+    @PostMapping("/documents/upload")
+    ApiResponse<Map<String, Object>> uploadDocuments(@RequestParam("files") MultipartFile[] files) {
+        return ApiResponse.ok("解析完成", taskDocumentUploadService.upload(files));
     }
 
     @GetMapping("/{id}")

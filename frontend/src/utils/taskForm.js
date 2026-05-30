@@ -15,6 +15,7 @@ export function taskFormFromDetail(detail) {
     taskName: detail.summary?.taskName || '',
     description: detail.summary?.description || '',
     documentIds: (detail.documents || []).map((d) => d.id),
+    documents: detail.documents || [],
     annotatorIds: (detail.annotators || []).map((u) => u.id),
     reviewerId: detail.reviewer?.id ?? null,
     configId: detail.configSnapshot?.id ?? null

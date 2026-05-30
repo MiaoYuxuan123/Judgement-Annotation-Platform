@@ -35,12 +35,14 @@ public class TaskService {
     private final TaskDocumentResolver taskDocumentResolver;
     private final CurrentUserService currentUserService;
     private final AnnotationPersistenceService annotationPersistenceService;
+    private final TaskDocumentFactory taskDocumentFactory;
     private final edu.nju.jap.mapper.ArbitrationSnapshotMapper arbitrationSnapshotMapper;
 
     public TaskService(TaskMapper taskMapper, TaskMemberMapper taskMemberMapper, TaskDocumentMapper taskDocumentMapper,
                        GlobalDocumentMapper globalDocumentMapper, TaskAggregateService taskAggregateService,
                        TaskDocumentResolver taskDocumentResolver, CurrentUserService currentUserService,
                        AnnotationPersistenceService annotationPersistenceService,
+                       TaskDocumentFactory taskDocumentFactory,
                        edu.nju.jap.mapper.ArbitrationSnapshotMapper arbitrationSnapshotMapper) {
         this.taskMapper = taskMapper;
         this.taskMemberMapper = taskMemberMapper;
@@ -50,6 +52,7 @@ public class TaskService {
         this.taskDocumentResolver = taskDocumentResolver;
         this.currentUserService = currentUserService;
         this.annotationPersistenceService = annotationPersistenceService;
+        this.taskDocumentFactory = taskDocumentFactory;
         this.arbitrationSnapshotMapper = arbitrationSnapshotMapper;
     }
 
@@ -71,9 +74,12 @@ public class TaskService {
     @Transactional
     public long create(Map<String, Object> body, HttpServletRequest request) {
         User user = currentUserService.requireCurrent(request);
-        List<Long> documentIds = MapBodyUtils.longList(body.get("documentIds"));
-        if (documentIds.isEmpty()) {
-            documentIds = List.of(101L);
+        List<Map<String, Object>> documents = MapBodyUtils.mapList(body.get("documents"));
+        if (documents.isEmpty()) {
+            documents = legacyGlobalDocuments(MapBodyUtils.longList(body.get("documentIds")));
+        }
+        if (documents.isEmpty()) {
+            documents = legacyGlobalDocuments(List.of(101L));
         }
         List<Long> annotators = MapBodyUtils.longList(body.get("annotatorIds"));
         if (annotators.isEmpty()) {
@@ -103,21 +109,17 @@ public class TaskService {
         reviewer.setRoleInTask("裁定者");
         taskMemberMapper.insert(reviewer);
 
-        for (Long docId : documentIds) {
-            var global = globalDocumentMapper.selectById(docId);
-            if (global == null) {
-                continue;
-            }
-            TaskDocument td = new TaskDocument();
-            td.setTaskId(task.getId());
-            td.setSourceType("GLOBAL");
-            td.setGlobalDocId(docId);
-            td.setFileName(global.getFileName());
-            td.setExtractedText(global.getExtractedText());
-            td.setStatus("待标注");
+        for (Map<String, Object> spec : documents) {
+            TaskDocument td = taskDocumentFactory.buildForCreate(task.getId(), spec, user.id);
             taskDocumentMapper.insert(td);
         }
         return task.getId();
+    }
+
+    private List<Map<String, Object>> legacyGlobalDocuments(List<Long> documentIds) {
+        return documentIds.stream()
+                .map(id -> Map.<String, Object>of("sourceType", "GLOBAL", "globalDocId", id))
+                .toList();
     }
 
     public TaskDetail detail(long id) {

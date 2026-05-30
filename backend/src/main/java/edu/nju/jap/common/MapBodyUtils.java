@@ -30,4 +30,15 @@ public final class MapBodyUtils {
         }
         return raw.stream().map(v -> Long.parseLong(v.toString())).toList();
     }
+
+    @SuppressWarnings("unchecked")
+    public static List<Map<String, Object>> mapList(Object value) {
+        if (!(value instanceof List<?> raw)) {
+            return List.of();
+        }
+        return raw.stream()
+                .filter(Map.class::isInstance)
+                .map(v -> (Map<String, Object>) v)
+                .toList();
+    }
 }
