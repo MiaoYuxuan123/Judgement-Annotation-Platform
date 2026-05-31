@@ -164,9 +164,9 @@ SET @ann := LAST_INSERT_ID();
 
 INSERT INTO proposition(annotation_id, display_id, sequence_no, start_pos, end_pos, selected_text, label_l1, label_l2, label_path) VALUES
 (@ann, 'P1', 1, 5, 33, '劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定', 'GM', 'GM-L', 'GM-L'),
-(@ann, 'P2', 2, 34, 62, '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 'SF', NULL, 'SF'),
-(@ann, 'P3', 3, 63, 83, '公司主张双方不存在劳动关系，但未提交充分反证', 'SF', NULL, 'SF'),
-(@ann, 'P4', 4, 84, 89, '本院不予采纳', 'SM', NULL, 'SM');
+(@ann, 'P2', 2, 34, 63, '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 'SF', NULL, 'SF'),
+(@ann, 'P3', 3, 64, 86, '公司主张双方不存在劳动关系，但未提交充分反证', 'SF', NULL, 'SF'),
+(@ann, 'P4', 4, 87, 93, '本院不予采纳', 'SM', NULL, 'SM');
 
 INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
 VALUES (@ann, 'R1', 1, 'S', 'S(P1, P4)');
@@ -182,9 +182,9 @@ SET @ann := LAST_INSERT_ID();
 
 INSERT INTO proposition(annotation_id, display_id, sequence_no, start_pos, end_pos, selected_text, label_l1, label_l2, label_path) VALUES
 (@ann, 'P1', 1, 5, 33, '劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定', 'GF', NULL, 'GF'),
-(@ann, 'P2', 2, 34, 62, '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 'SF', NULL, 'SF'),
-(@ann, 'P3', 3, 63, 83, '公司主张双方不存在劳动关系，但未提交充分反证', 'SF', NULL, 'SF'),
-(@ann, 'P4', 4, 84, 89, '本院不予采纳', 'SM', NULL, 'SM');
+(@ann, 'P2', 2, 34, 63, '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 'SF', NULL, 'SF'),
+(@ann, 'P3', 3, 64, 86, '公司主张双方不存在劳动关系，但未提交充分反证', 'SF', NULL, 'SF'),
+(@ann, 'P4', 4, 87, 93, '本院不予采纳', 'SM', NULL, 'SM');
 
 INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
 VALUES (@ann, 'R1', 1, 'S', 'S(P2, P4)');
