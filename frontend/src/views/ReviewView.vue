@@ -252,7 +252,7 @@ async function adoptAll() {
     annotatorId: activeData.value.userId
   })
   ElMessage.success('已采纳为最终裁定版')
-  await load()
+  router.push(`/tasks/${taskId.value}/data`)
 }
 
 async function confirmFinal() {
@@ -260,7 +260,7 @@ async function confirmFinal() {
   await ElMessageBox.confirm('确认将该裁定结果作为最终版？', '确认裁定', { type: 'warning' })
   await client.post('/reviews/confirm', { taskId: taskId.value, dataId: currentDocId.value })
   ElMessage.success('裁定结果已确认')
-  await load()
+  router.push(`/tasks/${taskId.value}/data`)
 }
 
 async function cancelPending() {

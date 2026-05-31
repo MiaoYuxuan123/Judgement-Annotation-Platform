@@ -25,7 +25,7 @@ public class TaskDocumentFactory {
         TaskDocument td = new TaskDocument();
         td.setTaskId(taskId);
         td.setSourceType(sourceType);
-        td.setStatus("待标注");
+        td.setStatus("标注中");
 
         return switch (sourceType) {
             case "GLOBAL" -> buildGlobal(td, spec);

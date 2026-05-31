@@ -170,9 +170,7 @@ const displayRows = computed(() => {
 })
 
 function displayStatus(status) {
-  if (status === '可导出') return '已裁定'
-  if (status === '待裁定') return '裁决中'
-  return status
+  return status || '标注中'
 }
 
 function statusClass(status) {

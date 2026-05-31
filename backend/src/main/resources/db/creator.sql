@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `task_document` (
     `file_path` VARCHAR(500) DEFAULT NULL,
     `extracted_text` LONGTEXT DEFAULT NULL,
     `uploaded_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `status` VARCHAR(20) NOT NULL DEFAULT '待标注',
+    `status` VARCHAR(20) NOT NULL DEFAULT '标注中' COMMENT '文书阶段：标注中/待裁定/可导出',
     PRIMARY KEY (`id`),
     KEY `idx_task_id` (`task_id`),
     KEY `idx_global_doc_id` (`global_doc_id`)

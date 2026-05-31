@@ -121,7 +121,7 @@ import client from '../../api/client'
 import { useAuthStore } from '../../stores/auth'
 import TaskDirectorySidebar from '../../components/task/TaskDirectorySidebar.vue'
 import TaskInlineDetail from '../../components/task/TaskInlineDetail.vue'
-import { buildParticipantRows, participantAction } from '../../utils/taskRows'
+import { buildParticipantRows, participantAction, participantRowStage } from '../../utils/taskRows'
 import { syncTasksRoute } from '../../utils/navigationReturn'
 
 const router = useRouter()
@@ -151,10 +151,7 @@ const tableRows = computed(() =>
 const displayRows = computed(() => {
   let rows = tableRows.value
   if (filters.status) {
-    rows = rows.filter((r) => {
-      const map = { 标注中: '标注中', 待裁定: '待裁定', 可导出: '可导出' }
-      return r.detail?.summary?.status === map[filters.status] || filters.status === ''
-    })
+    rows = rows.filter((r) => participantRowStage(r) === filters.status)
   }
   if (filters.participation === 'annotate') rows = rows.filter((r) => r.role === 'annotate')
   if (filters.participation === 'arbitrate') rows = rows.filter((r) => r.role === 'arbitrate')
@@ -168,7 +165,7 @@ const displayRows = computed(() => {
 })
 
 function actionFor(row) {
-  return participantAction(row)
+  return participantAction(row, auth.user?.id)
 }
 
 function goAction(action) {
@@ -192,7 +189,7 @@ async function restoreFromRoute() {
   }
   activeTaskId.value = taskId
   const task = tasks.value.find((t) => t.taskId === taskId)
-  if (!details.value[taskId]) await loadDetail(taskId, task?.status)
+  if (!details.value[taskId]) await loadDetail(taskId)
   if (route.query.rowKey) {
     expandedKey.value = route.query.rowKey
   } else if (route.query.expand === '1') {
@@ -214,20 +211,17 @@ async function selectSidebarTask(taskId) {
     syncTasksRoute(router, taskId, rows[0].key)
     if (!details.value[taskId]) {
       const task = tasks.value.find((t) => t.taskId === taskId)
-      await loadDetail(taskId, task?.status)
+      await loadDetail(taskId)
     }
   }
 }
 
-async function loadDetail(taskId, taskStatus) {
-  const detail = await client.get(`/tasks/${taskId}`)
-  const total = detail.documents?.length || detail.summary.documentCount || 0
-  if (taskStatus === '可导出' || taskStatus === '待裁定') {
-    detail._annotateDone = total
-  } else {
-    detail._annotateDone = Math.max(0, total - 1)
-  }
-  detail._disputeCount = taskStatus === '待裁定' ? total : 0
+async function loadDetail(taskId) {
+  const [detail, review] = await Promise.all([
+    client.get(`/tasks/${taskId}`),
+    client.get(`/reviews/${taskId}`)
+  ])
+  detail._review = review
   details.value[taskId] = detail
 }
 
@@ -235,7 +229,7 @@ async function load() {
   const data = await client.get('/tasks/my', { params: { status: filters.status || undefined } })
   tasks.value = data.list || []
   details.value = {}
-  await Promise.all(tasks.value.map((t) => loadDetail(t.taskId, t.status)))
+  await Promise.all(tasks.value.map((t) => loadDetail(t.taskId)))
 }
 
 function applyFilters() {
