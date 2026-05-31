@@ -2,6 +2,7 @@
   <div v-if="review" class="review-page results-page">
     <header class="review-header">
       <div class="review-header-left">
+        <el-button class="review-back-btn" @click="$router.push(`/tasks/${taskId}/data`)">← 返回数据列表</el-button>
         <span class="review-logo">📊</span>
         <h1>结果查看 / 导出</h1>
       </div>
@@ -17,8 +18,6 @@
         <el-button type="primary" :disabled="!canExport || exporting" :loading="exporting" @click="exportData">
           导出 ZIP
         </el-button>
-        <el-button text @click="$router.push(`/tasks/${taskId}/data`)">返回数据列表</el-button>
-        <span class="review-user">{{ auth.user?.realName || '查看者' }}</span>
       </div>
     </header>
 

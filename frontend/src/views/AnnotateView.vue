@@ -392,9 +392,13 @@ function nextPropositionId() {
   return `P${propositions.value.length + 1}`
 }
 
+function resetRelationMembers(type = relationForm.type) {
+  relationMembers.value = ['J', 'I'].includes(type) ? ['', ''] : ['', '']
+}
+
 function clearRelation(keepType = true) {
-  normalizeRelationMembers()
   editingRelationId.value = ''
+  resetRelationMembers(keepType ? relationForm.type : 'S')
   if (!keepType) relationForm.type = 'S'
 }
 
@@ -485,7 +489,8 @@ function removeMember(index) {
 
 function setRelationType(type) {
   relationForm.type = type
-  normalizeRelationMembers()
+  editingRelationId.value = ''
+  resetRelationMembers(type)
 }
 
 function normalizeRelationMembers() {

@@ -1,7 +1,0 @@
-# 本地 MySQL 连接配置（不入 git）
-# 此文件由 application-mysql.yml 自动被 mysql profile 加载，
-# 无需修改 application.yml 中的 default profile
-spring:
-  datasource:
-    username: root
-    password: 1364488518qaz

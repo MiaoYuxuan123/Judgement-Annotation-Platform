@@ -2,6 +2,7 @@
   <div v-if="review" class="review-page">
     <header class="review-header">
       <div class="review-header-left">
+        <el-button class="review-back-btn" @click="$router.push(`/tasks/${taskId}/data`)">← 返回数据列表</el-button>
         <span class="review-logo">⚖</span>
         <h1>裁定界面</h1>
       </div>
@@ -14,8 +15,6 @@
               :value="item.document.id"
           />
         </el-select>
-        <el-button text @click="$router.push(`/tasks/${taskId}/data`)">返回数据列表</el-button>
-        <span class="review-user">{{ auth.user?.realName || '裁定者' }}</span>
       </div>
     </header>
 
@@ -106,12 +105,10 @@ import { computed, nextTick, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
-import { useAuthStore } from '../stores/auth'
 import { buildAnnotatedParts, circledNo, formatRelationFormula } from '../utils/reviewHelpers'
 
 const route = useRoute()
 const router = useRouter()
-const auth = useAuthStore()
 const taskId = computed(() => Number(route.params.taskId))
 
 const review = ref(null)
@@ -256,26 +253,6 @@ async function adoptAll() {
   })
   ElMessage.success('已采纳为最终裁定版')
   await load()
-  const nextDoc = findNextPendingDoc()
-  if (nextDoc) {
-    currentDocId.value = nextDoc
-    await load()
-    ElMessage.info('已加载下一份待裁定文书')
-  } else {
-    ElMessage.success('本任务裁定已完成')
-    router.push('/tasks')
-  }
-}
-
-function isDocArbitrated(docEntry) {
-  const f = docEntry?.finalResult
-  return f && typeof f === 'object' && f.propositions && f.finalResult !== false
-}
-
-function findNextPendingDoc() {
-  const docs = review.value?.documents || []
-  const pending = docs.filter((d) => !isDocArbitrated(d))
-  return pending.find((d) => d.document.id !== currentDocId.value)?.document.id
 }
 
 async function confirmFinal() {
@@ -284,15 +261,6 @@ async function confirmFinal() {
   await client.post('/reviews/confirm', { taskId: taskId.value, dataId: currentDocId.value })
   ElMessage.success('裁定结果已确认')
   await load()
-  const nextDoc = findNextPendingDoc()
-  if (nextDoc) {
-    currentDocId.value = nextDoc
-    await load()
-    ElMessage.info('已加载下一份待裁定文书')
-  } else {
-    ElMessage.success('本任务裁定已完成')
-    router.push('/tasks')
-  }
 }
 
 async function cancelPending() {
