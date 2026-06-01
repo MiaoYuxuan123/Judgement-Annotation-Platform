@@ -10,8 +10,8 @@
  * 绘图规则：
  * - S：理由 -> ● -> 结论，第二段带箭头。
  * - A：反对方 -> ○ -> 被反对方，第二段带箭头。
- * - M：个别判断 -> ⊕ -> 一般判断，第二段带箭头。
- * - J：多个成员无向汇聚到 ⊕；二元横排，多元横排在上、⊕ 在下。
+ * - M：个别判断 -> ⊕ -> 一般判断，第二段带箭头；若个别判断本身是 J，则复用 J 的 ⊕。
+ * - J：多个成员无向汇聚到 ⊕；二元横排，多元默认上方汇聚，若成员已在主链中则贴近该成员侧边展开。
  * - I：不画关系圆，把同一组命题合并为同一个矩形内的 P1 / P2。
  */
 
@@ -510,7 +510,41 @@ function buildManualGraph(propositions = [], relations = []) {
     const target = memberUnit(members[1], stack)
     if (!source || !target) return null
 
+    if (type === 'M' && relationType(ctx.relMap.get(members[0])) === 'J') {
+      return makeMergedMatchUnit(key, source, target)
+    }
+
     return makeVerticalDirectedUnit(key, type, source, target)
+  }
+
+  function makeMergedMatchUnit(key, source, target) {
+    const width = Math.max(source.width, target.width)
+    const sourceX = (width - source.width) / 2
+    const placedSource = translateUnit(source, sourceX, 0)
+    const targetX = placedSource.attach.point.x - target.width / 2
+    const targetY = Math.max(placedSource.height + GAP.verticalRelation, placedSource.attach.point.y + GAP.verticalRelation + target.height / 2)
+    const placedTarget = translateUnit(target, targetX, targetY)
+    const hubOut = placedSource.attach.rect
+      ? { x: placedSource.attach.point.x, y: placedSource.attach.rect.y + placedSource.attach.rect.height }
+      : placedSource.attach.point
+    const targetIn = placedTarget.attach.rect
+      ? pointOnRectToward(placedTarget.attach.rect, hubOut)
+      : placedTarget.attach.point
+    const edge = flowEdge(
+      uniqueEdgeId('M-merged-out', key),
+      placedSource.attach.nodeId,
+      placedTarget.attach.nodeId,
+      true,
+      orthogonal(hubOut, targetIn)
+    )
+    const merged = mergeUnits([placedSource, placedTarget])
+    return {
+      width: Math.max(width, targetX + target.width),
+      height: targetY + target.height,
+      nodes: merged.nodes,
+      edges: [...merged.edges, edge],
+      attach: placedSource.attach
+    }
   }
 
   function makeVerticalDirectedUnit(key, type, source, target) {
@@ -598,7 +632,9 @@ function buildManualGraph(propositions = [], relations = []) {
   const optimizedOnce = optimizeDirectedHubs(deduped.nodes, deduped.edges)
   const optimized = optimizeDirectedHubs(optimizedOnce.nodes, optimizedOnce.edges)
   const branched = optimizeSharedSourceBranches(optimized.nodes, optimized.edges)
-  const compacted = compactDisconnectedComponents(branched.nodes, branched.edges)
+  const combined = optimizeAnchoredCombinationHubs(branched.nodes, branched.edges)
+  const reoptimized = optimizeDirectedHubs(combined.nodes, combined.edges)
+  const compacted = compactDisconnectedComponents(reoptimized.nodes, reoptimized.edges)
   const normalized = normalizeGraph(compacted.nodes, compacted.edges)
   return {
     ...normalized,
@@ -684,6 +720,94 @@ function compactDisconnectedComponents(nodes, edges) {
     edge.data.points = edge.data.points.map((p) => ({ x: p.x, y: p.y + dy }))
     edge.data.path = pointsToSvgPath(edge.data.points)
   })
+
+  return { nodes: nextNodes, edges: nextEdges }
+}
+
+function rerouteEdgeBetweenNodes(edge, nodeById) {
+  const source = nodeById.get(edge.source)
+  const target = nodeById.get(edge.target)
+  if (!source || !target) return
+  const sourcePoint = connectionPoint(source, nodeCenter(target))
+  const targetPoint = connectionPoint(target, nodeCenter(source))
+  edge.data.points = orthogonal(sourcePoint, targetPoint)
+  edge.data.path = pointsToSvgPath(edge.data.points)
+}
+
+function optimizeAnchoredCombinationHubs(nodes, edges) {
+  const nextNodes = nodes.map((node) => ({
+    ...node,
+    position: { ...node.position },
+    data: { ...node.data }
+  }))
+  const nextEdges = edges.map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data,
+      points: [...(edge.data?.points || [])]
+    }
+  }))
+  const nodeById = new Map(nextNodes.map((node) => [node.id, node]))
+  const directedTargets = new Set()
+  const degree = new Map(nextNodes.map((node) => [node.id, 0]))
+
+  nextEdges.forEach((edge) => {
+    degree.set(edge.source, (degree.get(edge.source) || 0) + 1)
+    degree.set(edge.target, (degree.get(edge.target) || 0) + 1)
+    if (edge.data?.directed) directedTargets.add(edge.target)
+  })
+
+  nextNodes
+    .filter((node) => node.type === 'hub-j')
+    .forEach((hub) => {
+      const memberEdges = nextEdges.filter((edge) => (
+        !edge.data?.directed &&
+        (edge.source === hub.id || edge.target === hub.id)
+      ))
+      if (memberEdges.length < 2) return
+
+      const members = memberEdges
+        .map((edge) => nodeById.get(edge.source === hub.id ? edge.target : edge.source))
+        .filter(Boolean)
+      const anchor = members.find((node) => node.type === 'prop' && directedTargets.has(node.id))
+      if (!anchor) return
+
+      const anchorRect = nodeRect(anchor)
+      const hubRect = nodeRect(hub)
+      const hubCenter = {
+        x: anchorRect.x + anchorRect.width + GAP.inline + hubRect.width / 2,
+        y: anchorRect.cy
+      }
+      moveNodeCenter(hub, hubCenter)
+
+      const movableMembers = members.filter((node) => (
+        node.id !== anchor.id &&
+        node.type === 'prop' &&
+        !directedTargets.has(node.id) &&
+        (degree.get(node.id) || 0) <= 1
+      ))
+
+      movableMembers.forEach((member, index) => {
+        const memberRect = nodeRect(member)
+        const rightX = hubCenter.x + hubRect.width / 2 + GAP.inline + memberRect.width / 2
+        const upperY = hubCenter.y - Math.max(GAP.row, memberRect.height + 44)
+        const lowerY = hubCenter.y + Math.max(GAP.row, memberRect.height + 44)
+        const slots = [
+          { x: rightX, y: hubCenter.y },
+          { x: hubCenter.x, y: upperY },
+          { x: hubCenter.x, y: lowerY },
+          { x: rightX + (memberRect.width + GAP.member) * Math.ceil(index / 3), y: upperY },
+          { x: rightX + (memberRect.width + GAP.member) * Math.ceil(index / 3), y: lowerY }
+        ]
+        moveNodeCenter(member, slots[index] || slots[slots.length - 1])
+      })
+
+      const changedIds = new Set([hub.id, ...movableMembers.map((node) => node.id)])
+      nextEdges.forEach((edge) => {
+        if (!changedIds.has(edge.source) && !changedIds.has(edge.target)) return
+        rerouteEdgeBetweenNodes(edge, nodeById)
+      })
+    })
 
   return { nodes: nextNodes, edges: nextEdges }
 }
@@ -849,6 +973,11 @@ function optimizeDirectedHubs(nodes, edges) {
     }
   }))
   const nodeById = new Map(nextNodes.map((node) => [node.id, node]))
+  const nodeDegree = new Map(nextNodes.map((node) => [node.id, 0]))
+  nextEdges.forEach((edge) => {
+    nodeDegree.set(edge.source, (nodeDegree.get(edge.source) || 0) + 1)
+    nodeDegree.set(edge.target, (nodeDegree.get(edge.target) || 0) + 1)
+  })
 
   nextNodes
     .filter((node) => ['hub-s', 'hub-a', 'hub-m'].includes(node.type))
@@ -862,7 +991,7 @@ function optimizeDirectedHubs(nodes, edges) {
       if (!source || !target) return
 
       let sourceRect = nodeRect(source)
-      const targetRect = nodeRect(target)
+      let targetRect = nodeRect(target)
       const hubRect = nodeRect(hub)
       let hubCenter
 
@@ -923,6 +1052,13 @@ function optimizeDirectedHubs(nodes, edges) {
           }
         }
       } else if (sourceRect.cy <= targetRect.cy) {
+        if (source.type?.startsWith('hub') && target.type === 'prop' && (nodeDegree.get(target.id) || 0) <= 1) {
+          moveNodeCenter(target, {
+            x: sourceRect.cx,
+            y: sourceRect.y + sourceRect.height + GAP.verticalRelation * 2 + hubRect.height + targetRect.height / 2
+          })
+          targetRect = nodeRect(target)
+        }
         hubCenter = {
           x: sourceRect.cx,
           y: Math.max(sourceRect.y + sourceRect.height + 34, (sourceRect.y + sourceRect.height + targetRect.y) / 2)
