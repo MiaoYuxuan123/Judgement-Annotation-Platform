@@ -25,7 +25,7 @@
         />
       </el-select>
     </el-form-item>
-    <el-form-item label="文书">
+    <el-form-item v-if="isEdit" label="文书">
       <ul v-if="allDocuments.length" class="task-form-doc-list">
         <li v-for="doc in allDocuments" :key="docKey(doc)">
           <span v-if="doc.sourceType" class="task-doc-source-tag">{{ sourceLabel(doc.sourceType) }}</span>
