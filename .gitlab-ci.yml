@@ -7,6 +7,7 @@ backend:
   trigger:
     include:
       - local: .gitlab/backend.yml
+    strategy: depend
   rules:
     - changes:
         - backend/**/*
@@ -17,6 +18,22 @@ frontend:
   trigger:
     include:
       - local: .gitlab/frontend.yml
+    strategy: depend
   rules:
     - changes:
         - frontend/**/*
+
+# 避免只改文档、CI 配置等非前后端文件时，父 pipeline 变成空 pipeline。
+noop:
+  stage: trigger
+  image: alpine:3.20
+  rules:
+    - changes:
+        - backend/**/*
+      when: never
+    - changes:
+        - frontend/**/*
+      when: never
+    - when: on_success
+  script:
+    - echo "No backend/frontend changes; skip build triggers."

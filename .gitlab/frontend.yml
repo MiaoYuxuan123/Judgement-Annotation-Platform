@@ -1,10 +1,17 @@
-# 配置仅供参考！
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "parent_pipeline"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
 stages:
   - build
 
 frontend-build:
   stage: build
   image: node:20
+  rules:
+    - when: on_success
   script:
     - cd frontend
     - npm install
