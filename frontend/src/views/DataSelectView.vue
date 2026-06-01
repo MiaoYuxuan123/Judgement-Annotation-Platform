@@ -91,8 +91,13 @@
               <td>D{{ row.id }}</td>
               <td>{{ row.title }}</td>
               <td>
-                <span class="task-role-tag" :class="viewerRoleDisplay.roleClass">
-                  {{ viewerRoleDisplay.roleLabel }}
+                <span class="task-role-tags">
+                  <span
+                    v-for="r in viewerRoleDisplay"
+                    :key="r.role"
+                    class="task-role-tag"
+                    :class="r.roleClass"
+                  >{{ r.roleLabel }}</span>
                 </span>
               </td>
               <td>
@@ -140,7 +145,7 @@ import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import DataDirectorySidebar from '../components/task/DataDirectorySidebar.vue'
 import { exportTaskZipBatch } from '../utils/taskZipExport'
-import { resolveDocStage, resolveTaskViewerRole } from '../utils/taskRows'
+import { resolveDocStage, resolveTaskViewerRoles } from '../utils/taskRows'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -157,10 +162,9 @@ const exporting = ref(false)
 const canAnnotate = computed(() => detail.value?.annotators.some((u) => u.id === auth.user?.id))
 const canReview = computed(() => detail.value?.reviewer.id === auth.user?.id)
 const canBatchExport = computed(() => {
-  if (detail.value?.summary.status !== '可导出') return false
   return auth.user?.canCreateTask || detail.value?.reviewer?.id === auth.user?.id
 })
-const viewerRoleDisplay = computed(() => resolveTaskViewerRole(detail.value, auth.user))
+const viewerRoleDisplay = computed(() => resolveTaskViewerRoles(detail.value, auth.user))
 
 const allDocs = computed(() => detail.value?.documents || [])
 

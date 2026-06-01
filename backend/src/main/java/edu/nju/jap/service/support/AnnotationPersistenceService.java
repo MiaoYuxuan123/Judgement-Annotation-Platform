@@ -24,6 +24,9 @@ import java.util.Map;
 
 @Service
 public class AnnotationPersistenceService {
+    public static final String RECORD_ANNOTATION = AnnotationMapper.RECORD_ANNOTATION;
+    public static final String RECORD_ARBITRATION = AnnotationMapper.RECORD_ARBITRATION;
+
     private final AnnotationMapper annotationMapper;
     private final PropositionMapper propositionMapper;
     private final RelationMapper relationMapper;
@@ -40,27 +43,69 @@ public class AnnotationPersistenceService {
     @Transactional
     public void saveAnnotation(int taskId, int taskDocumentId, long userId, List<Proposition> propositions,
                                List<Relation> relations, boolean draft) {
-        AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, userId);
+        saveRecord(taskId, taskDocumentId, userId, propositions, relations, draft, RECORD_ANNOTATION);
+    }
+
+    @Transactional
+    public void saveArbitration(int taskId, int taskDocumentId, long arbitratorId, List<Proposition> propositions,
+                                List<Relation> relations, boolean draft) {
+        saveRecord(taskId, taskDocumentId, arbitratorId, propositions, relations, draft, RECORD_ARBITRATION);
+    }
+
+    @Transactional
+    public void deleteArbitration(int taskId, int taskDocumentId, long arbitratorId) {
+        AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, arbitratorId, RECORD_ARBITRATION);
+        if (annotation == null) {
+            return;
+        }
+        clearAnnotationContent(annotation.getId());
+        annotationMapper.deleteById(annotation.getId());
+    }
+
+    @Transactional
+    public void markArbitrationSubmitted(int taskId, int taskDocumentId, long arbitratorId) {
+        AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, arbitratorId, RECORD_ARBITRATION);
+        if (annotation == null) {
+            return;
+        }
+        annotation.setStatus("SUBMITTED");
+        annotation.setSubmittedAt(LocalDateTime.now());
+        annotationMapper.updateStatus(annotation);
+    }
+
+    @Transactional
+    public void saveRecord(int taskId, int taskDocumentId, long userId, List<Proposition> propositions,
+                           List<Relation> relations, boolean draft, String recordType) {
+        AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, userId, recordType);
         LocalDateTime now = LocalDateTime.now();
         if (annotation == null) {
             annotation = new AnnotationPo();
             annotation.setTaskId((long) taskId);
             annotation.setDocumentId((long) taskDocumentId);
             annotation.setUserId(userId);
+            annotation.setRecordType(recordType);
             annotation.setIsFinal(0);
             annotation.setStatus(draft ? "DRAFT" : "SUBMITTED");
             annotation.setSubmittedAt(draft ? null : now);
             annotationMapper.insert(annotation);
         } else {
-            relationMemberMapper.deleteByAnnotationId(annotation.getId());
-            relationMapper.deleteByAnnotationId(annotation.getId());
-            propositionMapper.deleteByAnnotationId(annotation.getId());
+            clearAnnotationContent(annotation.getId());
             annotation.setIsFinal(0);
             annotation.setStatus(draft ? "DRAFT" : "SUBMITTED");
             annotation.setSubmittedAt(draft ? null : now);
             annotationMapper.updateStatus(annotation);
         }
 
+        persistContent(annotation, propositions, relations);
+    }
+
+    private void clearAnnotationContent(long annotationId) {
+        relationMemberMapper.deleteByAnnotationId(annotationId);
+        relationMapper.deleteByAnnotationId(annotationId);
+        propositionMapper.deleteByAnnotationId(annotationId);
+    }
+
+    private void persistContent(AnnotationPo annotation, List<Proposition> propositions, List<Relation> relations) {
         Map<String, Long> propIds = new LinkedHashMap<>();
         if (propositions != null) {
             int seq = 1;
@@ -111,7 +156,21 @@ public class AnnotationPersistenceService {
     }
 
     public AnnotationResult loadAnnotation(int taskId, int taskDocumentId, long userId, long apiDataId) {
-        AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, userId);
+        return loadRecord(taskId, taskDocumentId, userId, apiDataId, RECORD_ANNOTATION);
+    }
+
+    public ArbitrationResult loadArbitration(int taskId, int taskDocumentId, long apiDataId, long arbitratorId,
+                                             edu.nju.jap.model.po.ArbitrationSnapshot snapshot) {
+        AnnotationResult base = loadRecord(taskId, taskDocumentId, arbitratorId, apiDataId, RECORD_ARBITRATION);
+        ArbitrationResult result = new ArbitrationResult(taskId, apiDataId, arbitratorId, base.propositions,
+                base.relations, snapshot.getAdoptedFrom(), snapshot.getArbitratedAt());
+        result.finalResult = snapshot.getFinalResult() != null && snapshot.getFinalResult() == 1;
+        return result;
+    }
+
+    private AnnotationResult loadRecord(int taskId, int taskDocumentId, long userId, long apiDataId,
+                                        String recordType) {
+        AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, userId, recordType);
         if (annotation == null) {
             return new AnnotationResult(taskId, apiDataId, userId, List.of(), List.of(), true, null);
         }
@@ -151,15 +210,6 @@ public class AnnotationPersistenceService {
                         .max(Comparator.naturalOrder())
                         .orElse(null);
         return new AnnotationResult(taskId, apiDataId, userId, propositions, relations, draft, submitted);
-    }
-
-    public ArbitrationResult loadArbitration(int taskId, int taskDocumentId, long apiDataId, long arbitratorId,
-                                             edu.nju.jap.model.po.ArbitrationSnapshot snapshot) {
-        AnnotationResult base = loadAnnotation(taskId, taskDocumentId, arbitratorId, apiDataId);
-        ArbitrationResult result = new ArbitrationResult(taskId, apiDataId, arbitratorId, base.propositions,
-                base.relations, snapshot.getAdoptedFrom(), snapshot.getArbitratedAt());
-        result.finalResult = snapshot.getFinalResult() != null && snapshot.getFinalResult() == 1;
-        return result;
     }
 
     private static List<String> relationMembers(Relation relation) {

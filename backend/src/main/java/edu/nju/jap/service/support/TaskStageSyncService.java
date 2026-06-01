@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * 根据标注/裁定进度同步任务阶段（标注中 → 待裁定 → 可导出）。
- * 文书「待裁定」按标注员个人进度在前端计算；此处仅维护全局任务/文书可导出状态。
+ * 根据标注/裁定进度同步任务与文书阶段（标注中 → 待裁定 → 可导出）。
+ * 每条文书独立判断：全员提交后可进入「待裁定」；裁定确认后该文书「可导出」。
  */
 @Component
 public class TaskStageSyncService {
@@ -33,25 +33,45 @@ public class TaskStageSyncService {
     }
 
     /**
-     * 标注提交（非草稿）后：当所有标注员均已完成全部文书标注时，任务进入「待裁定」（供裁定者处理）。
+     * 标注提交（非草稿）后：逐条文书检查是否全员已提交，满足则该文书进入「待裁定」并同步任务阶段。
      */
     public void afterAnnotationSubmitted(int taskId) {
         TaskItem task = taskAggregateService.loadTaskItem(taskId);
         int annotatorCount = task.annotatorIds.size();
-        if (annotatorCount <= 0 || !STAGE_ANNOTATING.equals(task.status)) {
+        if (annotatorCount <= 0) {
             return;
         }
 
         List<TaskDocument> docs = taskDocumentMapper.selectByTaskId(taskId);
-        boolean allAnnotatorsFinishedAllDocs = !docs.isEmpty() && docs.stream()
-                .allMatch(doc -> annotationMapper.countSubmittedByTaskDocument(taskId, doc.getId()) >= annotatorCount);
-        if (allAnnotatorsFinishedAllDocs) {
-            taskMapper.updateStatus(taskId, STAGE_ARBITRATION);
+        for (TaskDocument doc : docs) {
+            if (STAGE_EXPORTABLE.equals(doc.getStatus()) || STAGE_ARBITRATION.equals(doc.getStatus())) {
+                continue;
+            }
+            if (annotationMapper.countSubmittedByTaskDocument(taskId, doc.getId()) >= annotatorCount) {
+                taskDocumentMapper.updateStatus(doc.getId(), STAGE_ARBITRATION);
+            }
         }
+        syncTaskStatus(taskId);
     }
 
-    /** 裁定确认后调用：更新文书为可导出。 */
+    /** 裁定确认后调用：更新该文书为可导出，并按全部文书进度同步任务阶段。 */
     public void afterArbitrationConfirmed(int taskId, int taskDocumentId) {
         taskDocumentMapper.updateStatus(taskDocumentId, STAGE_EXPORTABLE);
+        syncTaskStatus(taskId);
+    }
+
+    private void syncTaskStatus(int taskId) {
+        List<TaskDocument> docs = taskDocumentMapper.selectByTaskId(taskId);
+        if (docs.isEmpty()) {
+            return;
+        }
+        if (docs.stream().allMatch(doc -> STAGE_EXPORTABLE.equals(doc.getStatus()))) {
+            taskMapper.updateStatus(taskId, STAGE_EXPORTABLE);
+            return;
+        }
+        if (docs.stream().anyMatch(doc -> STAGE_ARBITRATION.equals(doc.getStatus())
+                || STAGE_EXPORTABLE.equals(doc.getStatus()))) {
+            taskMapper.updateStatus(taskId, STAGE_ARBITRATION);
+        }
     }
 }

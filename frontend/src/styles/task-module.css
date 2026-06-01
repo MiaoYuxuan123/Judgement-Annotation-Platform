@@ -213,6 +213,12 @@
 .task-role-tag.role-arbitrate { background: #ede9fe; color: #6d28d9; }
 .task-role-tag.role-creator { background: #fef3c7; color: #b45309; }
 
+.task-role-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .task-status-tag.status-progress { background: #ffedd5; color: #c2410c; }
 .task-status-tag.status-done { background: #dcfce7; color: #15803d; }
 .task-status-tag.status-wait { background: #f3f4f6; color: #6b7280; }

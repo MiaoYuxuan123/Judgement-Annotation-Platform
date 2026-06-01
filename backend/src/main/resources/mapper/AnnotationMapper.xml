@@ -7,12 +7,13 @@
         WHERE task_id = #{taskId}
           AND document_id = #{documentId}
           AND user_id = #{userId}
+          AND record_type = #{recordType}
         LIMIT 1
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO annotation(task_id, document_id, user_id, status, is_final, guide_version_id, guide_snapshot, submitted_at)
-        VALUES (#{taskId}, #{documentId}, #{userId}, #{status}, #{isFinal}, #{guideVersionId}, #{guideSnapshot}, #{submittedAt})
+        INSERT INTO annotation(task_id, document_id, user_id, record_type, status, is_final, guide_version_id, guide_snapshot, submitted_at)
+        VALUES (#{taskId}, #{documentId}, #{userId}, #{recordType}, #{status}, #{isFinal}, #{guideVersionId}, #{guideSnapshot}, #{submittedAt})
     </insert>
 
     <update id="updateStatus">
@@ -23,11 +24,16 @@
         WHERE id = #{id}
     </update>
 
+    <delete id="deleteById">
+        DELETE FROM annotation WHERE id = #{id}
+    </delete>
+
     <select id="countSubmittedByTaskDocument" resultType="int">
         SELECT COUNT(DISTINCT user_id)
         FROM annotation
         WHERE task_id = #{taskId}
           AND document_id = #{documentId}
+          AND record_type = 'ANNOTATION'
           AND status = 'SUBMITTED'
     </select>
 </mapper>

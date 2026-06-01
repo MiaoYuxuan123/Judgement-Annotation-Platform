@@ -59,7 +59,14 @@
                 <td>ID-{{ row.taskId }}</td>
                 <td>{{ row.taskName }}</td>
                 <td>
-                  <span class="task-role-tag" :class="`role-${row.role}`">{{ row.roleLabel }}</span>
+                  <span class="task-role-tags">
+                    <span
+                      v-for="r in row.roles"
+                      :key="r.role"
+                      class="task-role-tag"
+                      :class="`role-${r.role}`"
+                    >{{ r.roleLabel }}</span>
+                  </span>
                 </td>
                 <td>
                   <span class="task-status-tag" :class="`status-${row.status.type}`">{{ row.status.label }}</span>
@@ -69,14 +76,11 @@
                 </td>
                 <td>
                   <button
-                    v-if="actionFor(row)"
-                    class="task-action-btn"
-                    :class="actionFor(row).color"
+                    class="task-action-btn green"
                     @click="goAction(actionFor(row))"
                   >
                     {{ actionFor(row).label }}
                   </button>
-                  <span v-else class="task-info-text muted">—</span>
                 </td>
                 <td>
                   <button
@@ -107,8 +111,8 @@
       </div>
 
       <div class="task-note-box">
-        <strong>【标注者/裁决者合并视图】</strong>
-        左侧为任务目录，默认展示全部任务；点击某一任务后右侧仅显示该任务并展开详情。同一任务 ID 可因同时拥有标注与裁定身份而出现两行。
+        <strong>【参与者任务视图】</strong>
+        左侧为任务目录，默认展示全部任务；点击某一任务后右侧仅显示该任务并展开详情。若同时担任标注员与裁定者，角色列并列展示两个身份。
       </div>
     </main>
   </div>
@@ -153,8 +157,12 @@ const displayRows = computed(() => {
   if (filters.status) {
     rows = rows.filter((r) => participantRowStage(r) === filters.status)
   }
-  if (filters.participation === 'annotate') rows = rows.filter((r) => r.role === 'annotate')
-  if (filters.participation === 'arbitrate') rows = rows.filter((r) => r.role === 'arbitrate')
+  if (filters.participation === 'annotate') {
+    rows = rows.filter((r) => r.roles.some((role) => role.role === 'annotate'))
+  }
+  if (filters.participation === 'arbitrate') {
+    rows = rows.filter((r) => r.roles.some((role) => role.role === 'arbitrate'))
+  }
   if (activeTaskId.value != null) rows = rows.filter((r) => r.taskId === activeTaskId.value)
   rows = [...rows].sort((a, b) => {
     const ta = new Date(a.detail?.summary?.createdAt || 0).getTime()
@@ -165,7 +173,7 @@ const displayRows = computed(() => {
 })
 
 function actionFor(row) {
-  return participantAction(row, auth.user?.id)
+  return participantAction(row)
 }
 
 function goAction(action) {

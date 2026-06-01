@@ -228,6 +228,25 @@ async function refreshGraph() {
 
 watch([currentDocId, selectedKey, () => activeData.value.propositions.length], refreshGraph, { flush: 'post' })
 
+watch(
+  () => route.query.dataId,
+  (dataId) => {
+    if (!dataId || !review.value?.documents?.length) return
+    const docId = Number(dataId)
+    const exists = review.value.documents.some((d) => d.document.id === docId)
+    if (exists) currentDocId.value = docId
+  }
+)
+
+function resolveInitialDocId(reviewData) {
+  const queryDocId = route.query.dataId ? Number(route.query.dataId) : null
+  if (queryDocId != null) {
+    const matched = reviewData.documents.find((d) => d.document.id === queryDocId)
+    if (matched) return matched.document.id
+  }
+  return reviewData.documents[0]?.document.id ?? null
+}
+
 async function load() {
   showGraph.value = false
   const [reviewData, detail] = await Promise.all([
@@ -236,9 +255,9 @@ async function load() {
   ])
   review.value = reviewData
   taskDetail.value = detail
-  currentDocId.value = reviewData.documents[0]?.document.id
+  currentDocId.value = resolveInitialDocId(reviewData)
   if (sidebarItems.value.length) {
-    selectedKey.value = sidebarItems.value[0].key
+    selectedKey.value = sidebarItems.value.find((i) => i.key === 'final')?.key || sidebarItems.value[0].key
   }
 }
 

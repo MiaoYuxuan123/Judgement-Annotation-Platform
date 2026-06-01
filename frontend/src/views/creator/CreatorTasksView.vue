@@ -65,14 +65,11 @@
                 <td>{{ row.annotatorText }}</td>
                 <td>
                   <button
-                    v-if="actionFor(row)"
-                    class="task-action-btn"
-                    :class="actionFor(row).color"
+                    class="task-action-btn green"
                     @click="goAction(actionFor(row))"
                   >
                     {{ actionFor(row).label }}
                   </button>
-                  <span v-else class="task-info-text muted">—</span>
                 </td>
                 <td>
                   <button

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS `annotation` (
     `task_id` BIGINT UNSIGNED NOT NULL,
     `document_id` BIGINT UNSIGNED NOT NULL,
     `user_id` BIGINT UNSIGNED NOT NULL,
+    `record_type` VARCHAR(20) NOT NULL DEFAULT 'ANNOTATION' COMMENT 'ANNOTATION=标注员提交, ARBITRATION=裁定结果',
     `status` VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     `is_final` TINYINT NOT NULL DEFAULT 0,
     `guide_version_id` BIGINT UNSIGNED DEFAULT NULL,
@@ -17,7 +18,7 @@ CREATE TABLE IF NOT EXISTS `annotation` (
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_annotation_task_doc_user` (`task_id`, `document_id`, `user_id`),
+    UNIQUE KEY `uk_annotation_task_doc_user_type` (`task_id`, `document_id`, `user_id`, `record_type`),
     KEY `idx_annotation_task` (`task_id`),
     KEY `idx_annotation_doc` (`document_id`),
     KEY `idx_annotation_user` (`user_id`)
