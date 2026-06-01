@@ -1,8 +1,3 @@
-DROP TABLE IF EXISTS `relation_member`;
-DROP TABLE IF EXISTS `argument_relation`;
-DROP TABLE IF EXISTS `proposition`;
-DROP TABLE IF EXISTS `annotation`;
-
 -- 标注结果
 CREATE TABLE IF NOT EXISTS `annotation` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

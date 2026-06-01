@@ -1,7 +1,3 @@
-DROP TABLE IF EXISTS `task_document`;
-DROP TABLE IF EXISTS `task_member`;
-DROP TABLE IF EXISTS `task`;
-
 CREATE TABLE IF NOT EXISTS `task` (
     `id` INT AUTO_INCREMENT,
     `title` VARCHAR(100) NOT NULL,

@@ -237,6 +237,13 @@
   color: #9ca3af;
 }
 
+.task-action-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .task-action-btn {
   display: inline-block;
   padding: 6px 14px;

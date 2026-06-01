@@ -63,12 +63,15 @@
                   <span class="task-status-tag" :class="statusClass(row.status)">{{ displayStatus(row.status) }}</span>
                 </td>
                 <td>{{ row.annotatorText }}</td>
-                <td>
+                <td class="task-action-cell">
                   <button
-                    class="task-action-btn green"
-                    @click="goAction(actionFor(row))"
+                    v-for="(action, actionIdx) in actionsFor(row)"
+                    :key="actionIdx"
+                    class="task-action-btn"
+                    :class="action.color"
+                    @click="goAction(action)"
                   >
-                    {{ actionFor(row).label }}
+                    {{ action.label }}
                   </button>
                 </td>
                 <td>
@@ -129,7 +132,7 @@ import client from '../../api/client'
 import TaskDirectorySidebar from '../../components/task/TaskDirectorySidebar.vue'
 import TaskForm from '../../components/task/TaskForm.vue'
 import { taskFormFromDetail } from '../../utils/taskForm'
-import { creatorAction } from '../../utils/taskRows'
+import { creatorActions } from '../../utils/taskRows'
 import {
   clearTaskUpdateDraft,
   loadTaskUpdateDraft,
@@ -154,6 +157,8 @@ const savingTaskId = ref(null)
 const displayRows = computed(() => {
   let rows = tasks.value.map((t) => ({
     ...t,
+    status: details.value[t.taskId]?.summary?.status || t.status,
+    detail: details.value[t.taskId],
     annotatorText: details.value[t.taskId]?.annotators?.map((u) => u.realName).join('、') || `${t.annotatorCount} 人`
   }))
   if (filters.status) rows = rows.filter((r) => r.status === filters.status)
@@ -175,8 +180,8 @@ function statusClass(status) {
   return 'status-progress'
 }
 
-function actionFor(row) {
-  return creatorAction(row)
+function actionsFor(row) {
+  return creatorActions(row)
 }
 
 function goAction(action) {

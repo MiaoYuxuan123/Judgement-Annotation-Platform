@@ -1,5 +1,3 @@
-DROP TABLE IF EXISTS `arbitration_snapshot`;
-
 CREATE TABLE IF NOT EXISTS `arbitration_snapshot` (
     `id` INT AUTO_INCREMENT,
     `task_id` INT NOT NULL,
