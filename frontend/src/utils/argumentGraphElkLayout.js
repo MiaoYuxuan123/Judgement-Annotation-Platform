@@ -1,34 +1,31 @@
 /**
- * 论证图 ELK 自动布局：命题节点 + 关系节点 -> 分层正交布局。
+ * 裁判文书论证图生成器。
  *
- * 指南图示规则：
- * - 命题：矩形节点。
- * - S：实心圆关系节点，输入 -> ● -> 输出。
- * - A：空心圆关系节点，输入 -> ○ -> 输出。
- * - J：带 + 圆关系节点，多成员无向汇聚。
- * - M：带 + 圆关系节点，输入 -> + -> 输出。
- * - I：命题节点合并为 P1 / P2 形式。
+ * 数据来源与图示语义：
+ * - proposition.displayId -> 矩形命题节点。
+ * - argument_relation.displayId / relationType -> 关系表达式和关系枢纽节点。
+ * - relation_member.memberOrder -> 关系成员顺序。
+ * - relation_member.memberType=P/R -> 成员引用命题或内层关系。
+ *
+ * 绘图规则：
+ * - S：理由 -> ● -> 结论，第二段带箭头。
+ * - A：反对方 -> ○ -> 被反对方，第二段带箭头。
+ * - M：个别判断 -> ⊕ -> 一般判断，第二段带箭头。
+ * - J：多个成员无向汇聚到 ⊕；二元横排，多元横排在上、⊕ 在下。
+ * - I：不画关系圆，把同一组命题合并为同一个矩形内的 P1 / P2。
  */
-import ELK from 'elkjs/lib/elk.bundled.js'
 
-const elk = new ELK()
-
-const PROP_H = 32
-const HUB_SIZE = { S: 12, A: 18, M: 24, J: 24 }
-
-const ROOT_LAYOUT = {
-  'elk.algorithm': 'layered',
-  'elk.direction': 'DOWN',
-  'elk.edgeRouting': 'POLYLINE',
-  'elk.spacing.nodeNode': '44',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '68',
-  'elk.layered.spacing.edgeNodeBetweenLayers': '34',
-  'elk.layered.spacing.edgeEdgeBetweenLayers': '18',
-  'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-  'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
-  'elk.layered.layering.strategy': 'NETWORK_SIMPLEX',
-  'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
-  'elk.padding': '[top=48,left=48,bottom=48,right=48]'
+const PROP_H = 34
+const PROP_MIN_W = 58
+const HUB_SIZE = { S: 14, A: 18, M: 24, J: 24 }
+const GAP = {
+  inline: 42,
+  relation: 76,
+  member: 54,
+  row: 72,
+  verticalRelation: 58,
+  component: 92,
+  padding: 48
 }
 
 function relationType(rel) {
@@ -39,20 +36,20 @@ function relationId(rel, index) {
   return rel?.relId || `R${index + 1}`
 }
 
-function relationMembers(rel) {
-  return (rel?.members?.length ? rel.members : [rel?.source, rel?.target]).filter(Boolean)
-}
-
 function relationKey(rel, index) {
   return relationId(rel, index)
 }
 
+function relationMembers(rel) {
+  return (rel?.members?.length ? rel.members : [rel?.source, rel?.target]).filter(Boolean)
+}
+
 function propLabel(p) {
-  return p.propId || `P${p.sequenceNo}`
+  return p?.propId || `P${p?.sequenceNo || ''}`
 }
 
 function propBoxSize(label) {
-  return { width: Math.max(52, label.length * 9 + 22), height: PROP_H }
+  return { width: Math.max(PROP_MIN_W, String(label).length * 10 + 24), height: PROP_H }
 }
 
 class UnionFind {
@@ -95,111 +92,22 @@ function createIdentityGroups(propositions, relations) {
   return uf
 }
 
-function buildElkGraph(propositions = [], relations = []) {
-  const rels = filterGraphRelations(relations || [])
-  const visiblePropIds = collectVisiblePropIds(rels)
-  propositions = (propositions || []).filter((p) => visiblePropIds.has(p.propId))
-  const propMap = new Map(propositions.map((p) => [p.propId, p]))
-  const uf = createIdentityGroups(propositions, rels)
-
-  const propToNode = new Map()
-  const relToNode = new Map()
-  const nodeMeta = new Map()
-  const children = []
-  const edges = []
-
-  const grouped = new Map()
-  propositions.forEach((p) => {
-    const root = uf.find(p.propId)
-    if (!grouped.has(root)) grouped.set(root, [])
-    grouped.get(root).push(p)
-  })
-
-  grouped.forEach((items, root) => {
-    const sorted = [...items].sort((a, b) => (a.sequenceNo || 0) - (b.sequenceNo || 0))
-    const id = `prop-${root}`
-    const label = sorted.map(propLabel).join(' / ')
-    const size = propBoxSize(label)
-    sorted.forEach((p) => propToNode.set(p.propId, id))
-    nodeMeta.set(id, { kind: 'prop', label, ...size })
-    children.push({ id, width: size.width, height: size.height })
-  })
-
-  rels.forEach((rel, index) => {
-    const type = relationType(rel)
-    if (type === 'I' || !['S', 'A', 'J', 'M'].includes(type)) return
-
-    const key = relationId(rel, index)
-    const id = `hub-${type.toLowerCase()}-${key}`
-    const hubKind = type === 'S' ? 'hub-s' : type === 'A' ? 'hub-a' : type === 'J' ? 'hub-j' : 'hub-m'
-    const size = HUB_SIZE[type]
-    relToNode.set(key, id)
-    nodeMeta.set(id, {
-      kind: hubKind,
-      label: type === 'S' || type === 'A' ? '' : '+',
-      width: size,
-      height: size
-    })
-    children.push({ id, width: size, height: size })
-  })
-
-  function resolveMember(id) {
-    if (propToNode.has(id)) return propToNode.get(id)
-    if (relToNode.has(id)) return relToNode.get(id)
-    return null
-  }
-
-  rels.forEach((rel, index) => {
-    const type = relationType(rel)
-    if (type === 'I' || !['S', 'A', 'J', 'M'].includes(type)) return
-
-    const key = relationId(rel, index)
-    const hubId = relToNode.get(key)
-    if (!hubId) return
-
-    const members = relationMembers(rel)
-    if (type === 'J') {
-      const memberNodes = members.map(resolveMember).filter((id) => id && id !== hubId)
-      if (memberNodes.length < 2) return
-      ;[...new Set(memberNodes)].forEach((memberNode, memberIndex) => {
-        edges.push({
-          id: `e-j-${key}-${memberIndex}`,
-          sources: [memberNode],
-          targets: [hubId],
-          directed: false
-        })
-      })
+function collectVisiblePropIds(relations) {
+  const visible = new Set()
+  const relMap = new Map(relations.map((rel, index) => [relationKey(rel, index), rel]))
+  const visit = (memberId, seen = new Set()) => {
+    if (String(memberId).startsWith('P')) {
+      visible.add(memberId)
       return
     }
-
-    const sourceNode = resolveMember(members[0])
-    const targetNode = resolveMember(members[1])
-    if (!sourceNode || !targetNode || sourceNode === targetNode) return
-
-    edges.push({
-      id: `e-${type}-in-${key}`,
-      sources: [sourceNode],
-      targets: [hubId],
-      directed: false
-    })
-    edges.push({
-      id: `e-${type}-out-${key}`,
-      sources: [hubId],
-      targets: [targetNode],
-      directed: true
-    })
-  })
-
-  return {
-    graph: {
-      id: 'root',
-      layoutOptions: ROOT_LAYOUT,
-      children,
-      edges: edges.map(({ directed, ...edge }) => edge)
-    },
-    nodeMeta,
-    edgeDefs: edges
+    if (seen.has(memberId)) return
+    const rel = relMap.get(memberId)
+    if (!rel) return
+    seen.add(memberId)
+    relationMembers(rel).forEach((id) => visit(id, seen))
   }
+  relations.forEach((rel, index) => visit(relationKey(rel, index)))
+  return visible
 }
 
 function filterGraphRelations(relations) {
@@ -207,37 +115,262 @@ function filterGraphRelations(relations) {
   return relations.filter((rel) => {
     const type = relationType(rel)
     const members = relationMembers(rel)
-    if (type === 'I') return members.some((id) => String(id).startsWith('P'))
+    if (type === 'I') return members.filter((id) => String(id).startsWith('P')).length >= 2
     if (type === 'J') return members.length >= 2
     if (['S', 'A', 'M'].includes(type)) return members.length >= 2
     return members.some((id) => relIdSet.has(id) || String(id).startsWith('P'))
   })
 }
 
-function collectVisiblePropIds(relations) {
-  const visible = new Set()
-  const relMap = new Map(relations.map((rel, index) => [relationKey(rel, index), rel]))
-  const visit = (id, seen = new Set()) => {
-    if (String(id).startsWith('P')) {
-      visible.add(id)
-      return
-    }
-    if (seen.has(id)) return
-    const rel = relMap.get(id)
-    if (!rel) return
-    seen.add(id)
-    relationMembers(rel).forEach((member) => visit(member, seen))
+function flowNode(id, type, label, x, y, width, height, extraData = {}) {
+  return {
+    id,
+    type,
+    position: { x, y },
+    data: { label, hubKind: type, ...extraData },
+    style: { width: `${width}px`, height: `${height}px` },
+    draggable: false,
+    selectable: false,
+    connectable: false
   }
-  relations.forEach((rel, index) => visit(relationKey(rel, index)))
-  return visible
 }
 
-function tryBuildGuidelineLayout(propositions = [], relations = []) {
+function pointsToSvgPath(points) {
+  if (!points.length) return ''
+  return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+}
+
+function flowEdge(id, source, target, directed, points) {
+  return {
+    id,
+    source,
+    target,
+    type: 'elk-orthogonal',
+    animated: false,
+    selectable: false,
+    data: {
+      points,
+      path: pointsToSvgPath(points),
+      directed
+    }
+  }
+}
+
+function rectAt(x, y, width, height) {
+  return {
+    x,
+    y,
+    width,
+    height,
+    cx: x + width / 2,
+    cy: y + height / 2
+  }
+}
+
+function pointOnRectToward(rect, toward) {
+  const dx = toward.x - rect.cx
+  const dy = toward.y - rect.cy
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return {
+      x: dx >= 0 ? rect.x + rect.width : rect.x,
+      y: rect.cy
+    }
+  }
+  return {
+    x: rect.cx,
+    y: dy >= 0 ? rect.y + rect.height : rect.y
+  }
+}
+
+function orthogonal(from, to) {
+  if (Math.abs(from.x - to.x) < 0.5 || Math.abs(from.y - to.y) < 0.5) return [from, to]
+  const midX = (from.x + to.x) / 2
+  return [from, { x: midX, y: from.y }, { x: midX, y: to.y }, to]
+}
+
+function translatePoint(p, dx, dy) {
+  return { x: p.x + dx, y: p.y + dy }
+}
+
+function translateUnit(unit, dx, dy) {
+  return {
+    ...unit,
+    nodes: unit.nodes.map((n) => ({
+      ...n,
+      position: { x: n.position.x + dx, y: n.position.y + dy }
+    })),
+    edges: unit.edges.map((e) => ({
+      ...e,
+      data: {
+        ...e.data,
+        points: e.data.points.map((p) => translatePoint(p, dx, dy)),
+        path: pointsToSvgPath(e.data.points.map((p) => translatePoint(p, dx, dy)))
+      }
+    })),
+    attach: {
+      ...unit.attach,
+      point: translatePoint(unit.attach.point, dx, dy),
+      rect: unit.attach.rect
+        ? rectAt(unit.attach.rect.x + dx, unit.attach.rect.y + dy, unit.attach.rect.width, unit.attach.rect.height)
+        : null
+    }
+  }
+}
+
+function mergeUnits(units) {
+  return {
+    nodes: units.flatMap((u) => u.nodes),
+    edges: units.flatMap((u) => u.edges)
+  }
+}
+
+function nodeRect(node) {
+  const width = parseFloat(node.style.width) || PROP_MIN_W
+  const height = parseFloat(node.style.height) || PROP_H
+  return rectAt(node.position.x, node.position.y, width, height)
+}
+
+function mergeDuplicatePropNodes(nodes, edges) {
+  const nextNodes = nodes.map((node) => ({
+    ...node,
+    position: { ...node.position },
+    data: { ...node.data }
+  }))
+  const nextEdges = edges.map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data,
+      points: [...(edge.data?.points || [])]
+    }
+  }))
+
+  const canonicalByStableId = new Map()
+  const duplicateToCanonical = new Map()
+  const canonicalRects = new Map()
+  const removed = new Set()
+  const nodeById = new Map(nextNodes.map((node) => [node.id, node]))
+
+  nextNodes.forEach((node) => {
+    if (node.type !== 'prop' || !node.data?.stableId) return
+    const stableId = node.data.stableId
+    if (!canonicalByStableId.has(stableId)) {
+      canonicalByStableId.set(stableId, node.id)
+      canonicalRects.set(node.id, nodeRect(node))
+      return
+    }
+    duplicateToCanonical.set(node.id, canonicalByStableId.get(stableId))
+    removed.add(node.id)
+  })
+
+  if (!duplicateToCanonical.size) return { nodes: nextNodes, edges: nextEdges }
+
+  const canonicalIds = new Set(duplicateToCanonical.values())
+  const adjacency = new Map()
+  nextEdges.forEach((edge) => {
+    if (!adjacency.has(edge.source)) adjacency.set(edge.source, [])
+    if (!adjacency.has(edge.target)) adjacency.set(edge.target, [])
+    adjacency.get(edge.source).push(edge.target)
+    adjacency.get(edge.target).push(edge.source)
+  })
+
+  const shiftedStarts = new Set()
+  const shiftComponent = (startId, dx) => {
+    if (!startId || removed.has(startId) || canonicalIds.has(startId) || Math.abs(dx) < 0.5) return
+    const key = `${startId}:${Math.round(dx)}`
+    if (shiftedStarts.has(key)) return
+    shiftedStarts.add(key)
+
+    const queue = [startId]
+    const component = new Set()
+    while (queue.length) {
+      const id = queue.shift()
+      if (component.has(id) || removed.has(id) || canonicalIds.has(id)) continue
+      component.add(id)
+      ;(adjacency.get(id) || []).forEach((next) => {
+        if (!removed.has(next) && !canonicalIds.has(next)) queue.push(next)
+      })
+    }
+
+    component.forEach((id) => {
+      const node = nodeById.get(id)
+      if (node) node.position.x += dx
+    })
+
+    nextEdges.forEach((edge) => {
+      if (!component.has(edge.source) && !component.has(edge.target)) return
+      edge.data.points = edge.data.points.map((p) => ({ x: p.x + dx, y: p.y }))
+      edge.data.path = pointsToSvgPath(edge.data.points)
+    })
+  }
+
+  nextEdges.forEach((edge) => {
+    if (!duplicateToCanonical.has(edge.source)) return
+    const canonical = nodeById.get(duplicateToCanonical.get(edge.source))
+    const target = nodeById.get(edge.target)
+    if (!canonical || !target || removed.has(edge.target)) return
+    shiftComponent(edge.target, nodeRect(canonical).cx - nodeRect(target).cx)
+  })
+
+  const reroutedEdges = nextEdges.map((edge) => {
+    const source = duplicateToCanonical.get(edge.source) || edge.source
+    const target = duplicateToCanonical.get(edge.target) || edge.target
+    const points = [...(edge.data?.points || [])]
+    const sourceChanged = duplicateToCanonical.has(edge.source)
+    const targetChanged = duplicateToCanonical.has(edge.target)
+
+    if (sourceChanged && points.length >= 2) {
+      const rect = canonicalRects.get(source)
+      if (rect) points[0] = pointOnRectToward(rect, points[points.length - 1])
+    }
+    if (targetChanged && points.length >= 2) {
+      const rect = canonicalRects.get(target)
+      if (rect) points[points.length - 1] = pointOnRectToward(rect, points[0])
+    }
+    const nextPoints = sourceChanged || targetChanged ? orthogonal(points[0], points[points.length - 1]) : points
+
+    return {
+      ...edge,
+      source,
+      target,
+      data: {
+        ...edge.data,
+        points: nextPoints,
+        path: pointsToSvgPath(nextPoints)
+      }
+    }
+  })
+
+  return {
+    nodes: nextNodes.filter((node) => !removed.has(node.id)),
+    edges: reroutedEdges
+  }
+}
+
+function boundsFromNodes(nodes) {
+  let maxX = 0
+  let maxY = 0
+  nodes.forEach((n) => {
+    const w = parseFloat(n.style.width) || PROP_MIN_W
+    const h = parseFloat(n.style.height) || PROP_H
+    maxX = Math.max(maxX, n.position.x + w)
+    maxY = Math.max(maxY, n.position.y + h)
+  })
+  return {
+    width: Math.max(maxX + GAP.padding, 360),
+    height: Math.max(maxY + GAP.padding, 240)
+  }
+}
+
+function buildManualGraph(propositions = [], relations = []) {
   const rels = filterGraphRelations(relations || [])
   const visiblePropIds = collectVisiblePropIds(rels)
   const visibleProps = (propositions || []).filter((p) => visiblePropIds.has(p.propId))
-  if (!rels.length) return null
+  if (!visibleProps.length && !rels.length) {
+    return { nodes: [], edges: [], bounds: { width: 400, height: 220 } }
+  }
+
   const propMap = new Map(visibleProps.map((p) => [p.propId, p]))
+  const relMap = new Map(rels.map((rel, index) => [relationKey(rel, index), rel]))
   const identityUf = createIdentityGroups(visibleProps, rels)
   const groupedProps = new Map()
   visibleProps.forEach((p) => {
@@ -246,274 +379,389 @@ function tryBuildGuidelineLayout(propositions = [], relations = []) {
     groupedProps.get(root).push(p)
   })
 
-  const nodes = []
-  const edges = []
-  const placed = new Map()
-  const nodeRects = new Map()
-  const relationEndpoints = new Map()
-  let componentIndex = 0
-
-  const nextBase = () => {
-    const base = {
-      x: 48,
-      y: 48 + componentIndex * 190
-    }
-    componentIndex += 1
-    return base
-  }
-
-  const propNodeInfo = (propId) => {
-    const root = identityUf.find(propId)
-    const items = [...(groupedProps.get(root) || [propMap.get(propId)])].filter(Boolean).sort((a, b) => (a.sequenceNo || 0) - (b.sequenceNo || 0))
-    const label = items.map(propLabel).join(' / ')
-    return { id: `prop-${root}`, label }
-  }
-
-  const addProp = (propId, x, y) => {
-    if (!propMap.has(propId)) return null
-    const info = propNodeInfo(propId)
-    const id = info.id
-    if (!placed.has(id)) {
-      const size = propBoxSize(info.label)
-      const rect = { id, x, y, width: size.width, height: size.height, cx: x + size.width / 2, cy: y + size.height / 2 }
-      placed.set(id, true)
-      nodeRects.set(id, rect)
-      nodes.push(flowNode(id, 'prop', info.label, x, y, size.width, size.height))
-    }
-    return nodeRects.get(id)
-  }
-
-  const addHub = (id, kind, label, x, y, size) => {
-    if (!placed.has(id)) {
-      placed.set(id, true)
-      nodeRects.set(id, { id, x, y, width: size, height: size, cx: x + size / 2, cy: y + size / 2 })
-      nodes.push(flowNode(id, kind, label, x, y, size, size))
-    }
-    return nodeRects.get(id)
-  }
-
-  const ensureMember = (memberId, preferredX, preferredY) => {
-    if (String(memberId).startsWith('P')) {
-      const rect = addProp(memberId, preferredX, preferredY)
-      return rect ? { ...rect, nodeId: rect.id, x: rect.cx, y: rect.cy, rect } : null
-    }
-    const endpoint = relationEndpoints.get(memberId)
-    return endpoint ? { ...endpoint } : null
-  }
-
-  const centerPoint = (rect) => ({ x: rect.cx, y: rect.cy })
-
-  const jItems = rels
-    .map((rel, index) => ({ rel, key: relationKey(rel, index) }))
-    .filter(({ rel }) => relationType(rel) === 'J')
-
-  jItems.forEach(({ rel, key }) => {
-    const members = relationMembers(rel).filter((id) => String(id).startsWith('P') && propMap.has(id))
-    if (members.length < 2) return
-    const base = nextBase()
-    const hubId = `hub-j-${key}`
-    const memberGap = 92
-    const rowY = base.y
-    const propRects = members
-      .map((propId, memberIndex) => addProp(propId, base.x + memberIndex * memberGap, rowY))
-      .filter(Boolean)
-    if (propRects.length < 2) return
-
-    const hubCenter =
-      propRects.length === 2
-        ? {
-            x: (propRects[0].cx + propRects[1].cx) / 2,
-            y: propRects[0].cy
-          }
-        : {
-            x: (propRects[0].cx + propRects[propRects.length - 1].cx) / 2,
-            y: rowY + PROP_H + 58
-          }
-
-    addHub(hubId, 'hub-j', '+', hubCenter.x - HUB_SIZE.J / 2, hubCenter.y - HUB_SIZE.J / 2, HUB_SIZE.J)
-    propRects.forEach((propRect, memberIndex) => {
-      const from =
-        propRects.length === 2
-          ? pointOnRectToward(propRect, hubCenter)
-          : { x: propRect.cx, y: propRect.y + propRect.height, side: 'bottom' }
-      edges.push(flowEdge(`e-j-${key}-${memberIndex}`, propRect.id, hubId, false, orthogonalPointsFromRect(from, hubCenter)))
+  const referencedRelations = new Set()
+  rels.forEach((rel) => {
+    relationMembers(rel).forEach((id) => {
+      if (String(id).startsWith('R')) referencedRelations.add(id)
     })
-    relationEndpoints.set(key, { x: hubCenter.x, y: hubCenter.y, nodeId: hubId, rect: nodeRects.get(hubId) })
   })
 
-  rels.forEach((rel, index) => {
+  const ctx = { nextNode: 1, nextEdge: 1, propMap, relMap, identityUf, groupedProps }
+
+  function uniqueNodeId(prefix, stableId) {
+    return `${prefix}-${stableId}-${ctx.nextNode++}`
+  }
+
+  function uniqueEdgeId(prefix, stableId) {
+    return `${prefix}-${stableId}-${ctx.nextEdge++}`
+  }
+
+  function makePropUnit(propId) {
+    const root = ctx.identityUf.find(propId)
+    const items = [...(ctx.groupedProps.get(root) || [ctx.propMap.get(propId)])]
+      .filter(Boolean)
+      .sort((a, b) => (a.sequenceNo || 0) - (b.sequenceNo || 0))
+    const label = items.map(propLabel).join(' / ')
+    const size = propBoxSize(label)
+    const nodeId = uniqueNodeId('prop', root)
+    const rect = rectAt(0, 0, size.width, size.height)
+    return {
+      width: size.width,
+      height: size.height,
+      nodes: [flowNode(nodeId, 'prop', label, 0, 0, size.width, size.height, { stableId: root })],
+      edges: [],
+      attach: { nodeId, point: { x: rect.cx, y: rect.cy }, rect }
+    }
+  }
+
+  function makeHub(kind, key) {
+    const size = HUB_SIZE[kind]
+    const hubKind = kind === 'S' ? 'hub-s' : kind === 'A' ? 'hub-a' : kind === 'J' ? 'hub-j' : 'hub-m'
+    const nodeId = uniqueNodeId(`hub-${kind.toLowerCase()}`, key)
+    const rect = rectAt(0, 0, size, size)
+    return {
+      width: size,
+      height: size,
+      nodes: [flowNode(nodeId, hubKind, kind === 'S' || kind === 'A' ? '' : '+', 0, 0, size, size, { relKey: key, relType: kind })],
+      edges: [],
+      attach: { nodeId, point: { x: rect.cx, y: rect.cy }, rect }
+    }
+  }
+
+  function memberUnit(memberId, stack) {
+    if (String(memberId).startsWith('P')) {
+      if (!ctx.propMap.has(memberId)) return null
+      return makePropUnit(memberId)
+    }
+    if (String(memberId).startsWith('R')) {
+      return makeRelationUnit(memberId, stack)
+    }
+    return null
+  }
+
+  function makeJUnit(key, rel, stack) {
+    const members = relationMembers(rel).map((id) => memberUnit(id, stack)).filter(Boolean)
+    if (members.length < 2) return null
+
+    const hub = makeHub('J', key)
+    const isBinary = members.length === 2
+
+    if (isBinary) {
+      const left = translateUnit(members[0], 0, 0)
+      const hubX = left.width + GAP.inline
+      const hubY = Math.max(0, (left.height - hub.height) / 2)
+      const placedHub = translateUnit(hub, hubX, hubY)
+      const rightX = hubX + hub.width + GAP.inline
+      const rightY = Math.max(0, (left.height - members[1].height) / 2)
+      const right = translateUnit(members[1], rightX, rightY)
+      const rowHeight = Math.max(left.height, right.height, hub.height)
+
+      const leftOut = pointOnRectToward(left.attach.rect, placedHub.attach.point)
+      const rightIn = pointOnRectToward(right.attach.rect, placedHub.attach.point)
+      const edges = [
+        flowEdge(uniqueEdgeId('j-in', key), left.attach.nodeId, placedHub.attach.nodeId, false, [leftOut, placedHub.attach.point]),
+        flowEdge(uniqueEdgeId('j-out', key), placedHub.attach.nodeId, right.attach.nodeId, false, [placedHub.attach.point, rightIn])
+      ]
+      const merged = mergeUnits([left, placedHub, right])
+      return {
+        width: rightX + right.width,
+        height: rowHeight,
+        nodes: merged.nodes,
+        edges: [...merged.edges, ...edges],
+        attach: placedHub.attach
+      }
+    }
+
+    let x = 0
+    const rowUnits = members.map((unit) => {
+      const placed = translateUnit(unit, x, 0)
+      x += unit.width + GAP.member
+      return placed
+    })
+    const rowWidth = x - GAP.member
+    const rowHeight = Math.max(...rowUnits.map((u) => u.height))
+    const hubX = rowWidth / 2 - hub.width / 2
+    const hubY = rowHeight + GAP.row
+    const placedHub = translateUnit(hub, hubX, hubY)
+    const busY = hubY + hub.height / 2
+
+    const jEdges = rowUnits.map((unit) => {
+      const from = pointOnRectToward(unit.attach.rect, { x: unit.attach.point.x, y: busY })
+      const to = placedHub.attach.point
+      const points = Math.abs(from.x - to.x) < 0.5
+        ? [from, to]
+        : [from, { x: from.x, y: busY }, { x: to.x, y: busY }, to]
+      return flowEdge(uniqueEdgeId('j-member', key), unit.attach.nodeId, placedHub.attach.nodeId, false, points)
+    })
+    const merged = mergeUnits([...rowUnits, placedHub])
+    return {
+      width: Math.max(rowWidth, hubX + hub.width),
+      height: hubY + hub.height,
+      nodes: merged.nodes,
+      edges: [...merged.edges, ...jEdges],
+      attach: placedHub.attach
+    }
+  }
+
+  function makeDirectedUnit(key, rel, stack) {
     const type = relationType(rel)
-    if (!['S', 'A', 'M'].includes(type)) return
     const members = relationMembers(rel)
-    if (members.length < 2) return
-    const key = relationKey(rel, index)
-    const base = nextBase()
-    const source = ensureMember(members[0], base.x, base.y)
-    if (!source) return
-    const hubKind = type === 'S' ? 'hub-s' : type === 'A' ? 'hub-a' : 'hub-m'
-    const hubId = `hub-${type.toLowerCase()}-${key}`
-    const sourceOutBase = source.rect ? pointOnRectToward(source.rect, { x: source.x + 120, y: source.y }) : { x: source.x, y: source.y }
-    const hubCenter = { x: sourceOutBase.x + 112, y: sourceOutBase.y }
-    addHub(hubId, hubKind, type === 'M' ? '+' : '', hubCenter.x - HUB_SIZE[type] / 2, hubCenter.y - HUB_SIZE[type] / 2, HUB_SIZE[type])
+    const source = memberUnit(members[0], stack)
+    const target = memberUnit(members[1], stack)
+    if (!source || !target) return null
 
-    const targetPreferredX = hubCenter.x + 96
-    const targetPreferredY = hubCenter.y - PROP_H / 2
-    const target = ensureMember(members[1], targetPreferredX, targetPreferredY)
-    if (!target) return
-
-    const sourceOut = source.rect ? exitPointFromRect(source.rect, hubCenter) : { x: source.x, y: source.y }
-    const targetIn = target.rect ? entryPointToRect(target.rect, hubCenter) : { x: target.x, y: target.y }
-    edges.push(flowEdge(`e-${type}-in-${key}`, source.nodeId, hubId, false, orthogonalPointsFromRect(sourceOut, hubCenter)))
-    edges.push(flowEdge(`e-${type}-out-${key}`, hubId, target.nodeId, true, orthogonalPointsToRect(hubCenter, targetIn)))
-    relationEndpoints.set(key, { x: hubCenter.x, y: hubCenter.y, nodeId: hubId, rect: nodeRects.get(hubId) })
-  })
-
-  rels.forEach((rel, index) => {
-    if (relationType(rel) !== 'I') return
-    const members = relationMembers(rel).filter((id) => String(id).startsWith('P') && propMap.has(id))
-    if (!members.length) return
-    const base = nextBase()
-    members.forEach((propId) => addProp(propId, base.x, base.y))
-  })
-
-  return { nodes, edges, bounds: boundsFromNodes(nodes) }
-}
-
-function pointOnRectToward(rect, toward) {
-  if (!rect) return toward
-  const dx = toward.x - rect.cx
-  const dy = toward.y - rect.cy
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    const right = dx >= 0
-    return {
-      x: right ? rect.x + rect.width : rect.x,
-      y: rect.cy,
-      side: right ? 'right' : 'left'
-    }
+    return makeVerticalDirectedUnit(key, type, source, target)
   }
-  const bottom = dy >= 0
-  return {
-    x: rect.cx,
-    y: bottom ? rect.y + rect.height : rect.y,
-    side: bottom ? 'bottom' : 'top'
-  }
-}
 
-function exitPointFromRect(rect, toward) {
-  return pointOnRectToward(rect, toward)
-}
+  function makeVerticalDirectedUnit(key, type, source, target) {
+    const hub = makeHub(type, key)
+    const width = Math.max(source.width, target.width, hub.width)
+    const sourceX = (width - source.width) / 2
+    const hubX = (width - hub.width) / 2
+    const targetX = (width - target.width) / 2
+    const placedSource = translateUnit(source, sourceX, 0)
+    const hubY = source.height + GAP.verticalRelation
+    const placedHub = translateUnit(hub, hubX, hubY)
+    const targetY = hubY + hub.height + GAP.verticalRelation
+    const placedTarget = translateUnit(target, targetX, targetY)
 
-function entryPointToRect(rect, from) {
-  if (!rect) return from
-  const dx = from.x - rect.cx
-  const dy = from.y - rect.cy
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    return {
-      x: dx < 0 ? rect.x : rect.x + rect.width,
-      y: rect.cy,
-      side: dx < 0 ? 'left' : 'right'
-    }
-  }
-  return {
-    x: rect.cx,
-    y: dy < 0 ? rect.y : rect.y + rect.height,
-    side: dy < 0 ? 'top' : 'bottom'
-  }
-}
+    const sourceOut = placedSource.attach.rect
+      ? pointOnRectToward(placedSource.attach.rect, placedHub.attach.point)
+      : placedSource.attach.point
+    const targetIn = placedTarget.attach.rect
+      ? pointOnRectToward(placedTarget.attach.rect, placedHub.attach.point)
+      : placedTarget.attach.point
+    const hubOut = { x: placedHub.attach.point.x, y: placedHub.attach.rect.y + placedHub.attach.rect.height }
 
-function orthogonalPoints(from, to) {
-  if (!from || !to) return []
-  if (Math.abs(from.x - to.x) < 0.5 || Math.abs(from.y - to.y) < 0.5) {
-    return [from, to]
-  }
-  const midX = (from.x + to.x) / 2
-  return [
-    from,
-    { x: midX, y: from.y },
-    { x: midX, y: to.y },
-    to
-  ]
-}
-
-function orthogonalPointsFromRect(from, to) {
-  if (!from?.side || !to) return orthogonalPoints(from, to)
-  const clearance = 18
-  let first
-  if (from.side === 'left') first = { x: from.x - clearance, y: from.y }
-  else if (from.side === 'right') first = { x: from.x + clearance, y: from.y }
-  else if (from.side === 'top') first = { x: from.x, y: from.y - clearance }
-  else first = { x: from.x, y: from.y + clearance }
-
-  if (Math.abs(first.x - to.x) < 0.5 || Math.abs(first.y - to.y) < 0.5) {
-    return [from, first, to]
-  }
-  const midX = (first.x + to.x) / 2
-  return [
-    from,
-    first,
-    { x: midX, y: first.y },
-    { x: midX, y: to.y },
-    to
-  ]
-}
-
-function orthogonalPointsToRect(from, entry) {
-  if (!from || !entry) return []
-  if (Math.abs(from.x - entry.x) < 0.5 || Math.abs(from.y - entry.y) < 0.5) {
-    return [from, entry]
-  }
-  if (entry.side === 'left' || entry.side === 'right') {
-    return [
-      from,
-      { x: from.x, y: entry.y },
-      entry
+    const edges = [
+      flowEdge(uniqueEdgeId(`${type}-in`, key), placedSource.attach.nodeId, placedHub.attach.nodeId, false, orthogonal(sourceOut, placedHub.attach.point)),
+      flowEdge(uniqueEdgeId(`${type}-out`, key), placedHub.attach.nodeId, placedTarget.attach.nodeId, true, orthogonal(hubOut, targetIn))
     ]
+    const merged = mergeUnits([placedSource, placedHub, placedTarget])
+    return {
+      width,
+      height: targetY + target.height,
+      nodes: merged.nodes,
+      edges: [...merged.edges, ...edges],
+      attach: placedHub.attach
+    }
   }
-  return [
-    from,
-    { x: entry.x, y: from.y },
-    entry
-  ]
-}
 
-function flowNode(id, type, label, x, y, width, height) {
-  return {
-    id,
-    type,
-    position: { x, y },
-    data: { label, hubKind: type },
-    style: { width: `${width}px`, height: `${height}px` },
-    draggable: false,
-    selectable: false,
-    connectable: false
+  function makeRelationUnit(key, stack = new Set()) {
+    if (stack.has(key)) return null
+    const rel = ctx.relMap.get(key)
+    if (!rel) return null
+    const nextStack = new Set(stack)
+    nextStack.add(key)
+    const type = relationType(rel)
+    if (type === 'I') {
+      const propId = relationMembers(rel).find((id) => String(id).startsWith('P'))
+      return propId ? makePropUnit(propId) : null
+    }
+    if (type === 'J') return makeJUnit(key, rel, nextStack)
+    if (['S', 'A', 'M'].includes(type)) return makeDirectedUnit(key, rel, nextStack)
+    return null
   }
-}
 
-function flowEdge(id, source, target, directed, points = null) {
-  return {
-    id,
-    source,
-    target,
-    type: 'elk-orthogonal',
-    animated: false,
-    selectable: false,
-    data: { points, path: points ? pointsToSvgPath(points) : null, directed }
+  let topKeys = rels
+    .map((rel, index) => relationKey(rel, index))
+    .filter((key) => relationType(ctx.relMap.get(key)) !== 'I' && !referencedRelations.has(key))
+
+  if (!topKeys.length) {
+    topKeys = rels
+      .map((rel, index) => relationKey(rel, index))
+      .filter((key) => relationType(ctx.relMap.get(key)) !== 'I')
   }
-}
 
-function boundsFromNodes(nodes) {
-  let maxX = 0
-  let maxY = 0
-  nodes.forEach((n) => {
-    const w = parseFloat(n.style.width) || 52
-    const h = parseFloat(n.style.height) || PROP_H
-    maxX = Math.max(maxX, n.position.x + w)
-    maxY = Math.max(maxY, n.position.y + h)
+  const units = []
+  let y = GAP.padding
+  topKeys.forEach((key) => {
+    const unit = makeRelationUnit(key)
+    if (!unit) return
+    units.push(translateUnit(unit, GAP.padding, y))
+    y += unit.height + GAP.component
   })
-  return {
-    width: Math.max(maxX + 48, 320),
-    height: Math.max(maxY + 48, 200)
+
+  const onlyIdentity = rels.filter((rel) => relationType(rel) === 'I')
+  if (!units.length && onlyIdentity.length) {
+    onlyIdentity.forEach((rel) => {
+      const propId = relationMembers(rel).find((id) => String(id).startsWith('P'))
+      if (!propId) return
+      const unit = makePropUnit(propId)
+      units.push(translateUnit(unit, GAP.padding, y))
+      y += unit.height + GAP.component
+    })
   }
+
+  const merged = mergeUnits(units)
+  const deduped = mergeDuplicatePropNodes(merged.nodes, merged.edges)
+  const optimized = optimizeDirectedHubs(deduped.nodes, deduped.edges)
+  const normalized = normalizeGraph(optimized.nodes, optimized.edges)
+  return {
+    ...normalized,
+    bounds: boundsFromNodes(normalized.nodes)
+  }
+}
+
+function normalizeGraph(nodes, edges) {
+  if (!nodes.length) return { nodes, edges }
+  let minX = Infinity
+  let minY = Infinity
+  nodes.forEach((node) => {
+    minX = Math.min(minX, node.position.x)
+    minY = Math.min(minY, node.position.y)
+  })
+  const dx = minX < GAP.padding ? GAP.padding - minX : 0
+  const dy = minY < GAP.padding ? GAP.padding - minY : 0
+  if (!dx && !dy) return { nodes, edges }
+
+  return {
+    nodes: nodes.map((node) => ({
+      ...node,
+      position: {
+        x: node.position.x + dx,
+        y: node.position.y + dy
+      }
+    })),
+    edges: edges.map((edge) => {
+      const points = (edge.data?.points || []).map((p) => ({ x: p.x + dx, y: p.y + dy }))
+      return {
+        ...edge,
+        data: {
+          ...edge.data,
+          points,
+          path: pointsToSvgPath(points)
+        }
+      }
+    })
+  }
+}
+
+function nodeCenter(node) {
+  const rect = nodeRect(node)
+  return { x: rect.cx, y: rect.cy }
+}
+
+function connectionPoint(node, toward) {
+  return pointOnRectToward(nodeRect(node), toward)
+}
+
+function moveNodeCenter(node, center) {
+  const rect = nodeRect(node)
+  node.position.x = center.x - rect.width / 2
+  node.position.y = center.y - rect.height / 2
+}
+
+function optimizeDirectedHubs(nodes, edges) {
+  const nextNodes = nodes.map((node) => ({
+    ...node,
+    position: { ...node.position },
+    data: { ...node.data }
+  }))
+  const nextEdges = edges.map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data,
+      points: [...(edge.data?.points || [])]
+    }
+  }))
+  const nodeById = new Map(nextNodes.map((node) => [node.id, node]))
+
+  nextNodes
+    .filter((node) => ['hub-s', 'hub-a', 'hub-m'].includes(node.type))
+    .forEach((hub) => {
+      const inEdge = nextEdges.find((edge) => edge.target === hub.id && !edge.data?.directed)
+      const outEdge = nextEdges.find((edge) => edge.source === hub.id && edge.data?.directed)
+      if (!inEdge || !outEdge) return
+
+      const source = nodeById.get(inEdge.source)
+      const target = nodeById.get(outEdge.target)
+      if (!source || !target) return
+
+      let sourceRect = nodeRect(source)
+      const targetRect = nodeRect(target)
+      const hubRect = nodeRect(hub)
+      let hubCenter
+
+      if (target.type?.startsWith('hub')) {
+        if (source.type === 'prop') {
+          const nearSameColumn = nextNodes
+            .filter((node) => ![source.id, hub.id, target.id].includes(node.id))
+            .map(nodeRect)
+            .filter((rect) => Math.abs(rect.cx - targetRect.cx) < Math.max(48, targetRect.width))
+          const nearestBelow = nearSameColumn
+            .filter((rect) => rect.y >= targetRect.y + targetRect.height)
+            .sort((a, b) => a.y - b.y)[0]
+          const nearestAbove = nearSameColumn
+            .filter((rect) => rect.y + rect.height <= targetRect.y)
+            .sort((a, b) => b.y + b.height - (a.y + a.height))[0]
+          const belowGap = nearestBelow ? nearestBelow.y - (targetRect.y + targetRect.height) : Infinity
+          const aboveGap = nearestAbove ? targetRect.y - (nearestAbove.y + nearestAbove.height) : Infinity
+          const needVerticalGap = sourceRect.height + hubRect.height + 46
+          let sourceCenter
+          if (belowGap >= needVerticalGap) {
+            sourceCenter = {
+              x: targetRect.cx,
+              y: targetRect.cy + Math.max(96, sourceRect.height + hubRect.height + 56)
+            }
+          } else if (aboveGap >= needVerticalGap) {
+            sourceCenter = {
+              x: targetRect.cx,
+              y: targetRect.cy - Math.max(96, sourceRect.height + hubRect.height + 56)
+            }
+          } else {
+            const side = sourceRect.cx <= targetRect.cx ? -1 : 1
+            sourceCenter = {
+              x: targetRect.cx + side * Math.max(108, sourceRect.width + hubRect.width + 52),
+              y: targetRect.cy
+            }
+          }
+          moveNodeCenter(source, sourceCenter)
+          sourceRect = nodeRect(source)
+          hubCenter = Math.abs(sourceRect.cx - targetRect.cx) < 0.5
+            ? {
+                x: targetRect.cx,
+                y: (sourceRect.cy + targetRect.cy) / 2
+              }
+            : {
+                x: (sourceRect.cx + targetRect.cx) / 2,
+                y: targetRect.cy
+              }
+        } else {
+          const side = sourceRect.cx <= targetRect.cx ? -1 : 1
+          hubCenter = {
+            x: targetRect.cx + side * Math.max(58, hubRect.width + 44),
+            y: targetRect.cy
+          }
+        }
+      } else if (sourceRect.cy <= targetRect.cy) {
+        hubCenter = {
+          x: sourceRect.cx,
+          y: Math.max(sourceRect.y + sourceRect.height + 34, (sourceRect.y + sourceRect.height + targetRect.y) / 2)
+        }
+      } else {
+        hubCenter = {
+          x: sourceRect.cx,
+          y: Math.min(sourceRect.y - 34, (targetRect.y + targetRect.height + sourceRect.y) / 2)
+        }
+      }
+
+      moveNodeCenter(hub, hubCenter)
+
+      const movedHubRect = nodeRect(hub)
+      const movedHubCenter = nodeCenter(hub)
+      const sourceOut = connectionPoint(source, movedHubCenter)
+      const hubIn = pointOnRectToward(movedHubRect, sourceOut)
+      const targetIn = connectionPoint(target, movedHubCenter)
+      const hubOut = pointOnRectToward(movedHubRect, targetIn)
+
+      inEdge.data.points = orthogonal(sourceOut, hubIn)
+      inEdge.data.path = pointsToSvgPath(inEdge.data.points)
+      outEdge.data.points = orthogonal(hubOut, targetIn)
+      outEdge.data.path = pointsToSvgPath(outEdge.data.points)
+    })
+
+  return { nodes: nextNodes, edges: nextEdges }
 }
 
 function sectionToPoints(section) {
@@ -524,88 +772,11 @@ function sectionToPoints(section) {
   return pts
 }
 
-function pointsToSvgPath(points) {
-  if (!points.length) return ''
-  return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
-}
-
 /**
  * @returns {Promise<{ nodes: Array, edges: Array, bounds: object }>}
  */
 export async function layoutArgumentGraphWithElk(propositions, relations) {
-  const guidelineLayout = tryBuildGuidelineLayout(propositions, relations)
-  if (guidelineLayout) return guidelineLayout
-
-  const { graph, nodeMeta, edgeDefs } = buildElkGraph(propositions, relations)
-  if (!graph.children.length) {
-    return {
-      nodes: [],
-      edges: [],
-      bounds: { width: 400, height: 200 }
-    }
-  }
-
-  const layouted = await elk.layout(graph)
-  const edgeSections = new Map()
-  ;(layouted.edges || []).forEach((e) => {
-    if (e.sections?.length) edgeSections.set(e.id, e.sections)
-  })
-
-  const nodes = (layouted.children || []).map((n) => {
-    const meta = nodeMeta.get(n.id) || { kind: 'prop', label: n.id, width: 52, height: PROP_H }
-    return {
-      id: n.id,
-      type: meta.kind,
-      position: { x: n.x ?? 0, y: n.y ?? 0 },
-      data: {
-        label: meta.label,
-        hubKind: meta.kind
-      },
-      style: {
-        width: `${meta.width}px`,
-        height: `${meta.height}px`
-      },
-      draggable: false,
-      selectable: false,
-      connectable: false
-    }
-  })
-
-  const flowEdges = edgeDefs.map((e) => {
-    const sections = edgeSections.get(e.id)
-    const points = sections?.[0] ? sectionToPoints(sections[0]) : null
-    return {
-      id: e.id,
-      source: e.sources[0],
-      target: e.targets[0],
-      type: 'elk-orthogonal',
-      animated: false,
-      selectable: false,
-      data: {
-        points,
-        path: points ? pointsToSvgPath(points) : null,
-        directed: e.directed
-      }
-    }
-  })
-
-  let maxX = 0
-  let maxY = 0
-  nodes.forEach((n) => {
-    const w = parseFloat(n.style.width) || 52
-    const h = parseFloat(n.style.height) || PROP_H
-    maxX = Math.max(maxX, n.position.x + w)
-    maxY = Math.max(maxY, n.position.y + h)
-  })
-
-  return {
-    nodes,
-    edges: flowEdges,
-    bounds: {
-      width: Math.max(maxX + 48, 320),
-      height: Math.max(maxY + 48, 200)
-    }
-  }
+  return buildManualGraph(propositions, relations)
 }
 
-export { buildElkGraph, pointsToSvgPath, sectionToPoints }
+export { buildManualGraph as buildElkGraph, pointsToSvgPath, sectionToPoints }
