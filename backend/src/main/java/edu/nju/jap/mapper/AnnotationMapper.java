@@ -12,4 +12,6 @@ public interface AnnotationMapper {
     int insert(AnnotationPo annotation);
 
     int updateStatus(AnnotationPo annotation);
+
+    int countSubmittedByTaskDocument(@Param("taskId") int taskId, @Param("documentId") int documentId);
 }

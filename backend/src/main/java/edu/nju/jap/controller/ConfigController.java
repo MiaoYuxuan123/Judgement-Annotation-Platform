@@ -22,6 +22,11 @@ public class ConfigController {
         return ApiResponse.ok(configService.list());
     }
 
+    @GetMapping("/{id}")
+    ApiResponse<GuideConfig> get(@PathVariable long id) {
+        return ApiResponse.ok(configService.requireConfig(id));
+    }
+
     @GetMapping("/active")
     ApiResponse<GuideConfig> active() {
         return ApiResponse.ok(configService.active());

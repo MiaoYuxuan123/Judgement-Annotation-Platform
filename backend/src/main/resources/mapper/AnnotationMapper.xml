@@ -22,4 +22,12 @@
             submitted_at = #{submittedAt}
         WHERE id = #{id}
     </update>
+
+    <select id="countSubmittedByTaskDocument" resultType="int">
+        SELECT COUNT(DISTINCT user_id)
+        FROM annotation
+        WHERE task_id = #{taskId}
+          AND document_id = #{documentId}
+          AND status = 'SUBMITTED'
+    </select>
 </mapper>

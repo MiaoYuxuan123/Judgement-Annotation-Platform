@@ -16,5 +16,7 @@ public interface TaskDocumentMapper {
 
     int insert(TaskDocument doc);
 
+    int updateStatus(@Param("id") int id, @Param("status") String status);
+
     int deleteByTaskId(@Param("taskId") int taskId);
 }

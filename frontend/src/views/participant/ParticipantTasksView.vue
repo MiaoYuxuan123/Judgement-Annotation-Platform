@@ -94,6 +94,7 @@
                     :detail="details[row.taskId]"
                     :show-reviewer="false"
                     mode="participant"
+                    :return-row-key="row.key"
                   />
                 </td>
               </tr>
@@ -107,20 +108,21 @@
 
       <div class="task-note-box">
         <strong>【标注者/裁决者合并视图】</strong>
-        同一任务 ID 可因同时拥有标注与裁定身份而出现两行；操作按钮随角色与阶段变化；详情在列表内展开，无需跳转。
+        左侧为任务目录，默认展示全部任务；点击某一任务后右侧仅显示该任务并展开详情。同一任务 ID 可因同时拥有标注与裁定身份而出现两行。
       </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '../../api/client'
 import { useAuthStore } from '../../stores/auth'
 import TaskDirectorySidebar from '../../components/task/TaskDirectorySidebar.vue'
 import TaskInlineDetail from '../../components/task/TaskInlineDetail.vue'
-import { buildParticipantRows, participantAction } from '../../utils/taskRows'
+import { buildParticipantRows, participantAction, participantRowStage } from '../../utils/taskRows'
+import { syncTasksRoute } from '../../utils/navigationReturn'
 
 const router = useRouter()
 const route = useRoute()
@@ -149,13 +151,11 @@ const tableRows = computed(() =>
 const displayRows = computed(() => {
   let rows = tableRows.value
   if (filters.status) {
-    rows = rows.filter((r) => {
-      const map = { 标注中: '标注中', 待裁定: '待裁定', 可导出: '可导出' }
-      return r.detail?.summary?.status === map[filters.status] || filters.status === ''
-    })
+    rows = rows.filter((r) => participantRowStage(r) === filters.status)
   }
   if (filters.participation === 'annotate') rows = rows.filter((r) => r.role === 'annotate')
   if (filters.participation === 'arbitrate') rows = rows.filter((r) => r.role === 'arbitrate')
+  if (activeTaskId.value != null) rows = rows.filter((r) => r.taskId === activeTaskId.value)
   rows = [...rows].sort((a, b) => {
     const ta = new Date(a.detail?.summary?.createdAt || 0).getTime()
     const tb = new Date(b.detail?.summary?.createdAt || 0).getTime()
@@ -165,7 +165,7 @@ const displayRows = computed(() => {
 })
 
 function actionFor(row) {
-  return participantAction(row)
+  return participantAction(row, auth.user?.id)
 }
 
 function goAction(action) {
@@ -174,25 +174,54 @@ function goAction(action) {
 
 function toggleDetail(key, taskId) {
   expandedKey.value = expandedKey.value === key ? null : key
-  if (expandedKey.value && !details.value[taskId]) loadDetail(taskId)
-}
-
-function selectSidebarTask(taskId) {
-  activeTaskId.value = taskId
-  nextTick(() => {
-    document.querySelector(`[data-task-id="${taskId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  })
-}
-
-async function loadDetail(taskId, taskStatus) {
-  const detail = await client.get(`/tasks/${taskId}`)
-  const total = detail.documents?.length || detail.summary.documentCount || 0
-  if (taskStatus === '可导出' || taskStatus === '待裁定') {
-    detail._annotateDone = total
-  } else {
-    detail._annotateDone = Math.max(0, total - 1)
+  if (expandedKey.value) {
+    syncTasksRoute(router, taskId, key)
+    if (!details.value[taskId]) loadDetail(taskId)
   }
-  detail._disputeCount = taskStatus === '待裁定' ? total : 0
+}
+
+async function restoreFromRoute() {
+  const taskId = Number(route.query.taskId)
+  if (!taskId) {
+    activeTaskId.value = null
+    expandedKey.value = null
+    return
+  }
+  activeTaskId.value = taskId
+  const task = tasks.value.find((t) => t.taskId === taskId)
+  if (!details.value[taskId]) await loadDetail(taskId)
+  if (route.query.rowKey) {
+    expandedKey.value = route.query.rowKey
+  } else if (route.query.expand === '1') {
+    const rows = tableRows.value.filter((r) => r.taskId === taskId)
+    if (rows.length) expandedKey.value = rows[0].key
+  }
+}
+
+async function selectSidebarTask(taskId) {
+  activeTaskId.value = taskId
+  syncTasksRoute(router, taskId)
+  if (taskId == null) {
+    expandedKey.value = null
+    return
+  }
+  const rows = tableRows.value.filter((r) => r.taskId === taskId)
+  if (rows.length) {
+    expandedKey.value = rows[0].key
+    syncTasksRoute(router, taskId, rows[0].key)
+    if (!details.value[taskId]) {
+      const task = tasks.value.find((t) => t.taskId === taskId)
+      await loadDetail(taskId)
+    }
+  }
+}
+
+async function loadDetail(taskId) {
+  const [detail, review] = await Promise.all([
+    client.get(`/tasks/${taskId}`),
+    client.get(`/reviews/${taskId}`)
+  ])
+  detail._review = review
   details.value[taskId] = detail
 }
 
@@ -200,7 +229,7 @@ async function load() {
   const data = await client.get('/tasks/my', { params: { status: filters.status || undefined } })
   tasks.value = data.list || []
   details.value = {}
-  await Promise.all(tasks.value.map((t) => loadDetail(t.taskId, t.status)))
+  await Promise.all(tasks.value.map((t) => loadDetail(t.taskId)))
 }
 
 function applyFilters() {
@@ -212,24 +241,20 @@ function resetFilters() {
   filters.participation = ''
   sidebarKeyword.value = ''
   sortBy.value = 'createdDesc'
+  activeTaskId.value = null
+  expandedKey.value = null
   load()
 }
 
 onMounted(async () => {
   await load()
-  const taskId = Number(route.query.taskId)
-  if (taskId) {
-    activeTaskId.value = taskId
-    nextTick(() => selectSidebarTask(taskId))
-  }
+  await restoreFromRoute()
 })
 
 watch(
-  () => route.query.taskId,
-  (id) => {
-    if (!id) return
-    activeTaskId.value = Number(id)
-    nextTick(() => selectSidebarTask(Number(id)))
+  () => [route.query.taskId, route.query.rowKey, route.query.expand],
+  async () => {
+    await restoreFromRoute()
   }
 )
 </script>

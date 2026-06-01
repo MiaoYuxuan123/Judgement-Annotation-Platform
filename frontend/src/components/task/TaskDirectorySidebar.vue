@@ -9,6 +9,13 @@
     />
     <div class="task-catalog-sidebar-list">
       <div
+        class="task-catalog-sidebar-item task-catalog-sidebar-all"
+        :class="{ active: activeTaskId == null }"
+        @click="$emit('select', null)"
+      >
+        <span class="task-catalog-sidebar-item-name">全部任务</span>
+      </div>
+      <div
         v-for="item in items"
         :key="item.taskId"
         class="task-catalog-sidebar-item"
@@ -50,3 +57,12 @@ const items = computed(() => {
   })
 })
 </script>
+
+<style scoped>
+.task-catalog-sidebar-all {
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 4px;
+}
+</style>

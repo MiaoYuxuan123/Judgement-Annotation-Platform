@@ -1492,6 +1492,22 @@ body {
   width: 220px;
 }
 
+.review-back-btn {
+  min-width: 120px;
+  height: 34px;
+  color: #fff !important;
+  background: #625cf6 !important;
+  border-color: #625cf6 !important;
+  font-weight: 600;
+}
+
+.review-back-btn:hover,
+.review-back-btn:focus {
+  color: #fff !important;
+  background: #4f49d9 !important;
+  border-color: #4f49d9 !important;
+}
+
 .review-user {
   font-size: 13px;
   color: #475569;

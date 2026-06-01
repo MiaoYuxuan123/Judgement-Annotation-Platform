@@ -5,6 +5,7 @@ import edu.nju.jap.model.entity.Proposition;
 import edu.nju.jap.service.support.AnnotationPersistenceService;
 import edu.nju.jap.service.support.CurrentUserService;
 import edu.nju.jap.service.support.TaskDocumentResolver;
+import edu.nju.jap.service.support.TaskStageSyncService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,13 +19,16 @@ public class AnnotationService {
     private final AnnotationPersistenceService annotationPersistenceService;
     private final TaskDocumentResolver taskDocumentResolver;
     private final CurrentUserService currentUserService;
+    private final TaskStageSyncService taskStageSyncService;
 
     public AnnotationService(AnnotationPersistenceService annotationPersistenceService,
                              TaskDocumentResolver taskDocumentResolver,
-                             CurrentUserService currentUserService) {
+                             CurrentUserService currentUserService,
+                             TaskStageSyncService taskStageSyncService) {
         this.annotationPersistenceService = annotationPersistenceService;
         this.taskDocumentResolver = taskDocumentResolver;
         this.currentUserService = currentUserService;
+        this.taskStageSyncService = taskStageSyncService;
     }
 
     @Transactional
@@ -39,5 +43,8 @@ public class AnnotationService {
         }
         annotationPersistenceService.saveAnnotation((int) body.taskId(), td.getId(), userId, propositions,
                 body.relations() == null ? List.of() : body.relations(), body.isDraft());
+        if (!body.isDraft()) {
+            taskStageSyncService.afterAnnotationSubmitted((int) body.taskId());
+        }
     }
 }

@@ -15,6 +15,9 @@
         INSERT INTO task_document(task_id, source_type, global_doc_id, file_name, file_path, extracted_text, status)
         VALUES (#{taskId}, #{sourceType}, #{globalDocId}, #{fileName}, #{filePath}, #{extractedText}, #{status})
     </insert>
+    <update id="updateStatus">
+        UPDATE task_document SET status=#{status} WHERE id=#{id}
+    </update>
     <delete id="deleteByTaskId">DELETE FROM task_document WHERE task_id=#{taskId}</delete>
 </mapper>
 

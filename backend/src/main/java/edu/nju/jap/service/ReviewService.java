@@ -29,12 +29,13 @@ public class ReviewService {
     private final ArbitrationSnapshotMapper arbitrationSnapshotMapper;
     private final TaskMapper taskMapper;
     private final CurrentUserService currentUserService;
+    private final TaskStageSyncService taskStageSyncService;
 
     public ReviewService(TaskService taskService, TaskAggregateService taskAggregateService,
                          TaskDocumentResolver taskDocumentResolver,
                          AnnotationPersistenceService annotationPersistenceService,
                          ArbitrationSnapshotMapper arbitrationSnapshotMapper, TaskMapper taskMapper,
-                         CurrentUserService currentUserService) {
+                         CurrentUserService currentUserService, TaskStageSyncService taskStageSyncService) {
         this.taskService = taskService;
         this.taskAggregateService = taskAggregateService;
         this.taskDocumentResolver = taskDocumentResolver;
@@ -42,6 +43,7 @@ public class ReviewService {
         this.arbitrationSnapshotMapper = arbitrationSnapshotMapper;
         this.taskMapper = taskMapper;
         this.currentUserService = currentUserService;
+        this.taskStageSyncService = taskStageSyncService;
     }
 
     public Map<String, Object> review(long taskId) {
@@ -77,6 +79,7 @@ public class ReviewService {
         annotationPersistenceService.saveAnnotation(taskId, td.getId(), arbitratorId, source.propositions,
                 source.relations, false);
         upsertSnapshot(taskId, td.getId(), arbitratorId, String.valueOf(annotatorId), true);
+        taskStageSyncService.afterArbitrationConfirmed(taskId, td.getId());
         taskMapper.updateStatus(taskId, "可导出");
     }
 
@@ -106,6 +109,7 @@ public class ReviewService {
         arb.setFinalResult(1);
         arb.setArbitratedAt(LocalDateTime.now());
         arbitrationSnapshotMapper.update(arb);
+        taskStageSyncService.afterArbitrationConfirmed(taskId, td.getId());
         taskMapper.updateStatus(taskId, "可导出");
     }
 

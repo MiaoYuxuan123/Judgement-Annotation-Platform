@@ -26,9 +26,17 @@
       <div><span class="task-detail-stage">{{ stageText }}</span></div>
 
       <label>当前标签</label>
-      <div class="field-value">
+      <div class="field-value config-row">
         {{ detail?.configSnapshot?.versionName || '—' }}
-        <el-button link type="primary" size="small">展开</el-button>
+        <el-button
+          v-if="detail?.configSnapshot?.id"
+          link
+          type="primary"
+          size="small"
+          @click="openConfigView"
+        >
+          展开
+        </el-button>
       </div>
 
       <template v-if="showReviewer">
@@ -50,6 +58,8 @@
 
 <script setup>
 import { computed, reactive, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { buildGuideViewRoute } from '../../utils/navigationReturn'
 import { stageLabel } from '../../utils/taskRows'
 
 const props = defineProps({
@@ -57,11 +67,13 @@ const props = defineProps({
   open: { type: Boolean, default: true },
   editable: { type: Boolean, default: false },
   showReviewer: { type: Boolean, default: true },
-  mode: { type: String, default: 'creator' }
+  mode: { type: String, default: 'creator' },
+  returnRowKey: { type: [String, null], default: null }
 })
 
 defineEmits(['save', 'cancel'])
 
+const router = useRouter()
 const form = reactive({ taskName: '' })
 
 watch(
@@ -77,4 +89,23 @@ const annotatorNames = computed(() =>
 )
 
 const stageText = computed(() => stageLabel(props.detail?.summary?.status))
+
+function openConfigView() {
+  const configId = props.detail?.configSnapshot?.id
+  const taskId = props.detail?.summary?.taskId
+  if (!configId) return
+  router.push(buildGuideViewRoute(configId, {
+    returnPath: '/tasks',
+    taskId,
+    rowKey: props.returnRowKey
+  }))
+}
 </script>
+
+<style scoped>
+.config-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+</style>

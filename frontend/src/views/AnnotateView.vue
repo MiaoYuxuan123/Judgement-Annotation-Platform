@@ -7,7 +7,7 @@
         <span class="annotate-doc-title">{{ data.document.title }}</span>
       </div>
       <div>
-        <el-button class="topbar-btn" @click="$router.push(`/tasks/${route.params.taskId}/data`)">返回</el-button>
+        <el-button class="topbar-btn" @click="goBack">返回</el-button>
         <el-button v-if="!isArbitration" class="topbar-btn" @click="submit(true)">暂存</el-button>
         <el-button type="primary" class="submit-btn" @click="submit(false)">提交</el-button>
       </div>
@@ -201,8 +201,8 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
 import GraphCanvas from '../components/GraphCanvas.vue'
 
@@ -232,6 +232,56 @@ const relationForm = reactive({ type: 'S' })
 const relationMembers = ref(['', ''])
 const activeRelationId = ref('')
 const editingRelationId = ref('')
+const savedSnapshot = ref('')
+const skipLeaveGuard = ref(false)
+
+function currentSnapshot() {
+  return JSON.stringify({ propositions: propositions.value, relations: relations.value })
+}
+
+function markSaved() {
+  savedSnapshot.value = currentSnapshot()
+}
+
+function hasUnsavedChanges() {
+  if (labelDialog.value && selectedText.value) return true
+  return currentSnapshot() !== savedSnapshot.value
+}
+
+async function confirmLeave() {
+  if (!hasUnsavedChanges()) return true
+  try {
+    await ElMessageBox.confirm(
+      '当前内容尚未保存，离开后将丢失未保存的修改，是否继续离开？',
+      '未保存的内容',
+      { type: 'warning', confirmButtonText: '离开', cancelButtonText: '继续编辑' }
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function goBack() {
+  const taskId = route.params.taskId
+  const dataId = route.params.dataId
+  const target = isArbitration.value
+    ? (route.query.returnTo || `/review/${taskId}?docId=${dataId}&select=final`)
+    : `/tasks/${taskId}/data`
+  if (!(await confirmLeave())) return
+  skipLeaveGuard.value = true
+  router.push(target)
+}
+
+onBeforeRouteLeave(async (_to, _from, next) => {
+  if (skipLeaveGuard.value) {
+    skipLeaveGuard.value = false
+    next()
+    return
+  }
+  if (await confirmLeave()) next()
+  else next(false)
+})
 
 const relationOptions = computed(() => [
   ...propositions.value.map((p) => ({ label: `${p.propId} ${p.text.slice(0, 12)}`, value: p.propId })),
@@ -392,9 +442,13 @@ function nextPropositionId() {
   return `P${propositions.value.length + 1}`
 }
 
+function resetRelationMembers(type = relationForm.type) {
+  relationMembers.value = ['J', 'I'].includes(type) ? ['', ''] : ['', '']
+}
+
 function clearRelation(keepType = true) {
-  normalizeRelationMembers()
   editingRelationId.value = ''
+  resetRelationMembers(keepType ? relationForm.type : 'S')
   if (!keepType) relationForm.type = 'S'
 }
 
@@ -485,7 +539,8 @@ function removeMember(index) {
 
 function setRelationType(type) {
   relationForm.type = type
-  normalizeRelationMembers()
+  editingRelationId.value = ''
+  resetRelationMembers(type)
 }
 
 function normalizeRelationMembers() {
@@ -516,6 +571,7 @@ async function submit(isDraft) {
       propositions: propositions.value,
       relations: relations.value
     })
+    markSaved()
     ElMessage.success('已保存裁定草稿，请在裁定界面确认')
     const returnTo = route.query.returnTo || `/review/${taskId}?docId=${dataId}&select=final`
     router.push(returnTo)
@@ -529,6 +585,7 @@ async function submit(isDraft) {
     relations: relations.value,
     isDraft
   })
+  markSaved()
   ElMessage.success(isDraft ? '草稿已暂存' : '标注已提交')
   if (!isDraft) router.push(`/tasks/${route.params.taskId}/data`)
 }
@@ -551,6 +608,7 @@ async function load() {
   graphRelations.value = []
   graphGenerated.value = false
   graphDirty.value = propositions.value.length > 0 || relations.value.length > 0
+  markSaved()
 }
 
 function escapeHtml(value) {

@@ -59,7 +59,19 @@ public final class DomainConverter {
         String title = global != null ? global.getTitle() : td.getFileName();
         String type = global != null ? global.getFileType() : "txt";
         String date = td.getUploadedAt() == null ? "" : td.getUploadedAt().toLocalDate().toString();
-        return new DocumentItem(dataId, docCode, title, type, date, td.getExtractedText(), 0);
+        String content = resolveExtractedText(td, global);
+        return new DocumentItem(dataId, docCode, title, type, date, content, 0, td.getSourceType(), td.getGlobalDocId(),
+                td.getStatus());
+    }
+
+    public static String resolveExtractedText(TaskDocument td, GlobalDocument global) {
+        if (td.getExtractedText() != null && !td.getExtractedText().isBlank()) {
+            return td.getExtractedText();
+        }
+        if (global != null && global.getExtractedText() != null) {
+            return global.getExtractedText();
+        }
+        return "";
     }
 
     public static GuideConfig toGuideConfig(GuideVersion version, List<LabelL1> l1s, List<LabelL2> l2s,

@@ -47,15 +47,11 @@ INSERT INTO task_member (task_id, user_id, role_in_task) VALUES
 (1002, 3, '标注员'), (1002, 4, '标注员'), (1002, 5, '裁定者'),
 (1003, 3, '标注员'), (1003, 4, '标注员'), (1003, 5, '裁定者');
 
-INSERT INTO task_document (task_id, source_type, global_doc_id, file_name, extracted_text, status) VALUES
-(1001, 'GLOBAL', 101, '合同纠纷一审判决书.txt',
- (SELECT extracted_text FROM global_document WHERE id = 101), '待标注'),
-(1001, 'GLOBAL', 102, '劳动争议仲裁审查裁定.txt',
- (SELECT extracted_text FROM global_document WHERE id = 102), '待标注'),
-(1002, 'GLOBAL', 103, '侵权责任纠纷判决书.txt',
- (SELECT extracted_text FROM global_document WHERE id = 103), '已裁定'),
-(1003, 'GLOBAL', 102, '劳动争议仲裁审查裁定.txt',
- (SELECT extracted_text FROM global_document WHERE id = 102), '待标注');
+INSERT INTO task_document (task_id, source_type, global_doc_id, file_name, status) VALUES
+(1001, 'GLOBAL', 101, '合同纠纷一审判决书.txt', '标注中'),
+(1001, 'GLOBAL', 102, '劳动争议仲裁审查裁定.txt', '标注中'),
+(1002, 'GLOBAL', 103, '侵权责任纠纷判决书.txt', '可导出'),
+(1003, 'GLOBAL', 102, '劳动争议仲裁审查裁定.txt', '标注中');
 
 SET @td_1001_101 := (SELECT id FROM task_document WHERE task_id = 1001 AND global_doc_id = 101 LIMIT 1);
 SET @td_1002_103 := (SELECT id FROM task_document WHERE task_id = 1002 AND global_doc_id = 103 LIMIT 1);
@@ -168,9 +164,9 @@ SET @ann := LAST_INSERT_ID();
 
 INSERT INTO proposition(annotation_id, display_id, sequence_no, start_pos, end_pos, selected_text, label_l1, label_l2, label_path) VALUES
 (@ann, 'P1', 1, 5, 33, '劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定', 'GM', 'GM-L', 'GM-L'),
-(@ann, 'P2', 2, 34, 62, '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 'SF', NULL, 'SF'),
-(@ann, 'P3', 3, 63, 83, '公司主张双方不存在劳动关系，但未提交充分反证', 'SF', NULL, 'SF'),
-(@ann, 'P4', 4, 84, 89, '本院不予采纳', 'SM', NULL, 'SM');
+(@ann, 'P2', 2, 34, 63, '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 'SF', NULL, 'SF'),
+(@ann, 'P3', 3, 64, 86, '公司主张双方不存在劳动关系，但未提交充分反证', 'SF', NULL, 'SF'),
+(@ann, 'P4', 4, 87, 93, '本院不予采纳', 'SM', NULL, 'SM');
 
 INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
 VALUES (@ann, 'R1', 1, 'S', 'S(P1, P4)');
@@ -186,9 +182,9 @@ SET @ann := LAST_INSERT_ID();
 
 INSERT INTO proposition(annotation_id, display_id, sequence_no, start_pos, end_pos, selected_text, label_l1, label_l2, label_path) VALUES
 (@ann, 'P1', 1, 5, 33, '劳动者与用人单位建立劳动关系后，双方均应遵守劳动合同约定', 'GF', NULL, 'GF'),
-(@ann, 'P2', 2, 34, 62, '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 'SF', NULL, 'SF'),
-(@ann, 'P3', 3, 63, 83, '公司主张双方不存在劳动关系，但未提交充分反证', 'SF', NULL, 'SF'),
-(@ann, 'P4', 4, 84, 89, '本院不予采纳', 'SM', NULL, 'SM');
+(@ann, 'P2', 2, 34, 63, '现有考勤记录、工资流水可以证明申请人在案涉期间持续提供劳动', 'SF', NULL, 'SF'),
+(@ann, 'P3', 3, 64, 86, '公司主张双方不存在劳动关系，但未提交充分反证', 'SF', NULL, 'SF'),
+(@ann, 'P4', 4, 87, 93, '本院不予采纳', 'SM', NULL, 'SM');
 
 INSERT INTO argument_relation(annotation_id, display_id, sequence_no, relation_type, expression)
 VALUES (@ann, 'R1', 1, 'S', 'S(P2, P4)');
