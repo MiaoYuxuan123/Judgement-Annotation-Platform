@@ -3,7 +3,7 @@
  *
  * 三阶段：标注中 → 待裁定 → 可导出
  * - 标注员视角：本人提交后 → 待裁定
- * - 裁定者视角：每条文书全员提交后可单独进入「待裁定」；任务列表仅展示「查看详情」
+ * - 任务目录操作按钮由 creatorActions / participantActions 按角色与阶段生成
  */
 
 // ── 状态判定 ──────────────────────────────────────────
@@ -269,14 +269,216 @@ export function buildParticipantRows(tasks, details, userId) {
   return rows
 }
 
-export function participantAction(row) {
-  return { label: '查看详情', color: 'green', route: `/tasks/${row.taskId}/data` }
-}
-
 export function participantRowStage(row) {
   return row.personalStage || row.detail?.summary?.status || '标注中'
 }
 
+function hasAnnotatorDraft(entry, userId) {
+  if (!entry || userId == null) return false
+  const mine = entry.annotatorResults?.find((r) => r.userId === userId)
+  return Boolean(mine?.propositions?.length || mine?.relations?.length)
+}
+
+function hasReviewerDraft(entry) {
+  const final = entry?.finalResult
+  return Boolean(
+    final &&
+      typeof final === 'object' &&
+      final.propositions &&
+      final.finalResult === false
+  )
+}
+
+/** 标注员下一份待标注文书（优先有草稿的） */
+export function findAnnotatorWorkDoc(detail, review, userId) {
+  const docs = detail?.documents || []
+  if (!docs.length || userId == null) return null
+
+  const reviewDocs = review?.documents || []
+  const annotatorCount = detail?.annotators?.length || 0
+  let fallback = null
+
+  for (const doc of docs) {
+    const entry = reviewDocs.find((d) => d.document.id === doc.id)
+    const stage = resolveDocStage(entry, {
+      annotatorCount,
+      documentStatus: doc.status,
+      viewerRole: 'annotator',
+      userId
+    })
+    if (stage !== '标注中') continue
+
+    const hasWork = hasAnnotatorDraft(entry, userId)
+    if (hasWork) return { docId: doc.id, hasWork: true }
+    if (!fallback) fallback = { docId: doc.id, hasWork: false }
+  }
+  return fallback
+}
+
+/** 裁定者下一份待裁定文书（优先有进行中裁定的） */
+export function findReviewerWorkDoc(detail, review) {
+  const docs = detail?.documents || []
+  if (!docs.length) return null
+
+  const reviewDocs = review?.documents || []
+  const annotatorCount = detail?.annotators?.length || 0
+  let fallback = null
+
+  for (const doc of docs) {
+    const entry = reviewDocs.find((d) => d.document.id === doc.id)
+    const stage = resolveDocStage(entry, {
+      annotatorCount,
+      documentStatus: doc.status,
+      viewerRole: 'reviewer'
+    })
+    if (stage !== '待裁定') continue
+
+    const inProgress = hasReviewerDraft(entry)
+    if (inProgress) return { docId: doc.id, inProgress: true }
+    if (!fallback) fallback = { docId: doc.id, inProgress: false }
+  }
+  return fallback
+}
+
+/**
+ * 任务是否处于可导出阶段（用于任务目录操作按钮）
+ * - 创建者行：status 为字符串
+ * - 参与者行：status 为 stageDisplay 对象，需看 summary / 各角色阶段
+ */
+export function taskIsExportable(taskOrRow, userId = null) {
+  const detail = taskOrRow?.detail
+  const review = detail?._review
+
+  if (detail?.summary?.status === '可导出') return true
+
+  if (typeof taskOrRow?.status === 'string' && taskOrRow.status === '可导出') return true
+
+  if (taskOrRow?.personalStage === '可导出') return true
+
+  const displayStatus = taskOrRow?.status?.label
+  if (displayStatus === '可导出') return true
+
+  if (userId != null && detail) {
+    const roles = taskOrRow.roles || []
+    if (
+      roles.some((r) => r.role === 'annotate') &&
+      resolveAnnotatorTaskStage(detail, review, userId) === '可导出'
+    ) {
+      return true
+    }
+    if (
+      roles.some((r) => r.role === 'arbitrate') &&
+      resolveReviewerTaskStage(detail, review) === '可导出'
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/** 任务内是否存在进行中的标注草稿 */
+export function annotatorHasInProgressWork(detail, review, userId) {
+  const docs = detail?.documents || []
+  if (!docs.length || userId == null) return false
+  const reviewDocs = review?.documents || []
+  const annotatorCount = detail?.annotators?.length || 0
+  return docs.some((doc) => {
+    const entry = reviewDocs.find((d) => d.document.id === doc.id)
+    const stage = resolveDocStage(entry, {
+      annotatorCount,
+      documentStatus: doc.status,
+      viewerRole: 'annotator',
+      userId
+    })
+    return stage === '标注中' && hasAnnotatorDraft(entry, userId)
+  })
+}
+
+/** 任务内是否存在进行中的裁定草稿 */
+export function reviewerHasInProgressWork(detail, review) {
+  const docs = detail?.documents || []
+  if (!docs.length) return false
+  const reviewDocs = review?.documents || []
+  const annotatorCount = detail?.annotators?.length || 0
+  return docs.some((doc) => {
+    const entry = reviewDocs.find((d) => d.document.id === doc.id)
+    const stage = resolveDocStage(entry, {
+      annotatorCount,
+      documentStatus: doc.status,
+      viewerRole: 'reviewer'
+    })
+    return stage === '待裁定' && hasReviewerDraft(entry)
+  })
+}
+
+/** 参与者任务目录操作（标注员 / 裁定者） */
+export function participantActions(row, userId) {
+  const taskId = row.taskId
+  const detail = row.detail
+  const review = detail?._review
+  const roles = row.roles || []
+  const dataRoute = `/tasks/${taskId}/data`
+
+  if (taskIsExportable(row, userId)) {
+    return [
+      {
+        label: '查看结果/导出',
+        color: 'green',
+        route: dataRoute
+      }
+    ]
+  }
+
+  const actions = []
+
+  if (roles.some((r) => r.role === 'annotate')) {
+    const stage = resolveAnnotatorTaskStage(detail, review, userId)
+    if (stage === '标注中') {
+      actions.push({
+        label: annotatorHasInProgressWork(detail, review, userId) ? '继续标注' : '开始标注',
+        color: 'orange',
+        route: dataRoute
+      })
+    }
+  }
+
+  if (roles.some((r) => r.role === 'arbitrate')) {
+    const stage = resolveReviewerTaskStage(detail, review)
+    if (stage === '待裁定') {
+      actions.push({
+        label: reviewerHasInProgressWork(detail, review) ? '继续裁定' : '开始裁定',
+        color: 'orange',
+        route: dataRoute
+      })
+    }
+  }
+
+  return actions
+}
+
+/** @deprecated 使用 participantActions */
+export function participantAction(row, userId) {
+  return participantActions(row, userId)[0] || null
+}
+
+/** 创建者任务目录操作 */
+export function creatorActions(task) {
+  if (taskIsExportable(task)) {
+    return [
+      {
+        label: '查看结果/导出',
+        color: 'green',
+        route: `/tasks/${task.taskId}/data`
+      }
+    ]
+  }
+  return [
+    { label: '查看详情', color: 'green', route: `/tasks/${task.taskId}/data` }
+  ]
+}
+
+/** @deprecated 使用 creatorActions */
 export function creatorAction(task) {
-  return { label: '查看详情', color: 'green', route: `/tasks/${task.taskId}/data` }
+  return creatorActions(task)[0]
 }

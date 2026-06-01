@@ -109,9 +109,12 @@ public class TaskService {
         reviewer.setRoleInTask("裁定者");
         taskMemberMapper.insert(reviewer);
 
+        List<TaskDocument> createdDocs = new java.util.ArrayList<>();
         for (Map<String, Object> spec : documents) {
+            assertDocumentNotDuplicate(createdDocs, spec);
             TaskDocument td = taskDocumentFactory.buildForCreate(task.getId(), spec, user.id);
             taskDocumentMapper.insert(td);
+            createdDocs.add(td);
         }
         return task.getId();
     }

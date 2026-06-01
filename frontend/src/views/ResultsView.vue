@@ -24,7 +24,7 @@
     <el-alert
       v-if="!canExport"
       class="results-alert"
-      title="只有任务创建者和裁决者可以导出结果，标注者可查看所有版本。"
+      title="仅任务参与者可查看与导出结果。"
       type="info"
       show-icon
       :closable="false"
@@ -200,7 +200,14 @@ const relationRows = computed(() =>
   }))
 )
 
-const canExport = computed(() => auth.user?.canCreateTask || taskDetail.value?.reviewer?.id === auth.user?.id)
+const canExport = computed(() => {
+  const userId = auth.user?.id
+  return (
+    auth.user?.canCreateTask ||
+    taskDetail.value?.reviewer?.id === userId ||
+    taskDetail.value?.annotators?.some((u) => u.id === userId)
+  )
+})
 
 watch(sidebarItems, (items) => {
   if (!items.length) return

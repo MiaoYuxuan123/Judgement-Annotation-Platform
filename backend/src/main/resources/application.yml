@@ -19,7 +19,7 @@ spring:
     init:
       mode: always
       schema-locations: classpath:db/admin.sql,classpath:db/creator.sql,classpath:db/annotator.sql,classpath:db/reviewer.sql
-      data-locations: classpath:db/data.sql
+      data-locations: classpath:db/data_cleanup.sql,classpath:db/data.sql
       encoding: UTF-8
       continue-on-error: true
 
