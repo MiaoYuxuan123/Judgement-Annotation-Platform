@@ -91,8 +91,8 @@
               <td>D{{ row.id }}</td>
               <td>{{ row.title }}</td>
               <td>
-                <span class="task-role-tag" :class="canReview ? 'role-arbitrate' : 'role-annotate'">
-                  {{ roleText }}
+                <span class="task-role-tag" :class="viewerRoleDisplay.roleClass">
+                  {{ viewerRoleDisplay.roleLabel }}
                 </span>
               </td>
               <td>
@@ -140,7 +140,7 @@ import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import DataDirectorySidebar from '../components/task/DataDirectorySidebar.vue'
 import { exportTaskZipBatch } from '../utils/taskZipExport'
-import { resolveDocStage } from '../utils/taskRows'
+import { resolveDocStage, resolveTaskViewerRole } from '../utils/taskRows'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -160,7 +160,7 @@ const canBatchExport = computed(() => {
   if (detail.value?.summary.status !== '可导出') return false
   return auth.user?.canCreateTask || detail.value?.reviewer?.id === auth.user?.id
 })
-const roleText = computed(() => (canReview.value ? '裁定' : '标注'))
+const viewerRoleDisplay = computed(() => resolveTaskViewerRole(detail.value, auth.user))
 
 const allDocs = computed(() => detail.value?.documents || [])
 

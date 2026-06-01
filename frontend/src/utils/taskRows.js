@@ -104,6 +104,27 @@ function countDocsReadyForArbitration(taskDetail, review) {
 
 // ── 展示文案 ──────────────────────────────────────────
 
+/** 当前访问者在任务中的身份（数据目录「当前身份」列） */
+export function resolveTaskViewerRole(detail, user) {
+  const userId = user?.id
+  const isReviewer = detail?.reviewer?.id === userId
+  const isAnnotator = detail?.annotators?.some((u) => u.id === userId)
+
+  if (isReviewer) {
+    return { role: 'arbitrate', roleLabel: '裁定', roleClass: 'role-arbitrate' }
+  }
+  if (isAnnotator) {
+    return { role: 'annotate', roleLabel: '标注', roleClass: 'role-annotate' }
+  }
+  if (user?.canCreateTask) {
+    return { role: 'creator', roleLabel: '创建者', roleClass: 'role-creator' }
+  }
+  if (user?.role === 'admin') {
+    return { role: 'admin', roleLabel: '管理员', roleClass: 'role-creator' }
+  }
+  return { role: 'annotate', roleLabel: '标注', roleClass: 'role-annotate' }
+}
+
 /** 三阶段对应的标签样式 */
 export function stageDisplay(stage) {
   if (stage === '可导出') return { label: '可导出', type: 'done' }
