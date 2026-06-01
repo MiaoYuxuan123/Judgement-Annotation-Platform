@@ -595,11 +595,194 @@ function buildManualGraph(propositions = [], relations = []) {
 
   const merged = mergeUnits(units)
   const deduped = mergeDuplicatePropNodes(merged.nodes, merged.edges)
-  const optimized = optimizeDirectedHubs(deduped.nodes, deduped.edges)
-  const normalized = normalizeGraph(optimized.nodes, optimized.edges)
+  const optimizedOnce = optimizeDirectedHubs(deduped.nodes, deduped.edges)
+  const optimized = optimizeDirectedHubs(optimizedOnce.nodes, optimizedOnce.edges)
+  const branched = optimizeSharedSourceBranches(optimized.nodes, optimized.edges)
+  const compacted = compactDisconnectedComponents(branched.nodes, branched.edges)
+  const normalized = normalizeGraph(compacted.nodes, compacted.edges)
   return {
     ...normalized,
     bounds: boundsFromNodes(normalized.nodes)
+  }
+}
+
+function compactDisconnectedComponents(nodes, edges) {
+  if (nodes.length < 2) return { nodes, edges }
+
+  const nextNodes = nodes.map((node) => ({
+    ...node,
+    position: { ...node.position },
+    data: { ...node.data }
+  }))
+  const nextEdges = edges.map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data,
+      points: [...(edge.data?.points || [])]
+    }
+  }))
+  const nodeById = new Map(nextNodes.map((node) => [node.id, node]))
+  const adjacency = new Map(nextNodes.map((node) => [node.id, []]))
+
+  nextEdges.forEach((edge) => {
+    if (!adjacency.has(edge.source) || !adjacency.has(edge.target)) return
+    adjacency.get(edge.source).push(edge.target)
+    adjacency.get(edge.target).push(edge.source)
+  })
+
+  const visited = new Set()
+  const components = []
+  nextNodes.forEach((node) => {
+    if (visited.has(node.id)) return
+    const queue = [node.id]
+    const ids = []
+    visited.add(node.id)
+    while (queue.length) {
+      const id = queue.shift()
+      ids.push(id)
+      ;(adjacency.get(id) || []).forEach((next) => {
+        if (visited.has(next)) return
+        visited.add(next)
+        queue.push(next)
+      })
+    }
+    const rects = ids.map((id) => nodeRect(nodeById.get(id)))
+    components.push({
+      ids: new Set(ids),
+      minY: Math.min(...rects.map((r) => r.y)),
+      maxY: Math.max(...rects.map((r) => r.y + r.height))
+    })
+  })
+
+  if (components.length < 2) return { nodes: nextNodes, edges: nextEdges }
+
+  components.sort((a, b) => a.minY - b.minY)
+  const componentGap = 36
+  let cursorY = components[0].minY
+  const shiftByNode = new Map()
+
+  components.forEach((component, index) => {
+    if (index === 0) {
+      cursorY = component.maxY + componentGap
+      return
+    }
+    const dy = cursorY - component.minY
+    component.ids.forEach((id) => shiftByNode.set(id, dy))
+    cursorY += component.maxY - component.minY + componentGap
+  })
+
+  nextNodes.forEach((node) => {
+    const dy = shiftByNode.get(node.id) || 0
+    node.position.y += dy
+  })
+
+  nextEdges.forEach((edge) => {
+    const sourceDy = shiftByNode.get(edge.source) || 0
+    const targetDy = shiftByNode.get(edge.target) || 0
+    const dy = sourceDy === targetDy ? sourceDy : 0
+    if (!dy) return
+    edge.data.points = edge.data.points.map((p) => ({ x: p.x, y: p.y + dy }))
+    edge.data.path = pointsToSvgPath(edge.data.points)
+  })
+
+  return { nodes: nextNodes, edges: nextEdges }
+}
+
+function optimizeSharedSourceBranches(nodes, edges) {
+  const nextNodes = nodes.map((node) => ({
+    ...node,
+    position: { ...node.position },
+    data: { ...node.data }
+  }))
+  const nextEdges = edges.map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data,
+      points: [...(edge.data?.points || [])]
+    }
+  }))
+  const nodeById = new Map(nextNodes.map((node) => [node.id, node]))
+  const outgoingBySource = new Map()
+
+  nextEdges.forEach((edge) => {
+    if (edge.data?.directed) return
+    const source = nodeById.get(edge.source)
+    const hub = nodeById.get(edge.target)
+    if (!source || !hub || source.type !== 'prop' || !['hub-s', 'hub-a', 'hub-m'].includes(hub.type)) return
+    const outEdge = nextEdges.find((candidate) => candidate.source === hub.id && candidate.data?.directed)
+    const target = outEdge ? nodeById.get(outEdge.target) : null
+    if (!outEdge || !target || target.type !== 'prop') return
+    if (!outgoingBySource.has(source.id)) outgoingBySource.set(source.id, [])
+    outgoingBySource.get(source.id).push({ inEdge: edge, hub, outEdge, target })
+  })
+
+  outgoingBySource.forEach((branches, sourceId) => {
+    if (branches.length < 2) return
+    const source = nodeById.get(sourceId)
+    if (!source) return
+    const sourceRect = nodeRect(source)
+    const sourceCenter = nodeCenter(source)
+    const branchGap = 150
+    const targetTop = sourceRect.y + sourceRect.height + 118
+
+    branches
+      .sort((a, b) => String(a.target.data?.label || '').localeCompare(String(b.target.data?.label || '')))
+      .forEach((branch, index) => {
+        const layout = branchLayout(index, sourceRect, branchGap, targetTop)
+        const targetRect = nodeRect(branch.target)
+        const targetCenter = {
+          x: layout.targetX,
+          y: layout.targetY + targetRect.height / 2
+        }
+        const targetLeft = targetCenter.x - targetRect.width / 2
+        const targetRight = targetCenter.x + targetRect.width / 2
+        const sourceLeft = sourceRect.x
+        const sourceRight = sourceRect.x + sourceRect.width
+        const hubCenter = {
+          x: layout.side === 'left'
+            ? (sourceLeft + targetRight) / 2
+            : layout.side === 'right'
+              ? (sourceRight + targetLeft) / 2
+              : layout.targetX,
+          y: layout.hubY
+        }
+        moveNodeCenter(branch.target, targetCenter)
+        moveNodeCenter(branch.hub, hubCenter)
+
+        const movedTargetRect = nodeRect(branch.target)
+        const movedHubRect = nodeRect(branch.hub)
+        const sourceOut = pointOnRectToward(sourceRect, hubCenter)
+        const hubIn = pointOnRectToward(movedHubRect, sourceOut)
+        const targetIn = pointOnRectToward(movedTargetRect, hubCenter)
+        const hubOut = pointOnRectToward(movedHubRect, targetIn)
+
+        branch.inEdge.data.points = orthogonal(sourceOut, hubIn)
+        branch.inEdge.data.path = pointsToSvgPath(branch.inEdge.data.points)
+        branch.outEdge.data.points = orthogonal(hubOut, targetIn)
+        branch.outEdge.data.path = pointsToSvgPath(branch.outEdge.data.points)
+      })
+  })
+
+  return { nodes: nextNodes, edges: nextEdges }
+}
+
+function branchLayout(index, sourceRect, gap, targetTop) {
+  if (index === 0) {
+    return {
+      targetX: sourceRect.cx,
+      hubY: sourceRect.y + sourceRect.height + 56,
+      targetY: targetTop,
+      side: 'bottom'
+    }
+  }
+
+  const side = index % 2 === 1 ? -1 : 1
+  const level = Math.ceil(index / 2)
+  return {
+    targetX: sourceRect.cx + side * gap * level,
+    hubY: sourceRect.cy,
+    targetY: sourceRect.cy - PROP_H / 2,
+    side: side < 0 ? 'left' : 'right'
   }
 }
 
@@ -611,8 +794,8 @@ function normalizeGraph(nodes, edges) {
     minX = Math.min(minX, node.position.x)
     minY = Math.min(minY, node.position.y)
   })
-  const dx = minX < GAP.padding ? GAP.padding - minX : 0
-  const dy = minY < GAP.padding ? GAP.padding - minY : 0
+  const dx = GAP.padding - minX
+  const dy = GAP.padding - minY
   if (!dx && !dy) return { nodes, edges }
 
   return {
@@ -685,6 +868,11 @@ function optimizeDirectedHubs(nodes, edges) {
 
       if (target.type?.startsWith('hub')) {
         if (source.type === 'prop') {
+          const targetHasDownwardConclusion = nextEdges.some((edge) => {
+            if (edge.source !== target.id || !edge.data?.directed) return false
+            const conclusion = nodeById.get(edge.target)
+            return conclusion && nodeRect(conclusion).cy > targetRect.cy
+          })
           const nearSameColumn = nextNodes
             .filter((node) => ![source.id, hub.id, target.id].includes(node.id))
             .map(nodeRect)
@@ -699,12 +887,12 @@ function optimizeDirectedHubs(nodes, edges) {
           const aboveGap = nearestAbove ? targetRect.y - (nearestAbove.y + nearestAbove.height) : Infinity
           const needVerticalGap = sourceRect.height + hubRect.height + 46
           let sourceCenter
-          if (belowGap >= needVerticalGap) {
+          if (!targetHasDownwardConclusion && belowGap >= needVerticalGap) {
             sourceCenter = {
               x: targetRect.cx,
               y: targetRect.cy + Math.max(96, sourceRect.height + hubRect.height + 56)
             }
-          } else if (aboveGap >= needVerticalGap) {
+          } else if (!targetHasDownwardConclusion && aboveGap >= needVerticalGap) {
             sourceCenter = {
               x: targetRect.cx,
               y: targetRect.cy - Math.max(96, sourceRect.height + hubRect.height + 56)
