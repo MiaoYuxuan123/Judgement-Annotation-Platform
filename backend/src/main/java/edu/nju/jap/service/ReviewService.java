@@ -2,7 +2,6 @@ package edu.nju.jap.service;
 
 import edu.nju.jap.common.MapBodyUtils;
 import edu.nju.jap.mapper.ArbitrationSnapshotMapper;
-import edu.nju.jap.mapper.TaskMapper;
 import edu.nju.jap.model.dto.request.ArbitrationSubmit;
 import edu.nju.jap.model.entity.AnnotationResult;
 import edu.nju.jap.model.entity.ArbitrationResult;
@@ -27,21 +26,19 @@ public class ReviewService {
     private final TaskDocumentResolver taskDocumentResolver;
     private final AnnotationPersistenceService annotationPersistenceService;
     private final ArbitrationSnapshotMapper arbitrationSnapshotMapper;
-    private final TaskMapper taskMapper;
     private final CurrentUserService currentUserService;
     private final TaskStageSyncService taskStageSyncService;
 
     public ReviewService(TaskService taskService, TaskAggregateService taskAggregateService,
                          TaskDocumentResolver taskDocumentResolver,
                          AnnotationPersistenceService annotationPersistenceService,
-                         ArbitrationSnapshotMapper arbitrationSnapshotMapper, TaskMapper taskMapper,
+                         ArbitrationSnapshotMapper arbitrationSnapshotMapper,
                          CurrentUserService currentUserService, TaskStageSyncService taskStageSyncService) {
         this.taskService = taskService;
         this.taskAggregateService = taskAggregateService;
         this.taskDocumentResolver = taskDocumentResolver;
         this.annotationPersistenceService = annotationPersistenceService;
         this.arbitrationSnapshotMapper = arbitrationSnapshotMapper;
-        this.taskMapper = taskMapper;
         this.currentUserService = currentUserService;
         this.taskStageSyncService = taskStageSyncService;
     }
@@ -76,18 +73,17 @@ public class ReviewService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "标注结果不存在");
         }
         long arbitratorId = currentUserService.requireCurrent(request).id;
-        annotationPersistenceService.saveAnnotation(taskId, td.getId(), arbitratorId, source.propositions,
+        annotationPersistenceService.saveArbitration(taskId, td.getId(), arbitratorId, source.propositions,
                 source.relations, false);
         upsertSnapshot(taskId, td.getId(), arbitratorId, String.valueOf(annotatorId), true);
         taskStageSyncService.afterArbitrationConfirmed(taskId, td.getId());
-        taskMapper.updateStatus(taskId, "可导出");
     }
 
     @Transactional
     public void manual(ArbitrationSubmit body, HttpServletRequest request) {
         long arbitratorId = currentUserService.requireCurrent(request).id;
         TaskDocument td = taskDocumentResolver.requireTaskDocument((int) body.taskId(), body.dataId());
-        annotationPersistenceService.saveAnnotation((int) body.taskId(), td.getId(), arbitratorId,
+        annotationPersistenceService.saveArbitration((int) body.taskId(), td.getId(), arbitratorId,
                 body.propositions() == null ? List.of() : body.propositions(),
                 body.relations() == null ? List.of() : body.relations(), true);
         upsertSnapshot((int) body.taskId(), td.getId(), arbitratorId, "MANUAL", false);
@@ -106,11 +102,11 @@ public class ReviewService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "该文书裁定结果已确认");
         }
         currentUserService.requireCurrent(request);
+        annotationPersistenceService.markArbitrationSubmitted(taskId, td.getId(), arb.getArbitratorId());
         arb.setFinalResult(1);
         arb.setArbitratedAt(LocalDateTime.now());
         arbitrationSnapshotMapper.update(arb);
         taskStageSyncService.afterArbitrationConfirmed(taskId, td.getId());
-        taskMapper.updateStatus(taskId, "可导出");
     }
 
     @Transactional
@@ -125,6 +121,7 @@ public class ReviewService {
         if (arb.getFinalResult() != null && arb.getFinalResult() == 1) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "已确认的裁定结果不可取消");
         }
+        annotationPersistenceService.deleteArbitration(taskId, td.getId(), arb.getArbitratorId());
         arbitrationSnapshotMapper.deleteByTaskAndDoc(taskId, td.getId());
     }
 

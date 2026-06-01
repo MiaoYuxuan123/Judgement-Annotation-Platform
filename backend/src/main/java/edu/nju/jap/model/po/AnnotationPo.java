@@ -7,6 +7,7 @@ public class AnnotationPo {
     private Long taskId;
     private Long documentId;
     private Long userId;
+    private String recordType;
     private String status;
     private Integer isFinal;
     private Long guideVersionId;
@@ -23,6 +24,8 @@ public class AnnotationPo {
     public void setDocumentId(Long documentId) { this.documentId = documentId; }
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
+    public String getRecordType() { return recordType; }
+    public void setRecordType(String recordType) { this.recordType = recordType; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public Integer getIsFinal() { return isFinal; }
