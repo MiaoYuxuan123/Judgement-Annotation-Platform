@@ -193,6 +193,14 @@ function translatePoint(p, dx, dy) {
 }
 
 function translateUnit(unit, dx, dy) {
+  const translateAttach = (attach) => ({
+    ...attach,
+    point: translatePoint(attach.point, dx, dy),
+    rect: attach.rect
+      ? rectAt(attach.rect.x + dx, attach.rect.y + dy, attach.rect.width, attach.rect.height)
+      : null
+  })
+
   return {
     ...unit,
     nodes: unit.nodes.map((n) => ({
@@ -207,13 +215,8 @@ function translateUnit(unit, dx, dy) {
         path: pointsToSvgPath(e.data.points.map((p) => translatePoint(p, dx, dy)))
       }
     })),
-    attach: {
-      ...unit.attach,
-      point: translatePoint(unit.attach.point, dx, dy),
-      rect: unit.attach.rect
-        ? rectAt(unit.attach.rect.x + dx, unit.attach.rect.y + dy, unit.attach.rect.width, unit.attach.rect.height)
-        : null
-    }
+    attach: translateAttach(unit.attach),
+    sourceAttach: unit.sourceAttach ? translateAttach(unit.sourceAttach) : undefined
   }
 }
 
@@ -543,7 +546,8 @@ function buildManualGraph(propositions = [], relations = []) {
       height: targetY + target.height,
       nodes: merged.nodes,
       edges: [...merged.edges, edge],
-      attach: placedSource.attach
+      attach: placedTarget.attach,
+      sourceAttach: placedTarget.attach
     }
   }
 
@@ -559,16 +563,17 @@ function buildManualGraph(propositions = [], relations = []) {
     const targetY = hubY + hub.height + GAP.verticalRelation
     const placedTarget = translateUnit(target, targetX, targetY)
 
-    const sourceOut = placedSource.attach.rect
-      ? pointOnRectToward(placedSource.attach.rect, placedHub.attach.point)
-      : placedSource.attach.point
+    const placedSourceAttach = placedSource.sourceAttach || placedSource.attach
+    const sourceOut = placedSourceAttach.rect
+      ? pointOnRectToward(placedSourceAttach.rect, placedHub.attach.point)
+      : placedSourceAttach.point
     const targetIn = placedTarget.attach.rect
       ? pointOnRectToward(placedTarget.attach.rect, placedHub.attach.point)
       : placedTarget.attach.point
     const hubOut = { x: placedHub.attach.point.x, y: placedHub.attach.rect.y + placedHub.attach.rect.height }
 
     const edges = [
-      flowEdge(uniqueEdgeId(`${type}-in`, key), placedSource.attach.nodeId, placedHub.attach.nodeId, false, orthogonal(sourceOut, placedHub.attach.point)),
+      flowEdge(uniqueEdgeId(`${type}-in`, key), placedSourceAttach.nodeId, placedHub.attach.nodeId, false, orthogonal(sourceOut, placedHub.attach.point)),
       flowEdge(uniqueEdgeId(`${type}-out`, key), placedHub.attach.nodeId, placedTarget.attach.nodeId, true, orthogonal(hubOut, targetIn))
     ]
     const merged = mergeUnits([placedSource, placedHub, placedTarget])
@@ -577,7 +582,8 @@ function buildManualGraph(propositions = [], relations = []) {
       height: targetY + target.height,
       nodes: merged.nodes,
       edges: [...merged.edges, ...edges],
-      attach: placedHub.attach
+      attach: placedHub.attach,
+      sourceAttach: placedTarget.attach
     }
   }
 
@@ -633,7 +639,9 @@ function buildManualGraph(propositions = [], relations = []) {
   const optimized = optimizeDirectedHubs(optimizedOnce.nodes, optimizedOnce.edges)
   const branched = optimizeSharedSourceBranches(optimized.nodes, optimized.edges)
   const combined = optimizeAnchoredCombinationHubs(branched.nodes, branched.edges)
-  const reoptimized = optimizeDirectedHubs(combined.nodes, combined.edges)
+  const directTargets = optimizeDirectHubTargets(combined.nodes, combined.edges)
+  const reoptimizedOnce = optimizeDirectedHubs(directTargets.nodes, directTargets.edges)
+  const reoptimized = optimizeDirectedHubs(reoptimizedOnce.nodes, reoptimizedOnce.edges)
   const compacted = compactDisconnectedComponents(reoptimized.nodes, reoptimized.edges)
   const normalized = normalizeGraph(compacted.nodes, compacted.edges)
   return {
@@ -810,6 +818,83 @@ function optimizeAnchoredCombinationHubs(nodes, edges) {
     })
 
   return { nodes: nextNodes, edges: nextEdges }
+}
+
+function optimizeDirectHubTargets(nodes, edges) {
+  const nextNodes = nodes.map((node) => ({
+    ...node,
+    position: { ...node.position },
+    data: { ...node.data }
+  }))
+  const nextEdges = edges.map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data,
+      points: [...(edge.data?.points || [])]
+    }
+  }))
+  const nodeById = new Map(nextNodes.map((node) => [node.id, node]))
+  const degree = new Map(nextNodes.map((node) => [node.id, 0]))
+  const adjacency = new Map(nextNodes.map((node) => [node.id, []]))
+  nextEdges.forEach((edge) => {
+    degree.set(edge.source, (degree.get(edge.source) || 0) + 1)
+    degree.set(edge.target, (degree.get(edge.target) || 0) + 1)
+    adjacency.get(edge.source)?.push(edge.target)
+    adjacency.get(edge.target)?.push(edge.source)
+  })
+
+  nextEdges.forEach((edge) => {
+    if (!edge.data?.directed) return
+    const source = nodeById.get(edge.source)
+    const target = nodeById.get(edge.target)
+    if (!source || !target) return
+    if (!source.type?.startsWith('hub') || target.type !== 'prop') return
+
+    const sourceRect = nodeRect(source)
+    const targetRect = nodeRect(target)
+    const targetCenter = {
+      x: sourceRect.cx,
+      y: sourceRect.y + sourceRect.height + GAP.verticalRelation * 2 + targetRect.height / 2
+    }
+
+    if ((degree.get(target.id) || 0) > 1) {
+      const currentCenter = nodeCenter(target)
+      const dx = targetCenter.x - currentCenter.x
+      const dy = targetCenter.y - currentCenter.y
+      const shifted = collectReachableNodeIds(target.id, source.id, adjacency)
+      shifted.forEach((id) => {
+        const node = nodeById.get(id)
+        if (!node) return
+        node.position.x += dx
+        node.position.y += dy
+      })
+      nextEdges.forEach((candidate) => {
+        if (shifted.has(candidate.source) || shifted.has(candidate.target) || candidate.id === edge.id) {
+          rerouteEdgeBetweenNodes(candidate, nodeById)
+        }
+      })
+      return
+    }
+
+    moveNodeCenter(target, targetCenter)
+    rerouteEdgeBetweenNodes(edge, nodeById)
+  })
+
+  return { nodes: nextNodes, edges: nextEdges }
+}
+
+function collectReachableNodeIds(startId, blockedId, adjacency) {
+  const queue = [startId]
+  const visited = new Set()
+  while (queue.length) {
+    const id = queue.shift()
+    if (visited.has(id) || id === blockedId) continue
+    visited.add(id)
+    ;(adjacency.get(id) || []).forEach((next) => {
+      if (next !== blockedId && !visited.has(next)) queue.push(next)
+    })
+  }
+  return visited
 }
 
 function optimizeSharedSourceBranches(nodes, edges) {
