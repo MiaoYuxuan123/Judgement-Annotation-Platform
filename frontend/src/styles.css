@@ -1009,6 +1009,7 @@ body {
 }
 
 .document-text {
+  white-space: pre-wrap;
   line-height: 2;
   font-size: 15px;
   user-select: text;

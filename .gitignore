@@ -58,3 +58,5 @@ logs/
 *.log
 
 AGENTS.md
+
+backend/src/main/resources/application-mysql.yml
