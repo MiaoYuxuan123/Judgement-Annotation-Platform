@@ -30,12 +30,9 @@ public class DatabaseInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (isDatabaseInitialized()) {
-            log.info("Database already initialized, skipping schema and data scripts.");
-            return;
-        }
+        boolean initialized = isDatabaseInitialized();
+        log.info(initialized ? "Database already initialized, running schema-only." : "Fresh database, running full setup.");
 
-        log.info("Database not initialized, running schema and data scripts.");
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
         populator.setContinueOnError(true);
         populator.setSqlScriptEncoding("UTF-8");
@@ -43,7 +40,11 @@ public class DatabaseInitializer implements ApplicationRunner {
         populator.addScript(new ClassPathResource("db/creator.sql"));
         populator.addScript(new ClassPathResource("db/annotator.sql"));
         populator.addScript(new ClassPathResource("db/reviewer.sql"));
-        populator.addScript(new ClassPathResource("db/data.sql"));
+
+        if (!initialized) {
+            populator.addScript(new ClassPathResource("db/data.sql"));
+        }
+
         DatabasePopulatorUtils.execute(populator, dataSource);
         log.info("Database initialization completed.");
     }

@@ -94,7 +94,7 @@ export function buildAnnotatedParts(content, propositions) {
             text: content.slice(start, end),
             sequenceNo: p.sequenceNo,
             label: formatPropLabel(p.sequenceNo),
-            tag: p.tag || 'SF'
+            tag: p.tag || ''
         })
 
         cursor = end
