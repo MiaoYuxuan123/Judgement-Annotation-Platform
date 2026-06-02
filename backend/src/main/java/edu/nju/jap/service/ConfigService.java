@@ -5,6 +5,7 @@ import edu.nju.jap.mapper.GuideVersionMapper;
 import edu.nju.jap.mapper.LabelL1Mapper;
 import edu.nju.jap.mapper.LabelL2Mapper;
 import edu.nju.jap.mapper.RelationTypeMapper;
+import edu.nju.jap.mapper.TaskMapper;
 import edu.nju.jap.model.entity.GuideConfig;
 import edu.nju.jap.model.entity.LabelDef;
 import edu.nju.jap.model.po.GuideVersion;
@@ -28,15 +29,17 @@ public class ConfigService {
     private final LabelL1Mapper labelL1Mapper;
     private final LabelL2Mapper labelL2Mapper;
     private final RelationTypeMapper relationTypeMapper;
+    private final TaskMapper taskMapper;
     private final GuideConfigLoader guideConfigLoader;
 
     public ConfigService(GuideVersionMapper guideVersionMapper, LabelL1Mapper labelL1Mapper,
                          LabelL2Mapper labelL2Mapper, RelationTypeMapper relationTypeMapper,
-                         GuideConfigLoader guideConfigLoader) {
+                         TaskMapper taskMapper, GuideConfigLoader guideConfigLoader) {
         this.guideVersionMapper = guideVersionMapper;
         this.labelL1Mapper = labelL1Mapper;
         this.labelL2Mapper = labelL2Mapper;
         this.relationTypeMapper = relationTypeMapper;
+        this.taskMapper = taskMapper;
         this.guideConfigLoader = guideConfigLoader;
     }
 
@@ -80,7 +83,16 @@ public class ConfigService {
         return guideConfigLoader.load((int) id);
     }
 
+    @Transactional
     public void delete(long id) {
+        int taskCount = taskMapper.countByGuideVersionId((int) id);
+        if (taskCount > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "该指南版本被 " + taskCount + " 个任务引用，无法删除");
+        }
+        labelL1Mapper.deleteByVersionId((int) id);
+        labelL2Mapper.deleteByVersionId((int) id);
+        relationTypeMapper.deleteByVersionId((int) id);
         if (guideVersionMapper.deleteById((int) id) == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "指南版本不存在");
         }
