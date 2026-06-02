@@ -36,11 +36,11 @@
         </div>
         <div class="list-box relation-box">
           <div
-            v-for="(r, index) in relations"
-            :key="r.relId"
-            class="plain-list-item relation-row"
-            :class="{ active: activeRelationId === r.relId }"
-            @click="activeRelationId = r.relId"
+              v-for="(r, index) in relations"
+              :key="r.relId"
+              class="plain-list-item relation-row"
+              :class="{ active: activeRelationId === r.relId }"
+              @click="activeRelationId = r.relId"
           >
             <span class="item-main">{{ r.relId }}, {{ formula(r) }}</span>
             <span class="item-actions">
@@ -65,20 +65,20 @@
         </section>
 
         <section class="relation-builder">
-        <div class="section-title relation-title">
-          <h3>关系生成区</h3>
-          <div class="relation-title-actions">
-            <span v-if="graphDirty" class="graph-dirty">图示待刷新</span>
-            <span v-else class="muted">图示已同步</span>
-            <el-button type="primary" class="generate-graph-btn" @click="generateGraph">生成图示</el-button>
-          </div>
+          <div class="section-title relation-title">
+            <h3>关系生成区</h3>
+            <div class="relation-title-actions">
+              <span v-if="graphDirty" class="graph-dirty">图示待刷新</span>
+              <span v-else class="muted">图示已同步</span>
+              <el-button type="primary" class="generate-graph-btn" @click="generateGraph">生成图示</el-button>
+            </div>
           </div>
           <div class="relation-buttons">
-              <el-button
-              v-for="rel in orderedRelationTypes"
-              :key="rel.shortName"
-              :class="{ active: relationForm.type === rel.shortName }"
-              @click="setRelationType(rel.shortName)"
+            <el-button
+                v-for="rel in orderedRelationTypes"
+                :key="rel.shortName"
+                :class="{ active: relationForm.type === rel.shortName }"
+                @click="setRelationType(rel.shortName)"
             >
               {{ rel.name }} ({{ rel.shortName }})
             </el-button>
@@ -134,26 +134,26 @@
         </div>
         <div class="tag-group-title">一级标签</div>
         <div class="tag-choice-grid">
-        <button
-          v-for="tag in primaryTagOrder"
-          :key="tag.shortName"
-          class="modern-tag-option"
-          :class="{ selected: primaryTag === tag.shortName }"
-          @click="choosePrimary(tag.shortName)"
-        >
-          <strong>{{ tag.shortName }}</strong>
-          <span>{{ tag.name }}</span>
-        </button>
+          <button
+              v-for="tag in primaryTagOrder"
+              :key="tag.shortName"
+              class="modern-tag-option"
+              :class="{ selected: primaryTag === tag.shortName }"
+              @click="choosePrimary(tag.shortName)"
+          >
+            <strong>{{ tag.shortName }}</strong>
+            <span>{{ tag.name }}</span>
+          </button>
         </div>
-        <template v-if="secondaryTagsForCurrent.length > 0">
-          <div class="tag-group-title">{{ primaryTag }} 二级标签</div>
+        <template v-if="primaryTag === 'GM'">
+          <div class="tag-group-title">GM 二级标签</div>
           <div class="tag-choice-grid secondary-grid">
             <button
-              v-for="tag in secondaryTagsForCurrent"
-              :key="tag.shortName"
-              class="modern-tag-option compact"
-              :class="{ selected: secondaryTag === tag.shortName }"
-              @click="secondaryTag = tag.shortName"
+                v-for="tag in data.config.secondaryTags"
+                :key="tag.shortName"
+                class="modern-tag-option compact"
+                :class="{ selected: secondaryTag === tag.shortName }"
+                @click="secondaryTag = tag.shortName"
             >
               <strong>{{ tag.shortName }}</strong>
               <span>{{ tag.name }}</span>
@@ -173,10 +173,10 @@
           <button @click="confirmLabel">确定</button>
         </div>
       </div>
-      <div v-if="secondaryTagsForCurrent.length > 0" class="tag-popup secondary-popup">
-        <div class="tag-popup-title">二级标签（{{ primaryTag }}）</div>
+      <div v-if="primaryTag === 'GM'" class="tag-popup secondary-popup">
+        <div class="tag-popup-title">二级标签（GM）</div>
         <button
-          v-for="tag in secondaryTagsForCurrent"
+          v-for="tag in data.config.secondaryTags"
           :key="tag.shortName"
           class="secondary-option"
           :class="{ selected: secondaryTag === tag.shortName }"
@@ -205,6 +205,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
 import GraphCanvas from '../components/GraphCanvas.vue'
+import { selectionSpanFromSourceElement } from '../utils/reviewHelpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -226,9 +227,9 @@ const selectedStart = ref(0)
 const selectedEnd = ref(0)
 const editingPropositionId = ref('')
 const labelPosition = ref({ left: 720, top: 160 })
-const primaryTag = ref('')
-const secondaryTag = ref('')
-const relationForm = reactive({ type: '' })
+const primaryTag = ref('GM')
+const secondaryTag = ref('GM-L')
+const relationForm = reactive({ type: 'S' })
 const relationMembers = ref(['', ''])
 const activeRelationId = ref('')
 const editingRelationId = ref('')
@@ -252,9 +253,9 @@ async function confirmLeave() {
   if (!hasUnsavedChanges()) return true
   try {
     await ElMessageBox.confirm(
-      '当前内容尚未保存，离开后将丢失未保存的修改，是否继续离开？',
-      '未保存的内容',
-      { type: 'warning', confirmButtonText: '离开', cancelButtonText: '继续编辑' }
+        '当前内容尚未保存，离开后将丢失未保存的修改，是否继续离开？',
+        '未保存的内容',
+        { type: 'warning', confirmButtonText: '离开', cancelButtonText: '继续编辑' }
     )
     return true
   } catch {
@@ -266,8 +267,8 @@ async function goBack() {
   const taskId = route.params.taskId
   const dataId = route.params.dataId
   const target = isArbitration.value
-    ? (route.query.returnTo || `/review/${taskId}?docId=${dataId}&select=final`)
-    : `/tasks/${taskId}/data`
+      ? (route.query.returnTo || `/review/${taskId}?docId=${dataId}&select=final`)
+      : `/tasks/${taskId}/data`
   if (!(await confirmLeave())) return
   skipLeaveGuard.value = true
   router.push(target)
@@ -293,12 +294,6 @@ const primaryTagOrder = computed(() => {
   return [...(data.value?.config.primaryTags || [])].sort((a, b) => order.indexOf(a.shortName) - order.indexOf(b.shortName))
 })
 
-watch(primaryTagOrder, (tags) => {
-  if (tags.length > 0 && !primaryTag.value) {
-    primaryTag.value = tags[0].shortName
-  }
-}, { immediate: true })
-
 const orderedRelationTypes = computed(() => {
   const order = ['S', 'J', 'M', 'A', 'I']
   return [...(data.value?.config.relationTypes || [])].sort((a, b) => order.indexOf(a.shortName) - order.indexOf(b.shortName))
@@ -306,23 +301,7 @@ const orderedRelationTypes = computed(() => {
 
 const supportsMultiMember = computed(() => ['J', 'I'].includes(relationForm.type))
 const relationTypeName = computed(() => orderedRelationTypes.value.find((item) => item.shortName === relationForm.type)?.name || '关系')
-
-watch(orderedRelationTypes, (types) => {
-  if (types.length > 0 && !types.find(t => t.shortName === relationForm.type)) {
-    relationForm.type = types[0].shortName
-  }
-}, { immediate: true })
-const secondaryTagsForCurrent = computed(() =>
-  (data.value?.config.secondaryTags || []).filter(t => t.parentTag === primaryTag.value)
-)
-
-watch(secondaryTagsForCurrent, (tags) => {
-  if (tags.length > 0 && !secondaryTag.value) {
-    secondaryTag.value = tags[0].shortName
-  }
-}, { immediate: true })
-
-const selectedTag = computed(() => (secondaryTag.value ? secondaryTag.value : primaryTag.value))
+const selectedTag = computed(() => (primaryTag.value === 'GM' ? secondaryTag.value : primaryTag.value))
 
 const labelPopupStyle = computed(() => ({
   left: `${labelPosition.value.left}px`,
@@ -332,23 +311,23 @@ const labelPopupStyle = computed(() => ({
 const markedHtml = computed(() => {
   const text = data.value?.document.content || ''
   const ranges = [...propositions.value
-    .filter((p) => p.propId !== editingPropositionId.value)
-    .map((p) => ({ ...p, kind: 'confirmed' }))]
+      .filter((p) => p.propId !== editingPropositionId.value)
+      .map((p) => ({ ...p, kind: 'confirmed' }))]
   if (labelDialog.value && selectedText.value) {
     ranges.push({ startPos: selectedStart.value, endPos: selectedEnd.value, propId: '待确认', kind: 'pending' })
   }
   let html = ''
   let cursor = 0
   ranges
-    .sort((a, b) => a.startPos - b.startPos)
-    .forEach((p) => {
-      if (p.startPos < cursor) return
-      html += escapeHtml(text.slice(cursor, p.startPos))
-      const markClass = p.kind === 'pending' ? 'annotation-mark pending' : 'annotation-mark'
-      const textClass = p.kind === 'pending' ? 'annotation-text pending' : 'annotation-text'
-      html += `<mark class="${markClass}">${escapeHtml(p.propId)}</mark><span class="${textClass}">${escapeHtml(text.slice(p.startPos, p.endPos))}</span>`
-      cursor = p.endPos
-    })
+      .sort((a, b) => a.startPos - b.startPos)
+      .forEach((p) => {
+        if (p.startPos < cursor) return
+        html += escapeHtml(text.slice(cursor, p.startPos))
+        const markClass = p.kind === 'pending' ? 'annotation-mark pending' : 'annotation-mark'
+        const textClass = p.kind === 'pending' ? 'annotation-text pending' : 'annotation-text'
+        html += `<mark class="${markClass}">${escapeHtml(p.propId)}</mark><span class="${textClass}">${escapeHtml(text.slice(p.startPos, p.endPos))}</span>`
+        cursor = p.endPos
+      })
   html += escapeHtml(text.slice(cursor))
   return html
 })
@@ -379,21 +358,18 @@ function redo() {
 }
 
 function handleSelection(event) {
+  const sourceEl = event?.currentTarget
+  const content = data.value?.document.content || ''
+  const span = selectionSpanFromSourceElement(sourceEl, content)
+  if (!span) return
+
   const selection = window.getSelection()
-  const text = selection?.toString().trim()
-  if (!text) return
-  if (!event?.currentTarget?.contains(selection.anchorNode) || !event.currentTarget.contains(selection.focusNode)) return
-  const range = selection.getRangeAt(0)
-  const rect = range.getBoundingClientRect()
-  const start = findAvailableSelectionStart(text)
-  if (start < 0) {
-    ElMessage.warning('该文本已被标注或无法定位，请重新选择一段未标注的原文')
-    selection.removeAllRanges()
-    return
-  }
-  selectedText.value = text
-  selectedStart.value = start
-  selectedEnd.value = selectedStart.value + text.length
+  const range = selection?.rangeCount ? selection.getRangeAt(0) : null
+  const rect = range?.getBoundingClientRect?.() || { right: 0, top: 0 }
+
+  selectedText.value = span.text
+  selectedStart.value = span.start
+  selectedEnd.value = span.end
   if (overlapsExisting(selectedStart.value, selectedEnd.value, editingPropositionId.value)) {
     ElMessage.warning('该文本已被标注或与已有命题重叠，请选择其他文本')
     window.getSelection()?.removeAllRanges()
@@ -408,9 +384,7 @@ function handleSelection(event) {
 
 function choosePrimary(tag) {
   primaryTag.value = tag
-  if (secondaryTagsForCurrent.value.length > 0 && !secondaryTag.value) {
-    secondaryTag.value = secondaryTagsForCurrent.value[0].shortName
-  }
+  if (tag === 'GM' && !secondaryTag.value) secondaryTag.value = 'GM-L'
 }
 
 function cancelLabel() {
@@ -472,7 +446,7 @@ function resetRelationMembers(type = relationForm.type) {
 
 function clearRelation(keepType = true) {
   editingRelationId.value = ''
-  resetRelationMembers(keepType ? relationForm.type : (orderedRelationTypes.value[0]?.shortName || ''))
+  resetRelationMembers(keepType ? relationForm.type : 'S')
   if (!keepType) relationForm.type = 'S'
 }
 
@@ -504,10 +478,8 @@ function addRelation() {
 }
 
 function editProposition(prop) {
-  const hasDash = prop.tag.includes('-')
-  const pTag = hasDash ? prop.tag.split('-')[0] : prop.tag
-  primaryTag.value = pTag
-  secondaryTag.value = hasDash ? prop.tag : ''
+  primaryTag.value = prop.tag.startsWith('GM') ? 'GM' : prop.tag
+  secondaryTag.value = prop.tag.startsWith('GM') ? prop.tag : 'GM-L'
   selectedText.value = prop.text
   selectedStart.value = prop.startPos
   selectedEnd.value = prop.endPos
@@ -681,19 +653,6 @@ function removeInvalidRelations() {
 
 function overlapsExisting(start, end, ignoredPropId = '') {
   return propositions.value.some((p) => p.propId !== ignoredPropId && Math.max(start, p.startPos) < Math.min(end, p.endPos))
-}
-
-function findAvailableSelectionStart(text) {
-  const content = data.value?.document.content || ''
-  let fromIndex = 0
-  while (fromIndex < content.length) {
-    const start = content.indexOf(text, fromIndex)
-    if (start < 0) return -1
-    const end = start + text.length
-    if (!overlapsExisting(start, end, editingPropositionId.value)) return start
-    fromIndex = start + 1
-  }
-  return -1
 }
 
 onMounted(load)

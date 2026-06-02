@@ -22,12 +22,12 @@
       <section class="review-left">
         <div class="review-block">
           <h3>原文展示区</h3>
-          <div class="review-original">
+          <div class="review-original source-text">
             <template v-for="(part, idx) in annotatedParts" :key="idx">
-              <span v-if="part.type === 'text'">{{ part.text }}</span>
-              <span v-else class="review-prop-inline">
-                <sup class="review-prop-badge">{{ circledNo(part.sequenceNo) }}</sup>{{ part.text }}
-              </span>
+              <template v-if="part.type === 'text'">{{ part.text }}</template>
+              <template v-else>
+                <mark class="annotation-mark">{{ part.label }}</mark><span class="annotation-text">{{ part.text }}</span>
+              </template>
             </template>
           </div>
         </div>
