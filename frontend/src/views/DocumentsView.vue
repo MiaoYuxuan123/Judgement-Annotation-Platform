@@ -16,6 +16,7 @@
 
     <el-upload ref="uploadRef" drag multiple accept=".pdf,.docx,.txt,.zip"
       :http-request="uploadFile" :file-list="uploadFileList"
+      @preview="openPreviewFromUpload" @remove="handleUploadRemove"
       style="margin-bottom: 16px">
       <template #default>
         <div class="el-upload__text">拖拽或点击上传 PDF / Word / TXT / ZIP，解析后可编辑后入库</div>
@@ -171,6 +172,12 @@ function syncUploadFiles() {
 }
 
 function openPreviewFromUpload() { if (previewItems.value.length > 0) previewVisible.value = true }
+
+function handleUploadRemove(file) {
+  uploadFileList.value = uploadFileList.value.filter(f => f.uid !== file.uid)
+  previewItems.value = previewItems.value.filter(item => item._uploadUid !== file.uid)
+  if (previewItems.value.length === 0) previewVisible.value = false
+}
 
 // ─── 单文件编辑 ───
 const editVisible = ref(false), editForm = ref(null), editIndex = ref(-1)
