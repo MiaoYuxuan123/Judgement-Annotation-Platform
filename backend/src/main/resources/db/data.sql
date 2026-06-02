@@ -5,29 +5,29 @@ INSERT INTO sys_user (id, username, password_hash, real_name, role, can_create_t
 (4, 'annotator2', '123456', '参与者二', 'user', 0, 0),
 (5, 'reviewer', '123456', '参与者三', 'user', 0, 0);
 
--- INSERT INTO guide_version (id, version_name, description, created_at) VALUES
--- (1, 'V1.0 标准指南', '默认裁判文书论证标签体系', '2026-05-01 00:00:00');
+INSERT INTO guide_version (id, version_name, description, created_at) VALUES
+(1, 'V1.0 标准指南', '默认裁判文书论证标签体系', '2026-05-01 00:00:00');
 
--- INSERT INTO label_l1 (guide_version_id, name, abbr, description) VALUES
--- (1, '个别事实判断', 'SF', '关于案件中个别对象的事实判断'),
--- (1, '一般事实判断', 'GF', '为规范适用提供经验或背景支撑'),
--- (1, '个别规范判断', 'SM', '体现法院对本案的规范性评价'),
--- (1, '一般规范判断', 'GM', '构成法律论证的规范基础');
+INSERT INTO label_l1 (guide_version_id, name, abbr, description) VALUES
+(1, '个别事实判断', 'SF', '关于案件中个别对象的事实判断'),
+(1, '一般事实判断', 'GF', '为规范适用提供经验或背景支撑'),
+(1, '个别规范判断', 'SM', '体现法院对本案的规范性评价'),
+(1, '一般规范判断', 'GM', '构成法律论证的规范基础');
 
--- INSERT INTO label_l2 (guide_version_id, parent_l1_id, name, abbr, description) VALUES
--- (1, 4, '法律条文', 'GM-L', '直接来源于成文法规范'),
--- (1, 4, '法律解释', 'GM-I', '对法律条文含义的解释'),
--- (1, 4, '合同及合同解释', 'GM-C', '来源于合同条款'),
--- (1, 4, '习惯与行业惯例', 'GM-U', '社会习惯、交易习惯'),
--- (1, 4, '道德与价值观念', 'GM-M', '价值判断、公序良俗'),
--- (1, 4, '其他规范判断', 'GM-O', '无法稳定归入上述类型');
+INSERT INTO label_l2 (guide_version_id, parent_l1_id, name, abbr, description) VALUES
+(1, 4, '法律条文', 'GM-L', '直接来源于成文法规范'),
+(1, 4, '法律解释', 'GM-I', '对法律条文含义的解释'),
+(1, 4, '合同及合同解释', 'GM-C', '来源于合同条款'),
+(1, 4, '习惯与行业惯例', 'GM-U', '社会习惯、交易习惯'),
+(1, 4, '道德与价值观念', 'GM-M', '价值判断、公序良俗'),
+(1, 4, '其他规范判断', 'GM-O', '无法稳定归入上述类型');
 
--- INSERT INTO relation_type (guide_version_id, name, abbr, description, is_binary) VALUES
--- (1, '支持关系', 'S', '为另一命题成立提供理由', 1),
--- (1, '反对关系', 'A', '为另一命题不成立提供理由', 1),
--- (1, '组合关系', 'J', '多个命题共同构成理由', 0),
--- (1, '匹配关系', 'M', '规范要件与事实对应', 1),
--- (1, '同一关系', 'I', '语义上表达同一判断', 0);
+INSERT INTO relation_type (guide_version_id, name, abbr, description, is_binary) VALUES
+(1, '支持关系', 'S', '为另一命题成立提供理由', 1),
+(1, '反对关系', 'A', '为另一命题不成立提供理由', 1),
+(1, '组合关系', 'J', '多个命题共同构成理由', 0),
+(1, '匹配关系', 'M', '规范要件与事实对应', 1),
+(1, '同一关系', 'I', '语义上表达同一判断', 1);
 
 INSERT INTO global_document (id, title, file_name, file_type, extracted_text) VALUES
 (101, '合同纠纷一审判决书', '合同纠纷一审判决书.txt', '民事判决书',
