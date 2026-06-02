@@ -27,7 +27,7 @@ INSERT INTO relation_type (guide_version_id, name, abbr, description, is_binary)
 (1, '反对关系', 'A', '为另一命题不成立提供理由', 1),
 (1, '组合关系', 'J', '多个命题共同构成理由', 0),
 (1, '匹配关系', 'M', '规范要件与事实对应', 1),
-(1, '同一关系', 'I', '语义上表达同一判断', 0);
+(1, '同一关系', 'I', '语义上表达同一判断', 1);
 
 INSERT INTO global_document (id, title, file_name, file_type, extracted_text) VALUES
 (101, '合同纠纷一审判决书', '合同纠纷一审判决书.txt', '民事判决书',

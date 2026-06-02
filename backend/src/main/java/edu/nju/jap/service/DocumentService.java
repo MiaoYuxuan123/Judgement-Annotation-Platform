@@ -63,14 +63,21 @@ public class DocumentService {
         List<Map<String, Object>> previews = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         for (MultipartFile file : files) {
-            if (file == null || file.isEmpty()) {
-                continue;
-            }
+            if (file == null || file.isEmpty()) continue;
             String filename = file.getOriginalFilename() == null ? "未命名文件" : file.getOriginalFilename();
             try {
-                DocumentTextExtractor.ParsedDocument parsed = DocumentTextExtractor.parse(file);
-                previews.add(Map.of("filename", filename, "title", parsed.title(), "type", parsed.type(),
-                        "content", parsed.content(), "contentLength", parsed.content().length()));
+                if (filename.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+                    List<DocumentTextExtractor.ParsedDocument> parsedList = DocumentTextExtractor.parseZip(file);
+                    for (DocumentTextExtractor.ParsedDocument parsed : parsedList) {
+                        previews.add(Map.of("filename", filename + " / " + parsed.title(), "title", parsed.title(),
+                                "type", parsed.type(), "content", parsed.content(),
+                                "contentLength", parsed.content().length()));
+                    }
+                } else {
+                    DocumentTextExtractor.ParsedDocument parsed = DocumentTextExtractor.parse(file);
+                    previews.add(Map.of("filename", filename, "title", parsed.title(), "type", parsed.type(),
+                            "content", parsed.content(), "contentLength", parsed.content().length()));
+                }
             } catch (Exception ex) {
                 errors.add(filename + ": " + ex.getMessage());
             }
@@ -82,9 +89,7 @@ public class DocumentService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("count", previews.size());
         payload.put("list", previews);
-        if (!errors.isEmpty()) {
-            payload.put("errors", errors);
-        }
+        if (!errors.isEmpty()) payload.put("errors", errors);
         return payload;
     }
 }

@@ -53,7 +53,7 @@ public class ConfigService {
 
     @Transactional
     public long create(Map<String, Object> body) {
-        GuideConfig base = guideConfigLoader.load(1);
+        GuideConfig base = loadBaseOrEmpty();
         GuideVersion version = new GuideVersion();
         version.setVersionName(MapBodyUtils.text(body, "versionName", "V-new"));
         version.setDescription(MapBodyUtils.text(body, "description", "自定义指南版本"));
@@ -81,9 +81,6 @@ public class ConfigService {
     }
 
     public void delete(long id) {
-        if (id == 1L) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "默认指南版本不可删除");
-        }
         if (guideVersionMapper.deleteById((int) id) == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "指南版本不存在");
         }
@@ -91,6 +88,14 @@ public class ConfigService {
 
     public GuideConfig requireConfig(long id) {
         return guideConfigLoader.load((int) id);
+    }
+
+    private GuideConfig loadBaseOrEmpty() {
+        GuideVersion baseVersion = guideVersionMapper.selectById(1);
+        if (baseVersion == null) {
+            return new GuideConfig(0, "", "", false, "", List.of(), List.of(), List.of());
+        }
+        return guideConfigLoader.load(1);
     }
 
     private void saveLabels(int versionId, List<LabelDef> primary, List<LabelDef> secondary, List<LabelDef> relations) {

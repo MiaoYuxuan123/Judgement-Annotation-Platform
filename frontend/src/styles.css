@@ -13,7 +13,47 @@ body {
 }
 
 .shell {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── 固定侧边栏 + 粘性顶栏 ── */
+.shell > .sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 200;
+}
+
+.shell:not(.sidebar-collapsed) > el-container,
+.shell:not(.sidebar-collapsed) > .el-container {
+  margin-left: 248px;
+}
+
+.shell.sidebar-collapsed > el-container,
+.shell.sidebar-collapsed > .el-container {
+  margin-left: 72px;
+}
+
+.shell > el-container,
+.shell > .el-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.shell .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .08);
+}
+
+.shell .main {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .sidebar {
