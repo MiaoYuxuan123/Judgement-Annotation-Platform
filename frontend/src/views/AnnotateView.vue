@@ -145,11 +145,11 @@
           <span>{{ tag.name }}</span>
         </button>
         </div>
-        <template v-if="primaryTag === 'GM'">
-          <div class="tag-group-title">GM 二级标签</div>
+        <template v-if="secondaryTagsForCurrent.length > 0">
+          <div class="tag-group-title">{{ primaryTag }} 二级标签</div>
           <div class="tag-choice-grid secondary-grid">
             <button
-              v-for="tag in data.config.secondaryTags"
+              v-for="tag in secondaryTagsForCurrent"
               :key="tag.shortName"
               class="modern-tag-option compact"
               :class="{ selected: secondaryTag === tag.shortName }"
@@ -173,10 +173,10 @@
           <button @click="confirmLabel">确定</button>
         </div>
       </div>
-      <div v-if="primaryTag === 'GM'" class="tag-popup secondary-popup">
-        <div class="tag-popup-title">二级标签（GM）</div>
+      <div v-if="secondaryTagsForCurrent.length > 0" class="tag-popup secondary-popup">
+        <div class="tag-popup-title">二级标签（{{ primaryTag }}）</div>
         <button
-          v-for="tag in data.config.secondaryTags"
+          v-for="tag in secondaryTagsForCurrent"
           :key="tag.shortName"
           class="secondary-option"
           :class="{ selected: secondaryTag === tag.shortName }"
@@ -226,9 +226,9 @@ const selectedStart = ref(0)
 const selectedEnd = ref(0)
 const editingPropositionId = ref('')
 const labelPosition = ref({ left: 720, top: 160 })
-const primaryTag = ref('GM')
-const secondaryTag = ref('GM-L')
-const relationForm = reactive({ type: 'S' })
+const primaryTag = ref('')
+const secondaryTag = ref('')
+const relationForm = reactive({ type: '' })
 const relationMembers = ref(['', ''])
 const activeRelationId = ref('')
 const editingRelationId = ref('')
@@ -293,6 +293,12 @@ const primaryTagOrder = computed(() => {
   return [...(data.value?.config.primaryTags || [])].sort((a, b) => order.indexOf(a.shortName) - order.indexOf(b.shortName))
 })
 
+watch(primaryTagOrder, (tags) => {
+  if (tags.length > 0 && !primaryTag.value) {
+    primaryTag.value = tags[0].shortName
+  }
+}, { immediate: true })
+
 const orderedRelationTypes = computed(() => {
   const order = ['S', 'J', 'M', 'A', 'I']
   return [...(data.value?.config.relationTypes || [])].sort((a, b) => order.indexOf(a.shortName) - order.indexOf(b.shortName))
@@ -300,7 +306,23 @@ const orderedRelationTypes = computed(() => {
 
 const supportsMultiMember = computed(() => ['J', 'I'].includes(relationForm.type))
 const relationTypeName = computed(() => orderedRelationTypes.value.find((item) => item.shortName === relationForm.type)?.name || '关系')
-const selectedTag = computed(() => (primaryTag.value === 'GM' ? secondaryTag.value : primaryTag.value))
+
+watch(orderedRelationTypes, (types) => {
+  if (types.length > 0 && !types.find(t => t.shortName === relationForm.type)) {
+    relationForm.type = types[0].shortName
+  }
+}, { immediate: true })
+const secondaryTagsForCurrent = computed(() =>
+  (data.value?.config.secondaryTags || []).filter(t => t.parentTag === primaryTag.value)
+)
+
+watch(secondaryTagsForCurrent, (tags) => {
+  if (tags.length > 0 && !secondaryTag.value) {
+    secondaryTag.value = tags[0].shortName
+  }
+}, { immediate: true })
+
+const selectedTag = computed(() => (secondaryTag.value ? secondaryTag.value : primaryTag.value))
 
 const labelPopupStyle = computed(() => ({
   left: `${labelPosition.value.left}px`,
@@ -386,7 +408,9 @@ function handleSelection(event) {
 
 function choosePrimary(tag) {
   primaryTag.value = tag
-  if (tag === 'GM' && !secondaryTag.value) secondaryTag.value = 'GM-L'
+  if (secondaryTagsForCurrent.value.length > 0 && !secondaryTag.value) {
+    secondaryTag.value = secondaryTagsForCurrent.value[0].shortName
+  }
 }
 
 function cancelLabel() {
@@ -448,7 +472,7 @@ function resetRelationMembers(type = relationForm.type) {
 
 function clearRelation(keepType = true) {
   editingRelationId.value = ''
-  resetRelationMembers(keepType ? relationForm.type : 'S')
+  resetRelationMembers(keepType ? relationForm.type : (orderedRelationTypes.value[0]?.shortName || ''))
   if (!keepType) relationForm.type = 'S'
 }
 
@@ -480,8 +504,10 @@ function addRelation() {
 }
 
 function editProposition(prop) {
-  primaryTag.value = prop.tag.startsWith('GM') ? 'GM' : prop.tag
-  secondaryTag.value = prop.tag.startsWith('GM') ? prop.tag : 'GM-L'
+  const hasDash = prop.tag.includes('-')
+  const pTag = hasDash ? prop.tag.split('-')[0] : prop.tag
+  primaryTag.value = pTag
+  secondaryTag.value = hasDash ? prop.tag : ''
   selectedText.value = prop.text
   selectedStart.value = prop.startPos
   selectedEnd.value = prop.endPos
