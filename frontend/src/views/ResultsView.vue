@@ -39,9 +39,41 @@
     />
 
     <div class="review-body">
-      <section class="review-left">
+      <aside class="review-lists">
         <div class="review-block">
-          <h3>原文展示区</h3>
+          <h3>命题列表</h3>
+          <el-table :data="activeData.propositions" size="small" stripe empty-text="暂无命题">
+            <el-table-column label="序号" width="72" align="center">
+              <template #default="{ row }">{{ circledNo(row.sequenceNo) }}</template>
+            </el-table-column>
+            <el-table-column prop="text" label="命题内容" min-width="120" show-overflow-tooltip />
+            <el-table-column prop="tag" label="类型" width="72" align="center" />
+          </el-table>
+        </div>
+
+        <div class="review-block">
+          <h3>关系列表</h3>
+          <el-table :data="relationRows" size="small" stripe empty-text="暂无关系">
+            <el-table-column label="序号" width="72" align="center">
+              <template #default="{ $index }">R{{ $index + 1 }}</template>
+            </el-table-column>
+            <el-table-column label="关系内容" min-width="120">
+              <template #default="{ row }">
+                <code class="review-formula">{{ row.formula }}</code>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </aside>
+
+      <main class="review-main" :class="{ 'graph-collapsed': !graphPanelVisible }">
+        <div class="review-block review-text-block">
+          <div class="review-text-head">
+            <h3>原文展示区</h3>
+            <el-button link type="primary" @click="toggleGraphPanel">
+              {{ graphPanelVisible ? '收起图示' : '展开图示' }}
+            </el-button>
+          </div>
           <div class="review-original source-text">
             <template v-for="(part, idx) in annotatedParts" :key="idx">
               <template v-if="part.type === 'text'">{{ part.text }}</template>
@@ -52,7 +84,7 @@
           </div>
         </div>
 
-        <div class="review-block review-graph-block">
+        <div v-show="graphPanelVisible" class="review-block review-graph-block">
           <div class="review-block-title">
             <h3>图示区</h3>
           </div>
@@ -64,51 +96,26 @@
             :relations="activeData.relations"
           />
         </div>
-      </section>
-
-      <section class="review-center results-center">
-        <div class="review-block">
-          <h3>命题列表</h3>
-          <el-table :data="activeData.propositions" size="small" stripe empty-text="暂无命题">
-            <el-table-column label="命题序号" width="100" align="center">
-              <template #default="{ row }">{{ circledNo(row.sequenceNo) }}</template>
-            </el-table-column>
-            <el-table-column prop="text" label="命题内容" min-width="220" show-overflow-tooltip />
-            <el-table-column prop="tag" label="命题类型" width="100" align="center" />
-          </el-table>
-        </div>
-
-        <div class="review-block">
-          <h3>关系列表</h3>
-          <el-table :data="relationRows" size="small" stripe empty-text="暂无关系">
-            <el-table-column label="关系序号" width="100" align="center">
-              <template #default="{ $index }">R{{ $index + 1 }}</template>
-            </el-table-column>
-            <el-table-column label="关系内容" min-width="260">
-              <template #default="{ row }">
-                <code class="review-formula">{{ row.formula }}</code>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
-      </section>
+      </main>
 
       <aside class="review-sidebar">
         <h3>结果来源</h3>
-        <button
-          v-for="item in sidebarItems"
-          :key="item.key"
-          type="button"
-          class="review-sidebar-item"
-          :class="{ active: selectedKey === item.key }"
-          @click="selectedKey = item.key"
-        >
-          <span class="review-sidebar-icon">{{ item.icon }}</span>
-          <span class="review-sidebar-meta">
-            <span class="review-sidebar-label">{{ item.label }}</span>
-            <span class="review-sidebar-count">{{ item.countText }}</span>
-          </span>
-        </button>
+        <div class="review-sidebar-list">
+          <button
+            v-for="item in sidebarItems"
+            :key="item.key"
+            type="button"
+            class="review-sidebar-item"
+            :class="{ active: selectedKey === item.key }"
+            @click="selectedKey = item.key"
+          >
+            <span class="review-sidebar-icon">{{ item.icon }}</span>
+            <span class="review-sidebar-meta">
+              <span class="review-sidebar-label">{{ item.label }}</span>
+              <span class="review-sidebar-count">{{ item.countText }}</span>
+            </span>
+          </button>
+        </div>
       </aside>
     </div>
   </div>
@@ -131,6 +138,7 @@ const review = ref(null)
 const taskDetail = ref(null)
 const currentDocId = ref(null)
 const selectedKey = ref('')
+const graphPanelVisible = ref(true)
 const exportMessage = ref('')
 const exporting = ref(false)
 const showGraph = ref(false)
@@ -218,7 +226,7 @@ async function waitForLayout() {
 
 async function refreshGraph() {
   showGraph.value = false
-  if (!selectedKey.value || !activeData.value.propositions?.length) return
+  if (!graphPanelVisible.value || !selectedKey.value || !activeData.value.propositions?.length) return
   await waitForLayout()
   if (!GraphCanvas.value) {
     GraphCanvas.value = (await import('../components/GraphCanvas.vue')).default
@@ -226,7 +234,16 @@ async function refreshGraph() {
   showGraph.value = true
 }
 
-watch([currentDocId, selectedKey, () => activeData.value.propositions.length], refreshGraph, { flush: 'post' })
+function toggleGraphPanel() {
+  graphPanelVisible.value = !graphPanelVisible.value
+  if (graphPanelVisible.value) {
+    refreshGraph()
+  } else {
+    showGraph.value = false
+  }
+}
+
+watch([currentDocId, selectedKey, () => activeData.value.propositions.length, graphPanelVisible], refreshGraph, { flush: 'post' })
 
 watch(
   () => route.query.dataId,
@@ -302,10 +319,6 @@ onMounted(load)
 .results-alert {
   flex-shrink: 0;
   margin: 0 14px 10px;
-}
-
-.results-center {
-  border-right: none;
 }
 
 .review-sidebar-meta {
