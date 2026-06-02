@@ -41,7 +41,7 @@
             <el-option label="标题（A→Z）" value="titleAsc" />
           </el-select>
           <span v-if="canBatchExport" class="task-export-hint">
-            勾选「可导出」文书后点击「批量导出 ZIP」；操作列「查看结果/导出」可进入结果页查看并导出单篇。
+            仅「可导出」状态文书可勾选导出；其他状态复选框为灰色不可选。
           </span>
         </div>
       </div>
@@ -162,11 +162,7 @@ const exporting = ref(false)
 const canAnnotate = computed(() => detail.value?.annotators.some((u) => u.id === auth.user?.id))
 const canReview = computed(() => detail.value?.reviewer.id === auth.user?.id)
 const canBatchExport = computed(() => {
-  return (
-    auth.user?.canCreateTask ||
-    canAnnotate.value ||
-    canReview.value
-  )
+  return auth.user?.canCreateTask || detail.value?.reviewer?.id === auth.user?.id
 })
 const viewerRoleDisplay = computed(() => resolveTaskViewerRoles(detail.value, auth.user))
 
@@ -283,13 +279,22 @@ function resetFilters() {
   activeDocId.value = null
 }
 
-async function runExport(docIds, loadingText = '正在准备导出…') {
-  if (!canBatchExport.value || exporting.value || !docIds.length) return
+async function batchExport() {
+  if (!canBatchExport.value || exporting.value || !selectedExportCount.value) return
+
+  const docIds = [...selectedIds.value].filter((docId) => {
+    const row = allDocs.value.find((d) => d.id === docId)
+    return row && isRowExportable(row)
+  })
+  if (!docIds.length) {
+    ElMessage.warning('请先选择「可导出」状态的文书')
+    return
+  }
 
   exporting.value = true
   const loading = ElLoading.service({
     lock: true,
-    text: loadingText,
+    text: '正在准备批量导出…',
     background: 'rgba(255,255,255,0.7)'
   })
 
@@ -306,23 +311,11 @@ async function runExport(docIds, loadingText = '正在准备导出…') {
     ElMessage.success(`已导出 ${exportedCount} 篇：${savedName}${suffix}`)
   } catch (err) {
     if (err?.name === 'AbortError') return
-    ElMessage.error(err?.message || '导出失败')
+    ElMessage.error(err?.message || '批量导出失败')
   } finally {
     loading.close()
     exporting.value = false
   }
-}
-
-async function batchExport() {
-  if (!selectedExportCount.value) {
-    ElMessage.warning('请先勾选「可导出」状态的文书')
-    return
-  }
-  const docIds = [...selectedIds.value].filter((docId) => {
-    const row = allDocs.value.find((d) => d.id === docId)
-    return row && isRowExportable(row)
-  })
-  await runExport(docIds, '正在准备批量导出…')
 }
 
 async function load() {

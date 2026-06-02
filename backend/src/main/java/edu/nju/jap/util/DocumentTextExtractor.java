@@ -6,11 +6,16 @@ import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * 从上传文件中提取全部纯文本，不做段落截取或内容改写。
@@ -100,5 +105,59 @@ public final class DocumentTextExtractor {
     private static String stripExtension(String filename) {
         int dot = filename.lastIndexOf('.');
         return dot > 0 ? filename.substring(0, dot) : filename;
+    }
+
+    public static List<ParsedDocument> parseZip(MultipartFile zipFile) throws IOException {
+        List<ParsedDocument> results = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+        byte[] zipBytes = zipFile.getBytes();
+        try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                String name = entry.getName();
+                if (entry.isDirectory()) continue;
+                String ext = extension(name);
+                if (!ext.equals("txt") && !ext.equals("pdf") && !ext.equals("docx")) continue;
+                try {
+                    byte[] entryBytes = zis.readAllBytes();
+                    String content = switch (ext) {
+                        case "txt" -> parseTextBytes(entryBytes);
+                        case "pdf" -> parsePdfBytes(entryBytes);
+                        case "docx" -> parseDocxBytes(entryBytes);
+                        default -> throw new IllegalArgumentException("不支持的文件类型");
+                    };
+                    if (content.isBlank()) {
+                        errors.add(name + ": 未能提取文本");
+                        continue;
+                    }
+                    String title = stripExtension(new java.io.File(name).getName());
+                    results.add(new ParsedDocument(title, inferType(name, content), content));
+                } catch (Exception ex) {
+                    errors.add(name + ": " + ex.getMessage());
+                }
+            }
+        }
+        return results;
+    }
+
+    private static String parseTextBytes(byte[] bytes) {
+        String utf8 = new String(bytes, StandardCharsets.UTF_8);
+        if (!utf8.contains("\uFFFD")) return preserveLineEndings(utf8);
+        return preserveLineEndings(new String(bytes, Charset.forName("GBK")));
+    }
+
+    private static String parsePdfBytes(byte[] bytes) throws IOException {
+        try (PDDocument document = PDDocument.load(bytes)) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true);
+            return preserveLineEndings(stripper.getText(document));
+        }
+    }
+
+    private static String parseDocxBytes(byte[] bytes) throws IOException {
+        try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(bytes));
+             XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
+            return preserveLineEndings(extractor.getText());
+        }
     }
 }

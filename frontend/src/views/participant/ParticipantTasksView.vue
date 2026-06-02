@@ -74,15 +74,13 @@
                 <td>
                   <span class="task-info-text" :class="row.infoType">{{ row.info }}</span>
                 </td>
-                <td class="task-action-cell">
+                <td>
                   <button
-                    v-for="(action, actionIdx) in actionsFor(row)"
-                    :key="actionIdx"
                     class="task-action-btn"
-                    :class="action.color"
-                    @click="goAction(action)"
+                    :class="actionFor(row).color"
+                    @click="goAction(actionFor(row))"
                   >
-                    {{ action.label }}
+                    {{ actionFor(row).label }}
                   </button>
                 </td>
                 <td>
@@ -128,7 +126,7 @@ import client from '../../api/client'
 import { useAuthStore } from '../../stores/auth'
 import TaskDirectorySidebar from '../../components/task/TaskDirectorySidebar.vue'
 import TaskInlineDetail from '../../components/task/TaskInlineDetail.vue'
-import { buildParticipantRows, participantActions, participantRowStage } from '../../utils/taskRows'
+import { buildParticipantRows, participantAction, participantRowStage } from '../../utils/taskRows'
 import { syncTasksRoute } from '../../utils/navigationReturn'
 
 const router = useRouter()
@@ -175,8 +173,8 @@ const displayRows = computed(() => {
   return rows
 })
 
-function actionsFor(row) {
-  return participantActions(row, auth.user?.id)
+function actionFor(row) {
+  return participantAction(row)
 }
 
 function goAction(action) {
