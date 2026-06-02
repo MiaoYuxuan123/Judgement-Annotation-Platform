@@ -76,7 +76,8 @@
                 </td>
                 <td>
                   <button
-                    class="task-action-btn green"
+                    class="task-action-btn"
+                    :class="actionFor(row).color"
                     @click="goAction(actionFor(row))"
                   >
                     {{ actionFor(row).label }}

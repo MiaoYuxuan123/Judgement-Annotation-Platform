@@ -3,7 +3,8 @@
  *
  * 三阶段：标注中 → 待裁定 → 可导出
  * - 标注员视角：本人提交后 → 待裁定
- * - 裁定者视角：每条文书全员提交后可单独进入「待裁定」；任务列表仅展示「查看详情」
+ * - 裁定者视角：每条文书全员提交后可单独进入「待裁定」；任务列表展示「开始/继续裁定」
+ * - 任务进入「可导出」后，参与者操作按钮统一为「查看结果/导出」
  */
 
 // ── 状态判定 ──────────────────────────────────────────
@@ -263,14 +264,61 @@ export function buildParticipantRows(tasks, details, userId) {
       personalStage,
       info: infoParts.join('；'),
       infoType,
-      detail
+      detail,
+      userId
     })
   }
   return rows
 }
 
+function hasAnnotatorProgress(detail, review, userId) {
+  const docs = detail?.documents || []
+  const reviewDocs = review?.documents || []
+  return docs.some((doc) => {
+    const entry = reviewDocs.find((d) => d.document.id === doc.id)
+    if (!entry || userId == null) return false
+    const mine = entry.annotatorResults?.find((r) => r.userId === userId)
+    return Boolean(mine?.propositions?.length || mine?.relations?.length)
+  })
+}
+
+function hasReviewerProgress(detail, review) {
+  const docs = detail?.documents || []
+  const reviewDocs = review?.documents || []
+  return docs.some((doc) => {
+    const entry = reviewDocs.find((d) => d.document.id === doc.id)
+    const final = entry?.finalResult
+    return Boolean(final && typeof final === 'object' && final.propositions)
+  })
+}
+
 export function participantAction(row) {
-  return { label: '查看详情', color: 'green', route: `/tasks/${row.taskId}/data` }
+  const route = `/tasks/${row.taskId}/data`
+  const stage = participantRowStage(row)
+  const detail = row.detail
+  const review = detail?._review
+  const userId = row.userId
+
+  if (stage === '可导出') {
+    return { label: '查看结果/导出', color: 'green', route }
+  }
+
+  const isAnnotator = row.roles?.some((r) => r.role === 'annotate')
+  const isReviewer = row.roles?.some((r) => r.role === 'arbitrate')
+  const reviewerStage = isReviewer ? resolveReviewerTaskStage(detail, review) : null
+
+  if (isReviewer && reviewerStage === '待裁定') {
+    const continued = hasReviewerProgress(detail, review)
+    return { label: continued ? '继续裁定' : '开始裁定', color: 'orange', route }
+  }
+
+  if (isAnnotator) {
+    const continued = hasAnnotatorProgress(detail, review, userId)
+    return { label: continued ? '继续标注' : '开始标注', color: 'orange', route }
+  }
+
+  const continued = hasReviewerProgress(detail, review)
+  return { label: continued ? '继续裁定' : '开始裁定', color: 'orange', route }
 }
 
 export function participantRowStage(row) {

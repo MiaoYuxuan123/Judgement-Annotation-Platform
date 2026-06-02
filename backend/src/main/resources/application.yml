@@ -17,11 +17,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   sql:
     init:
-      mode: always
-      schema-locations: classpath:db/admin.sql,classpath:db/creator.sql,classpath:db/annotator.sql,classpath:db/reviewer.sql
-      data-locations: classpath:db/data.sql
-      encoding: UTF-8
-      continue-on-error: true
+      mode: never
 
 jap:
   jwt:

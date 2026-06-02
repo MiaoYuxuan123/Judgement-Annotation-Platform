@@ -1,10 +1,3 @@
-DROP TABLE IF EXISTS `global_document`;
-DROP TABLE IF EXISTS `relation_type`;
-DROP TABLE IF EXISTS `label_l2`;
-DROP TABLE IF EXISTS `label_l1`;
-DROP TABLE IF EXISTS `guide_version`;
-DROP TABLE IF EXISTS `sys_user`;
-
 CREATE TABLE IF NOT EXISTS `sys_user` (
     `id` BIGINT UNSIGNED AUTO_INCREMENT COMMENT '用户唯一标识',
     `username` VARCHAR(50) NOT NULL COMMENT '登录账号',
