@@ -86,7 +86,7 @@
         <el-table-column label="操作" width="140">
           <template #default="{ row }">
             <el-button link type="primary" @click="selectVersion(row)">选择</el-button>
-            <el-button v-if="row.id !== 1" link type="danger" @click="deleteVersion(row)">删除</el-button>
+            <el-button link type="danger" @click="deleteVersion(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
