@@ -18,5 +18,7 @@ public interface AnnotationMapper {
 
     int deleteById(@Param("id") long id);
 
+    int deleteByTaskId(@Param("taskId") int taskId);
+
     int countSubmittedByTaskDocument(@Param("taskId") int taskId, @Param("documentId") int documentId);
 }

@@ -28,6 +28,10 @@
         DELETE FROM annotation WHERE id = #{id}
     </delete>
 
+    <delete id="deleteByTaskId">
+        DELETE FROM annotation WHERE task_id = #{taskId}
+    </delete>
+
     <select id="countSubmittedByTaskDocument" resultType="int">
         SELECT COUNT(DISTINCT user_id)
         FROM annotation

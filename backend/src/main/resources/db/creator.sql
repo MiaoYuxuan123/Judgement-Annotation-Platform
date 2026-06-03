@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS `task` (
     `id` INT AUTO_INCREMENT,
     `title` VARCHAR(100) NOT NULL,
     `description` TEXT DEFAULT NULL,
-    `status` VARCHAR(20) NOT NULL DEFAULT '标注中' COMMENT '任务阶段：标注中/待裁定/可导出',
+    `status` ENUM('标注中', '待裁定', '可导出') NOT NULL DEFAULT '标注中',
     `creator_id` BIGINT UNSIGNED NOT NULL,
     `guide_version_id` INT UNSIGNED DEFAULT NULL,
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,

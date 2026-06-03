@@ -61,6 +61,12 @@ public class TaskController {
         return ApiResponse.ok("配置已更新", taskService.updateConfig(id, body, request));
     }
 
+    @DeleteMapping("/{id}")
+    ApiResponse<Void> delete(@PathVariable long id, HttpServletRequest request) {
+        taskService.delete(id, request);
+        return ApiResponse.ok("任务已删除", null);
+    }
+
     @GetMapping("/{taskId}/items")
     ApiResponse<List<Map<String, Object>>> items(@PathVariable long taskId) {
         return ApiResponse.ok(taskService.items(taskId));
