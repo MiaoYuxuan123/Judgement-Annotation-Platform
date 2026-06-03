@@ -17,4 +17,6 @@ public interface ArbitrationSnapshotMapper {
     int update(ArbitrationSnapshot snapshot);
 
     int deleteByTaskAndDoc(@Param("taskId") int taskId, @Param("taskDocumentId") int taskDocumentId);
+
+    int deleteByTaskId(@Param("taskId") int taskId);
 }
