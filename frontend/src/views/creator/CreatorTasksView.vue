@@ -101,6 +101,14 @@
                         修改配置
                       </el-button>
                       <el-button @click="cancelDetail(row.taskId)">取消</el-button>
+                      <el-button
+                        type="danger"
+                        plain
+                        :loading="deletingTaskId === row.taskId"
+                        @click="removeTask(row.taskId, row.taskName)"
+                      >
+                        删除任务
+                      </el-button>
                     </div>
                   </div>
                 </td>
@@ -124,7 +132,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../../api/client'
 import TaskDirectorySidebar from '../../components/task/TaskDirectorySidebar.vue'
 import TaskForm from '../../components/task/TaskForm.vue'
@@ -150,6 +158,7 @@ const sidebarKeyword = ref('')
 const sortBy = ref('createdDesc')
 const filters = reactive({ status: '', assign: '' })
 const savingTaskId = ref(null)
+const deletingTaskId = ref(null)
 
 const displayRows = computed(() => {
   let rows = tasks.value.map((t) => ({
@@ -308,6 +317,30 @@ async function saveDetail(taskId) {
 function cancelDetail(taskId) {
   clearTaskUpdateDraft(taskId)
   Object.assign(editForms, { [taskId]: taskFormFromDetail(details.value[taskId], []) })
+}
+
+async function removeTask(taskId, taskName) {
+  await ElMessageBox.confirm(
+    `确认删除任务「${taskName}」？删除后将一并移除该任务的文书、成员、标注与裁定记录，且不可恢复。`,
+    '删除任务',
+    { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' }
+  )
+  deletingTaskId.value = taskId
+  try {
+    await client.delete(`/tasks/${taskId}`)
+    ElMessage.success('任务已删除')
+    delete details.value[taskId]
+    delete editForms[taskId]
+    clearTaskUpdateDraft(taskId)
+    if (activeTaskId.value === taskId) {
+      activeTaskId.value = null
+      expandedKey.value = null
+      syncTasksRoute(router, null, null, false)
+    }
+    await load()
+  } finally {
+    deletingTaskId.value = null
+  }
 }
 
 onMounted(async () => {
