@@ -31,6 +31,17 @@ public class TaskDocumentStorage {
         }
     }
 
+    public void deleteIfExists(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(Path.of("data").resolve(relativePath));
+        } catch (IOException ignored) {
+            // Best-effort cleanup; DB rows are removed regardless.
+        }
+    }
+
     private static String sanitizeFileName(String fileName) {
         String name = fileName == null || fileName.isBlank() ? "document.txt" : fileName.trim();
         return name.replaceAll("[\\\\/:*?\"<>|]", "_");

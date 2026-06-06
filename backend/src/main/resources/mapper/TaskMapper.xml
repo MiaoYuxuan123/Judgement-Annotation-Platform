@@ -24,5 +24,6 @@
     <select id="countByGuideVersionId" resultType="int">
         SELECT COUNT(*) FROM task WHERE guide_version_id = #{id}
     </select>
+    <delete id="deleteById">DELETE FROM task WHERE id=#{id}</delete>
 </mapper>
 

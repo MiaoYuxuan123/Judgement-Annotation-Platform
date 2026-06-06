@@ -18,5 +18,8 @@
     <delete id="deleteByTaskAndDoc">
         DELETE FROM arbitration_snapshot WHERE task_id=#{taskId} AND task_document_id=#{taskDocumentId}
     </delete>
+    <delete id="deleteByTaskId">
+        DELETE FROM arbitration_snapshot WHERE task_id=#{taskId}
+    </delete>
 </mapper>
 
