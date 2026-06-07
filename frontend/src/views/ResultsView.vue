@@ -271,25 +271,6 @@ function resolveInitialDocId(reviewData) {
   return reviewData.documents[0]?.document.id ?? null
 }
 
-watch(
-  () => route.query.dataId,
-  (dataId) => {
-    if (!dataId || !review.value?.documents?.length) return
-    const docId = Number(dataId)
-    const exists = review.value.documents.some((d) => d.document.id === docId)
-    if (exists) currentDocId.value = docId
-  }
-)
-
-function resolveInitialDocId(reviewData) {
-  const queryDocId = route.query.dataId ? Number(route.query.dataId) : null
-  if (queryDocId != null) {
-    const matched = reviewData.documents.find((d) => d.document.id === queryDocId)
-    if (matched) return matched.document.id
-  }
-  return reviewData.documents[0]?.document.id ?? null
-}
-
 async function load() {
   showGraph.value = false
   const [reviewData, detail] = await Promise.all([
