@@ -19,4 +19,6 @@ public interface TaskDocumentMapper {
     int updateStatus(@Param("id") int id, @Param("status") String status);
 
     int deleteByTaskId(@Param("taskId") int taskId);
+
+    int countByGlobalDocId(@Param("docId") long docId);
 }

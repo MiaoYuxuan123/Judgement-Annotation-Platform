@@ -17,4 +17,8 @@ public interface TaskMapper {
     int insert(Task task);
 
     int updateStatus(@Param("id") int id, @Param("status") String status);
+
+    int countByGuideVersionId(@Param("id") int id);
+
+    int deleteById(@Param("id") int id);
 }

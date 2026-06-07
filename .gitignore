@@ -33,7 +33,8 @@ yarn-error.log*
 
 backend/target/
 target/
-backend/data/
+
+backend/src/main/resources/application-mysql.yml
 
 *.class
 *.jar
@@ -57,3 +58,5 @@ logs/
 *.log
 
 AGENTS.md
+
+backend/src/main/resources/application-mysql.yml

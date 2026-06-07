@@ -338,10 +338,6 @@ onMounted(load)
 </script>
 
 <style scoped>
-.data-select-page {
-  min-height: calc(100vh - 52px);
-}
-
 .task-table-check-col {
   width: 44px;
   text-align: center;

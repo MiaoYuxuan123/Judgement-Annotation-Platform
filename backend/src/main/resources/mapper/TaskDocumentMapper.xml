@@ -19,5 +19,8 @@
         UPDATE task_document SET status=#{status} WHERE id=#{id}
     </update>
     <delete id="deleteByTaskId">DELETE FROM task_document WHERE task_id=#{taskId}</delete>
+    <select id="countByGlobalDocId" resultType="int">
+        SELECT COUNT(*) FROM task_document WHERE global_doc_id = #{docId}
+    </select>
 </mapper>
 

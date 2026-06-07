@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS `label_l1` (
     `id` INT UNSIGNED AUTO_INCREMENT,
     `guide_version_id` INT UNSIGNED NOT NULL,
     `name` VARCHAR(50) NOT NULL,
-    `abbr` VARCHAR(10) NOT NULL,
+    `abbr` VARCHAR(20) NOT NULL,
     `description` VARCHAR(200) DEFAULT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_version_abbr` (`guide_version_id`, `abbr`)
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS `relation_type` (
     `id` INT UNSIGNED AUTO_INCREMENT,
     `guide_version_id` INT UNSIGNED NOT NULL,
     `name` VARCHAR(50) NOT NULL,
-    `abbr` CHAR(1) NOT NULL,
+    `abbr` VARCHAR(20) NOT NULL,
     `description` VARCHAR(200) DEFAULT NULL,
     `is_binary` TINYINT NOT NULL DEFAULT 1,
     PRIMARY KEY (`id`),

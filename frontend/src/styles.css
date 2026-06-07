@@ -13,7 +13,47 @@ body {
 }
 
 .shell {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── 固定侧边栏 + 粘性顶栏 ── */
+.shell > .sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 200;
+}
+
+.shell:not(.sidebar-collapsed) > el-container,
+.shell:not(.sidebar-collapsed) > .el-container {
+  margin-left: 248px;
+}
+
+.shell.sidebar-collapsed > el-container,
+.shell.sidebar-collapsed > .el-container {
+  margin-left: 72px;
+}
+
+.shell > el-container,
+.shell > .el-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.shell .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .08);
+}
+
+.shell .main {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .sidebar {
@@ -969,6 +1009,7 @@ body {
 }
 
 .document-text {
+  white-space: pre-wrap;
   line-height: 2;
   font-size: 15px;
   user-select: text;
@@ -1282,6 +1323,8 @@ body {
 .source-text {
   user-select: text;
   cursor: text;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .floating-label-root {
@@ -1495,17 +1538,18 @@ body {
 .review-back-btn {
   min-width: 120px;
   height: 34px;
-  color: #fff !important;
-  background: #625cf6 !important;
-  border-color: #625cf6 !important;
+  color: #2563eb !important;
+  background: #fff !important;
+  border-color: #bfdbfe !important;
   font-weight: 600;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, .08);
 }
 
 .review-back-btn:hover,
 .review-back-btn:focus {
-  color: #fff !important;
-  background: #4f49d9 !important;
-  border-color: #4f49d9 !important;
+  color: #1d4ed8 !important;
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
 }
 
 .review-user {
@@ -1516,39 +1560,78 @@ body {
   border-left: 1px solid #e2e8f0;
 }
 
-/* 3. 三栏横向弹性容器 */
+/* 3. 三栏横向布局（对齐标注页：窄列表 | 宽原文+图示 | 窄侧栏） */
 .review-body {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(260px, 300px) minmax(520px, 1fr) minmax(220px, 240px);
+  gap: 14px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  padding: 14px;
   position: relative;
 }
 
-/* 4. 左边栏：原文与关系拓扑图示 */
-.review-left {
-  flex: 30;
-  min-width: 420px;
+/* 4. 左栏：命题与关系列表 */
+.review-lists {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 14px;
   gap: 14px;
   overflow: hidden;
-  border-right: 1px solid #e2e8f0;
 }
 
-.review-left > .review-block:first-child {
-  flex: 0 1 38%;
+.review-lists > .review-block {
+  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.review-lists .el-table {
+  flex: 1;
+}
+
+/* 5. 中栏：原文与图示（对齐标注页 center-work） */
+.review-main {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(360px, 1fr) minmax(260px, auto);
+  gap: 14px;
+  overflow: hidden;
+}
+
+.review-main.graph-collapsed {
+  grid-template-rows: 1fr;
+}
+
+.review-text-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.review-text-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.review-text-block {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .review-original {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: auto;
   line-height: 1.8;
   font-size: 14.5px;
   color: #334155;
@@ -1558,22 +1641,7 @@ body {
   padding: 16px;
 }
 
-.review-prop-inline {
-  background-color: #ffe082;
-  border-bottom: 2px solid #f59e0b;
-  padding: 0 2px;
-  border-radius: 2px;
-  font-weight: 500;
-}
-
-.review-prop-badge {
-  color: #b45309;
-  font-weight: 700;
-  margin-right: 1px;
-}
-
 .review-graph-block {
-  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -1581,7 +1649,7 @@ body {
 
 .review-graph-block .graph-canvas {
   flex: 1;
-  min-height: 280px;
+  min-height: 240px;
   height: 100%;
 }
 
@@ -1595,27 +1663,6 @@ body {
   font-size: 14px;
   font-weight: 700;
   color: #1e293b;
-}
-
-/* 5. 中间栏：列表数据审阅与最终裁决按钮 */
-.review-center {
-  flex: 45;
-  min-width: 520px;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 14px;
-  gap: 14px;
-  overflow: hidden;
-  border-right: 1px solid #e2e8f0;
-}
-
-.review-center > .review-block {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
 }
 
 .review-formula {
@@ -1639,15 +1686,38 @@ body {
   margin-top: auto;
 }
 
+.review-sidebar-actions {
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  padding: 12px 0 0;
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.review-sidebar-actions .el-button {
+  width: 100%;
+  margin: 0;
+}
+
 /* 6. 右边栏：标注人员版本管理与导航 */
 .review-sidebar {
-  width: 240px;
-  min-width: 240px;
+  min-width: 0;
   min-height: 0;
   background-color: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   padding: 14px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.review-sidebar-list {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -1708,4 +1778,22 @@ body {
   font-size: 14px;
   font-weight: 700;
   color: #1e293b;
+}
+
+@media (max-width: 1200px) {
+  .review-body {
+    grid-template-columns: minmax(240px, 280px) minmax(420px, 1fr) minmax(200px, 220px);
+  }
+}
+
+@media (max-width: 960px) {
+  .review-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(480px, 1fr) auto;
+    overflow-y: auto;
+  }
+
+  .review-main {
+    grid-template-rows: minmax(320px, 1fr) minmax(240px, auto);
+  }
 }

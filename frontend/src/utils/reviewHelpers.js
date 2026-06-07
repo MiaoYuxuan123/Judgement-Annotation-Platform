@@ -38,6 +38,61 @@ function spansOverlap(aStart, aEnd, bStart, bEnd) {
     return Math.max(aStart, bStart) < Math.min(aEnd, bEnd)
 }
 
+function isInsideAnnotationMark(node) {
+    const el = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node
+    return Boolean(el?.closest?.('.annotation-mark'))
+}
+
+/** 统计 DOM 片段中对应原文的字符数（跳过命题标签 mark） */
+function measureContentTextLength(root) {
+    if (!root) return 0
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    let length = 0
+    while (walker.nextNode()) {
+        if (!isInsideAnnotationMark(walker.currentNode)) {
+            length += walker.currentNode.textContent.length
+        }
+    }
+    return length
+}
+
+/** 将原文展示区内的选区端点映射为 content 中的字符下标 */
+export function domPointToContentOffset(sourceRoot, container, offset) {
+    if (!sourceRoot || !container) return -1
+    const range = document.createRange()
+    range.selectNodeContents(sourceRoot)
+    try {
+        range.setEnd(container, offset)
+    } catch {
+        return -1
+    }
+    return measureContentTextLength(range.cloneContents())
+}
+
+/**
+ * 根据 DOM 选区计算在 document.content 中的起止位置（保留空格，不依赖 indexOf）
+ */
+export function selectionSpanFromSourceElement(sourceEl, content) {
+    const selection = window.getSelection()
+    if (!selection?.rangeCount || selection.isCollapsed) return null
+
+    const range = selection.getRangeAt(0)
+    if (!sourceEl?.contains(range.startContainer) || !sourceEl.contains(range.endContainer)) {
+        return null
+    }
+
+    let start = domPointToContentOffset(sourceEl, range.startContainer, range.startOffset)
+    let end = domPointToContentOffset(sourceEl, range.endContainer, range.endOffset)
+    if (start < 0 || end < 0) return null
+    if (start > end) [start, end] = [end, start]
+    if (start === end) return null
+
+    const text = String(content || '').slice(start, end)
+    if (!text.trim()) return null
+
+    return { start, end, text }
+}
+
 /**
  * 标注页选区：在原文中找不与其他命题重叠的匹配片段
  */

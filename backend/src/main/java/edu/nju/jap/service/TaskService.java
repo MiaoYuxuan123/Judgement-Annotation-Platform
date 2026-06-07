@@ -2,6 +2,7 @@ package edu.nju.jap.service;
 
 import edu.nju.jap.common.MapBodyUtils;
 import edu.nju.jap.mapper.GlobalDocumentMapper;
+import edu.nju.jap.mapper.AnnotationMapper;
 import edu.nju.jap.mapper.TaskDocumentMapper;
 import edu.nju.jap.mapper.TaskMapper;
 import edu.nju.jap.mapper.TaskMemberMapper;
@@ -37,13 +38,16 @@ public class TaskService {
     private final AnnotationPersistenceService annotationPersistenceService;
     private final TaskDocumentFactory taskDocumentFactory;
     private final edu.nju.jap.mapper.ArbitrationSnapshotMapper arbitrationSnapshotMapper;
+    private final AnnotationMapper annotationMapper;
+    private final TaskDocumentStorage taskDocumentStorage;
 
     public TaskService(TaskMapper taskMapper, TaskMemberMapper taskMemberMapper, TaskDocumentMapper taskDocumentMapper,
                        GlobalDocumentMapper globalDocumentMapper, TaskAggregateService taskAggregateService,
                        TaskDocumentResolver taskDocumentResolver, CurrentUserService currentUserService,
                        AnnotationPersistenceService annotationPersistenceService,
                        TaskDocumentFactory taskDocumentFactory,
-                       edu.nju.jap.mapper.ArbitrationSnapshotMapper arbitrationSnapshotMapper) {
+                       edu.nju.jap.mapper.ArbitrationSnapshotMapper arbitrationSnapshotMapper,
+                       AnnotationMapper annotationMapper, TaskDocumentStorage taskDocumentStorage) {
         this.taskMapper = taskMapper;
         this.taskMemberMapper = taskMemberMapper;
         this.taskDocumentMapper = taskDocumentMapper;
@@ -54,6 +58,8 @@ public class TaskService {
         this.annotationPersistenceService = annotationPersistenceService;
         this.taskDocumentFactory = taskDocumentFactory;
         this.arbitrationSnapshotMapper = arbitrationSnapshotMapper;
+        this.annotationMapper = annotationMapper;
+        this.taskDocumentStorage = taskDocumentStorage;
     }
 
     public Map<String, Object> list(String status, String keyword) {
@@ -144,6 +150,34 @@ public class TaskService {
         }
         taskMapper.updateStatus((int) id, target);
         return detail(id);
+    }
+
+    @Transactional
+    public void delete(long id, HttpServletRequest request) {
+        User user = currentUserService.requireCurrent(request);
+        Task task = taskAggregateService.requireTaskPo((int) id);
+        if (!Objects.equals(task.getCreatorId(), user.id)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "仅任务创建者可删除任务");
+        }
+        int taskId = task.getId();
+        List<TaskDocument> docs = taskDocumentMapper.selectByTaskId(taskId);
+
+        annotationMapper.deleteByTaskId(taskId);
+        arbitrationSnapshotMapper.deleteByTaskId(taskId);
+
+        for (TaskDocument doc : docs) {
+            String sourceType = doc.getSourceType();
+            if (("UPLOAD".equals(sourceType) || "RECREATE".equals(sourceType))
+                    && doc.getFilePath() != null && !doc.getFilePath().isBlank()) {
+                taskDocumentStorage.deleteIfExists(doc.getFilePath());
+            }
+        }
+
+        taskDocumentMapper.deleteByTaskId(taskId);
+        taskMemberMapper.deleteByTaskId(taskId);
+        if (taskMapper.deleteById(taskId) == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "任务不存在");
+        }
     }
 
     @Transactional

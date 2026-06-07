@@ -2,6 +2,7 @@ package edu.nju.jap.service;
 
 import edu.nju.jap.common.MapBodyUtils;
 import edu.nju.jap.mapper.GlobalDocumentMapper;
+import edu.nju.jap.mapper.TaskDocumentMapper;
 import edu.nju.jap.model.entity.DocumentItem;
 import edu.nju.jap.model.po.GlobalDocument;
 import edu.nju.jap.service.support.CurrentUserService;
@@ -18,10 +19,13 @@ import java.util.*;
 @Service
 public class DocumentService {
     private final GlobalDocumentMapper globalDocumentMapper;
+    private final TaskDocumentMapper taskDocumentMapper;
     private final CurrentUserService currentUserService;
 
-    public DocumentService(GlobalDocumentMapper globalDocumentMapper, CurrentUserService currentUserService) {
+    public DocumentService(GlobalDocumentMapper globalDocumentMapper, TaskDocumentMapper taskDocumentMapper,
+                           CurrentUserService currentUserService) {
         this.globalDocumentMapper = globalDocumentMapper;
+        this.taskDocumentMapper = taskDocumentMapper;
         this.currentUserService = currentUserService;
     }
 
@@ -41,6 +45,11 @@ public class DocumentService {
     }
 
     public void delete(long id) {
+        int refCount = taskDocumentMapper.countByGlobalDocId(id);
+        if (refCount > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "该文书被 " + refCount + " 个任务引用，无法删除");
+        }
         if (globalDocumentMapper.deleteById(id) == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "文书不存在");
         }
@@ -63,14 +72,21 @@ public class DocumentService {
         List<Map<String, Object>> previews = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         for (MultipartFile file : files) {
-            if (file == null || file.isEmpty()) {
-                continue;
-            }
+            if (file == null || file.isEmpty()) continue;
             String filename = file.getOriginalFilename() == null ? "未命名文件" : file.getOriginalFilename();
             try {
-                DocumentTextExtractor.ParsedDocument parsed = DocumentTextExtractor.parse(file);
-                previews.add(Map.of("filename", filename, "title", parsed.title(), "type", parsed.type(),
-                        "content", parsed.content(), "contentLength", parsed.content().length()));
+                if (filename.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+                    List<DocumentTextExtractor.ParsedDocument> parsedList = DocumentTextExtractor.parseZip(file);
+                    for (DocumentTextExtractor.ParsedDocument parsed : parsedList) {
+                        previews.add(Map.of("filename", filename + " / " + parsed.title(), "title", parsed.title(),
+                                "type", parsed.type(), "content", parsed.content(),
+                                "contentLength", parsed.content().length()));
+                    }
+                } else {
+                    DocumentTextExtractor.ParsedDocument parsed = DocumentTextExtractor.parse(file);
+                    previews.add(Map.of("filename", filename, "title", parsed.title(), "type", parsed.type(),
+                            "content", parsed.content(), "contentLength", parsed.content().length()));
+                }
             } catch (Exception ex) {
                 errors.add(filename + ": " + ex.getMessage());
             }
@@ -82,9 +98,7 @@ public class DocumentService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("count", previews.size());
         payload.put("list", previews);
-        if (!errors.isEmpty()) {
-            payload.put("errors", errors);
-        }
+        if (!errors.isEmpty()) payload.put("errors", errors);
         return payload;
     }
 }
