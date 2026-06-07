@@ -1,10 +1,17 @@
-# 配置仅供参考！
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "parent_pipeline"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
 stages:
   - build
 
 backend-build:
   stage: build
   image: maven:3.9.9-eclipse-temurin-17
+  rules:
+    - when: on_success
   script:
     - cd backend
     - mvn clean package -DskipTests

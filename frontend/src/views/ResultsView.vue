@@ -24,7 +24,7 @@
     <el-alert
       v-if="!canExport"
       class="results-alert"
-      title="只有任务创建者和裁决者可以导出结果，标注者可查看所有版本。"
+      title="仅任务参与者可查看与导出结果。"
       type="info"
       show-icon
       :closable="false"
@@ -208,7 +208,14 @@ const relationRows = computed(() =>
   }))
 )
 
-const canExport = computed(() => auth.user?.canCreateTask || taskDetail.value?.reviewer?.id === auth.user?.id)
+const canExport = computed(() => {
+  const userId = auth.user?.id
+  return (
+    auth.user?.canCreateTask ||
+    taskDetail.value?.reviewer?.id === userId ||
+    taskDetail.value?.annotators?.some((u) => u.id === userId)
+  )
+})
 
 watch(sidebarItems, (items) => {
   if (!items.length) return
@@ -244,6 +251,25 @@ function toggleGraphPanel() {
 }
 
 watch([currentDocId, selectedKey, () => activeData.value.propositions.length, graphPanelVisible], refreshGraph, { flush: 'post' })
+
+watch(
+  () => route.query.dataId,
+  (dataId) => {
+    if (!dataId || !review.value?.documents?.length) return
+    const docId = Number(dataId)
+    const exists = review.value.documents.some((d) => d.document.id === docId)
+    if (exists) currentDocId.value = docId
+  }
+)
+
+function resolveInitialDocId(reviewData) {
+  const queryDocId = route.query.dataId ? Number(route.query.dataId) : null
+  if (queryDocId != null) {
+    const matched = reviewData.documents.find((d) => d.document.id === queryDocId)
+    if (matched) return matched.document.id
+  }
+  return reviewData.documents[0]?.document.id ?? null
+}
 
 watch(
   () => route.query.dataId,
