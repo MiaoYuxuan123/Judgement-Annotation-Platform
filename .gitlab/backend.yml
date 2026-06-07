@@ -14,4 +14,4 @@ backend-build:
     - when: on_success
   script:
     - cd backend
-    - mvn clean package -DskipTests
+    - mvn clean verify
