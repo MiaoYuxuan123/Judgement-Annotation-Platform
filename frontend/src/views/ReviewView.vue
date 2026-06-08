@@ -75,6 +75,7 @@
             :key="`${currentDocId}-${selectedKey}`"
             :propositions="activeData.propositions"
             :relations="activeData.relations"
+            :layout-override="activeData.graphLayout"
           />
         </div>
       </main>
@@ -217,6 +218,7 @@ const activeData = computed(() => {
     return {
       propositions: f.propositions || [],
       relations: f.relations || [],
+      graphLayout: f.graphLayout || null,
       userId: null,
       type: 'final',
       draft: false
@@ -227,6 +229,7 @@ const activeData = computed(() => {
   return {
     propositions: result?.propositions || [],
     relations: result?.relations || [],
+    graphLayout: result?.graphLayout || null,
     userId: result?.userId,
     type: 'annotator',
     draft: Boolean(result?.draft)

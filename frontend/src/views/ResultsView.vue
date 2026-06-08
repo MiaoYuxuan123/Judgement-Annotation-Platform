@@ -94,6 +94,7 @@
             :key="`${currentDocId}-${selectedKey}`"
             :propositions="activeData.propositions"
             :relations="activeData.relations"
+            :layout-override="activeData.graphLayout"
           />
         </div>
       </main>
@@ -190,19 +191,21 @@ const sidebarItems = computed(() => {
 })
 
 const activeData = computed(() => {
-  if (!currentDoc.value) return { propositions: [], relations: [] }
+  if (!currentDoc.value) return { propositions: [], relations: [], graphLayout: null }
   if (selectedKey.value === 'final') {
     const f = currentDoc.value.finalResult
     return {
       propositions: f.propositions || [],
-      relations: f.relations || []
+      relations: f.relations || [],
+      graphLayout: f.graphLayout || null
     }
   }
   const userId = Number(selectedKey.value.replace('annotator-', ''))
   const result = visibleAnnotatorResults.value.find((r) => r.userId === userId)
   return {
     propositions: result?.propositions || [],
-    relations: result?.relations || []
+    relations: result?.relations || [],
+    graphLayout: result?.graphLayout || null
   }
 })
 

@@ -33,25 +33,49 @@ public class AnnotationPersistenceService {
     private final PropositionMapper propositionMapper;
     private final RelationMapper relationMapper;
     private final RelationMemberMapper relationMemberMapper;
+    private final GraphLayoutJsonCodec graphLayoutJsonCodec;
 
     public AnnotationPersistenceService(AnnotationMapper annotationMapper, PropositionMapper propositionMapper,
-                                        RelationMapper relationMapper, RelationMemberMapper relationMemberMapper) {
+                                        RelationMapper relationMapper, RelationMemberMapper relationMemberMapper,
+                                        GraphLayoutJsonCodec graphLayoutJsonCodec) {
         this.annotationMapper = annotationMapper;
         this.propositionMapper = propositionMapper;
         this.relationMapper = relationMapper;
         this.relationMemberMapper = relationMemberMapper;
+        this.graphLayoutJsonCodec = graphLayoutJsonCodec;
     }
 
     @Transactional
     public void saveAnnotation(int taskId, int taskDocumentId, long userId, List<Proposition> propositions,
                                List<Relation> relations, boolean draft) {
-        saveRecord(taskId, taskDocumentId, userId, propositions, relations, draft, RECORD_ANNOTATION);
+        saveAnnotation(taskId, taskDocumentId, userId, propositions, relations, draft, null);
+    }
+
+    @Transactional
+    public void saveAnnotation(int taskId, int taskDocumentId, long userId, List<Proposition> propositions,
+                               List<Relation> relations, boolean draft, Object graphLayout) {
+        saveRecord(taskId, taskDocumentId, userId, propositions, relations, draft, RECORD_ANNOTATION, graphLayout);
     }
 
     @Transactional
     public void saveArbitration(int taskId, int taskDocumentId, long arbitratorId, List<Proposition> propositions,
                                 List<Relation> relations, boolean draft) {
-        saveRecord(taskId, taskDocumentId, arbitratorId, propositions, relations, draft, RECORD_ARBITRATION);
+        saveArbitration(taskId, taskDocumentId, arbitratorId, propositions, relations, draft, null);
+    }
+
+    @Transactional
+    public void saveArbitration(int taskId, int taskDocumentId, long arbitratorId, List<Proposition> propositions,
+                                List<Relation> relations, boolean draft, Object graphLayout) {
+        saveRecord(taskId, taskDocumentId, arbitratorId, propositions, relations, draft, RECORD_ARBITRATION, graphLayout);
+    }
+
+    @Transactional
+    public void saveGraphLayout(int taskId, int taskDocumentId, long userId, Object graphLayout, String recordType) {
+        AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, userId, recordType);
+        if (annotation == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "标注结果不存在，请先保存标注内容");
+        }
+        annotationMapper.updateLayout(annotation.getId(), graphLayoutJsonCodec.toJson(graphLayout));
     }
 
     @Transactional
@@ -90,8 +114,22 @@ public class AnnotationPersistenceService {
     @Transactional
     public void saveRecord(int taskId, int taskDocumentId, long userId, List<Proposition> propositions,
                            List<Relation> relations, boolean draft, String recordType) {
+        saveRecord(taskId, taskDocumentId, userId, propositions, relations, draft, recordType, null);
+    }
+
+    @Transactional
+    public void saveRecord(int taskId, int taskDocumentId, long userId, List<Proposition> propositions,
+                           List<Relation> relations, boolean draft, String recordType, Object graphLayout) {
         AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, userId, recordType);
         LocalDateTime now = LocalDateTime.now();
+        String layoutJson = graphLayoutJsonCodec.toJson(graphLayout);
+        if (annotation != null && layoutJson != null) {
+            Object incoming = graphLayoutJsonCodec.fromJson(layoutJson);
+            Object existing = graphLayoutJsonCodec.fromJson(annotation.getLayoutJson());
+            if (!isRichLayout(incoming) && isRichLayout(existing)) {
+                layoutJson = null;
+            }
+        }
         if (annotation == null) {
             annotation = new AnnotationPo();
             annotation.setTaskId((long) taskId);
@@ -102,14 +140,24 @@ public class AnnotationPersistenceService {
             annotation.setStatus(draft ? "DRAFT" : "SUBMITTED");
             annotation.setSubmittedAt(draft ? null : now);
             annotation.setRejectReason(null);
+            annotation.setLayoutJson(layoutJson);
             annotationMapper.insert(annotation);
+            if (layoutJson != null) {
+                annotationMapper.updateLayout(annotation.getId(), layoutJson);
+            }
         } else {
             clearAnnotationContent(annotation.getId());
             annotation.setIsFinal(0);
             annotation.setStatus(draft ? "DRAFT" : "SUBMITTED");
             annotation.setSubmittedAt(draft ? null : now);
             annotation.setRejectReason(draft ? annotation.getRejectReason() : null);
+            if (layoutJson != null) {
+                annotation.setLayoutJson(layoutJson);
+            }
             annotationMapper.updateStatus(annotation);
+            if (layoutJson != null) {
+                annotationMapper.updateLayout(annotation.getId(), layoutJson);
+            }
         }
 
         persistContent(annotation, propositions, relations);
@@ -180,6 +228,7 @@ public class AnnotationPersistenceService {
         AnnotationResult base = loadRecord(taskId, taskDocumentId, arbitratorId, apiDataId, RECORD_ARBITRATION);
         ArbitrationResult result = new ArbitrationResult(taskId, apiDataId, arbitratorId, base.propositions,
                 base.relations, snapshot.getAdoptedFrom(), snapshot.getArbitratedAt());
+        result.graphLayout = base.graphLayout;
         result.finalResult = snapshot.getFinalResult() != null && snapshot.getFinalResult() == 1;
         return result;
     }
@@ -188,7 +237,7 @@ public class AnnotationPersistenceService {
                                         String recordType) {
         AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, userId, recordType);
         if (annotation == null) {
-            return new AnnotationResult(taskId, apiDataId, userId, List.of(), List.of(), true, null, null);
+            return new AnnotationResult(taskId, apiDataId, userId, List.of(), List.of(), true, null, null, null);
         }
 
         List<PropositionPo> props = propositionMapper.selectByAnnotationId(annotation.getId());
@@ -226,7 +275,7 @@ public class AnnotationPersistenceService {
                         .max(Comparator.naturalOrder())
                         .orElse(null);
         return new AnnotationResult(taskId, apiDataId, userId, propositions, relations, draft, submitted,
-                annotation.getRejectReason());
+                annotation.getRejectReason(), graphLayoutJsonCodec.fromJson(annotation.getLayoutJson()));
     }
 
     private static List<String> relationMembers(Relation relation) {
@@ -279,5 +328,22 @@ public class AnnotationPersistenceService {
             return relationDisplayIds.get(member.getChildRelationId());
         }
         return propDisplayIds.get(member.getPropositionId());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean isRichLayout(Object layout) {
+        if (!(layout instanceof Map<?, ?> map)) {
+            return false;
+        }
+        Object version = map.get("version");
+        if (version instanceof Number number && number.intValue() == 2) {
+            Object nodes = map.get("nodes");
+            return nodes instanceof List<?> list && !list.isEmpty();
+        }
+        Object nodePositions = map.get("nodePositions");
+        Object edgeStyles = map.get("edgeStyles");
+        boolean hasNodes = nodePositions instanceof Map<?, ?> positions && !positions.isEmpty();
+        boolean hasEdges = edgeStyles instanceof Map<?, ?> styles && !styles.isEmpty();
+        return hasNodes || hasEdges;
     }
 }

@@ -1,10 +1,19 @@
 <template>
-  <div class="ag-hub-node" :class="hubClass">
+  <div class="ag-hub-node" :class="[hubClass, { 'ag-hub-node--editable': data.editable, 'ag-hub--highlighted': selected }]">
     <span v-if="showPlus" class="ag-hub-plus">+</span>
-    <Handle id="top" type="target" :position="Position.Top" />
-    <Handle id="bottom" type="source" :position="Position.Bottom" />
-    <Handle id="left" type="target" :position="Position.Left" />
-    <Handle id="right" type="source" :position="Position.Right" />
+    <Handle
+      v-for="handle in handles"
+      :key="handle.id"
+      :id="handle.id"
+      :type="handle.type"
+      :position="handle.position"
+      :style="handle.style"
+      :class="{
+        'ag-handle--visible': data.showHandles,
+        'ag-handle--snap': data.snapHandleId === handle.id
+      }"
+      @click.stop="onHandleClick(handle.id)"
+    />
   </div>
 </template>
 
@@ -13,18 +22,31 @@ import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 
 const props = defineProps({
-  data: { type: Object, default: () => ({}) }
+  data: { type: Object, default: () => ({}) },
+  selected: { type: Boolean, default: false }
 })
 
 const hubClass = computed(() => {
   const k = props.data.hubKind || 'hub-m'
-  return [`ag-hub--${k.replace('hub-', '')}`, props.data.highlighted ? 'ag-hub--highlighted' : '']
+  return `ag-hub--${k.replace('hub-', '')}`
 })
 
 const showPlus = computed(() => {
   const k = props.data.hubKind || ''
   return ['hub-j', 'hub-m'].includes(k)
 })
+
+const handles = [
+  { id: 'top', type: 'target', position: Position.Top, style: { left: '50%' } },
+  { id: 'right', type: 'source', position: Position.Right, style: { top: '50%' } },
+  { id: 'bottom', type: 'source', position: Position.Bottom, style: { left: '50%' } },
+  { id: 'left', type: 'target', position: Position.Left, style: { top: '50%' } }
+]
+
+function onHandleClick(handleId) {
+  if (!props.data.showHandles || !props.data.onHandlePick) return
+  props.data.onHandlePick(handleId)
+}
 </script>
 
 <style scoped>
@@ -36,6 +58,15 @@ const showPlus = computed(() => {
   display: grid;
   place-items: center;
   pointer-events: none;
+}
+
+.ag-hub-node--editable {
+  pointer-events: all;
+  cursor: grab;
+}
+
+.ag-hub-node--editable:active {
+  cursor: grabbing;
 }
 
 .ag-hub--s {
@@ -56,6 +87,7 @@ const showPlus = computed(() => {
   line-height: 1;
   color: #111;
   user-select: none;
+  pointer-events: none;
 }
 
 .ag-hub--highlighted {

@@ -79,16 +79,17 @@ function resolveTaskMeta(review, taskDetail) {
   }
 }
 
-async function addVersionFolder(folder, label, propositions, relations, onProgress) {
+async function addVersionFolder(folder, label, propositions, relations, graphLayout, onProgress) {
   const props = propositions || []
   const rels = relations || []
+  const hasV2Graph = graphLayout?.version === 2 && graphLayout.nodes?.length
 
   folder.file('命题列表.csv', buildPropositionsCsv(props))
   folder.file('关系列表.csv', buildRelationsCsv(props, rels))
 
-  if (props.length) {
+  if (props.length || hasV2Graph) {
     onProgress?.(`正在生成图示：${label}`)
-    const png = await renderGraphPngBlob(props, rels)
+    const png = await renderGraphPngBlob(props, rels, graphLayout)
     if (png) folder.file('论证图示.png', png)
     else folder.file('论证图示.txt', '图示数据为空或渲染失败')
   } else {
@@ -144,6 +145,7 @@ async function addDocumentToZip(root, docEntry, { taskName, nameMap, onProgress,
       `${rootLabel}/${label}`,
       result.propositions,
       result.relations,
+      result.graphLayout,
       onProgress
     )
   }
@@ -156,6 +158,7 @@ async function addDocumentToZip(root, docEntry, { taskName, nameMap, onProgress,
       `${rootLabel}/最终裁定结果`,
       final.propositions,
       final.relations,
+      final.graphLayout,
       onProgress
     )
   }

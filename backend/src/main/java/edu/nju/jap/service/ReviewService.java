@@ -109,7 +109,7 @@ public class ReviewService {
         }
         long arbitratorId = currentUserService.requireCurrent(request).id;
         annotationPersistenceService.saveArbitration(taskId, td.getId(), arbitratorId, source.propositions,
-                source.relations, false);
+                source.relations, false, source.graphLayout);
         upsertSnapshot(taskId, td.getId(), arbitratorId, String.valueOf(annotatorId), true);
         taskStageSyncService.afterArbitrationConfirmed(taskId, td.getId());
     }
@@ -120,7 +120,7 @@ public class ReviewService {
         TaskDocument td = taskDocumentResolver.requireTaskDocument((int) body.taskId(), body.dataId());
         annotationPersistenceService.saveArbitration((int) body.taskId(), td.getId(), arbitratorId,
                 body.propositions() == null ? List.of() : body.propositions(),
-                body.relations() == null ? List.of() : body.relations(), true);
+                body.relations() == null ? List.of() : body.relations(), true, body.graphLayout());
         upsertSnapshot((int) body.taskId(), td.getId(), arbitratorId, "MANUAL", false);
     }
 

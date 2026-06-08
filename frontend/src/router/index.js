@@ -26,6 +26,7 @@ const routes = [
   { path: '/tasks/:id', redirect: (to) => ({ path: '/tasks', query: { taskId: to.params.id } }) },
   { path: '/tasks/:id/data', component: () => import('../views/DataSelectView.vue') },
   { path: '/annotate/:taskId/:dataId', component: () => import('../views/AnnotateView.vue') },
+  { path: '/annotate/:taskId/:dataId/graph', component: () => import('../views/GraphEditorView.vue'), meta: { fullscreen: true } },
   { path: '/review/:taskId', component: () => import('../views/ReviewView.vue') },
   { path: '/results/:taskId', component: () => import('../views/ResultsView.vue') }
 ]

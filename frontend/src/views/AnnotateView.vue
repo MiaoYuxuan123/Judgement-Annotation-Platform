@@ -150,18 +150,29 @@
       <section class="annotate-card graph-card work-panel">
         <div class="toolbar">
           <h3>逻辑图示</h3>
-          <el-tag v-if="!graphGenerated" type="info">尚未生成</el-tag>
+          <div class="graph-toolbar-actions">
+            <el-tag v-if="!graphGenerated" type="info">尚未生成</el-tag>
+            <el-button
+              size="small"
+              type="primary"
+              plain
+              @click="openGraphEditor"
+            >
+              {{ graphGenerated ? '编辑图示' : '绘制图示' }}
+            </el-button>
+          </div>
         </div>
         <div v-if="!graphGenerated" class="graph-placeholder">
           <strong>完成命题与关系标注后生成图示</strong>
           <span>右下角“生成图示”按钮会刷新这里的节点和关系。</span>
         </div>
         <GraphCanvas
-            v-else
-            :propositions="graphPropositions"
-            :relations="graphRelations"
-            :active-relation-id="activeRelationId"
-            :active-relation-key="activeRelationKey"
+          v-else
+          :propositions="graphPropositions"
+          :relations="graphRelations"
+          :active-relation-id="activeRelationId"
+          :active-relation-key="activeRelationKey"
+          :layout-override="graphLayout"
         />
         <div class="graph-footer">
           <el-button class="fullscreen-btn" :disabled="!graphGenerated" @click="fullscreen = true">↗ 全屏预览</el-button>
@@ -237,11 +248,12 @@
 
     <el-dialog v-model="fullscreen" title="论证图示全屏预览" fullscreen>
       <GraphCanvas
-          v-if="graphGenerated"
-          :propositions="graphPropositions"
-          :relations="graphRelations"
-          :active-relation-id="activeRelationId"
-          :active-relation-key="activeRelationKey"
+        v-if="graphGenerated"
+        :propositions="graphPropositions"
+        :relations="graphRelations"
+        :active-relation-id="activeRelationId"
+        :active-relation-key="activeRelationKey"
+        :layout-override="graphLayout"
       />
       <el-empty v-else description="请先在关系生成区点击“生成图示”" />
     </el-dialog>
@@ -269,10 +281,12 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
 import GraphCanvas from '../components/GraphCanvas.vue'
 import { selectionSpanFromSourceElement } from '../utils/reviewHelpers'
+import { cloneLayout, EMPTY_LAYOUT, graphLayoutForSave } from '../utils/graphLayoutOverride'
+import { fetchAnnotationItem, graphEditorRoute, isArbitrationMode } from '../utils/annotationRoute'
 
 const route = useRoute()
 const router = useRouter()
-const isArbitration = computed(() => route.query.mode === 'arbitration')
+const isArbitration = computed(() => isArbitrationMode(route.query))
 const rejectReason = computed(() => data.value?.annotation?.rejectReason || '')
 const rejectAlertVisible = ref(true)
 
@@ -283,6 +297,7 @@ const graphPropositions = ref([])
 const graphRelations = ref([])
 const graphGenerated = ref(false)
 const graphDirty = ref(false)
+const graphLayout = ref(EMPTY_LAYOUT())
 const history = ref([])
 const redoStack = ref([])
 const labelDialog = ref(false)
@@ -725,6 +740,21 @@ function generateGraph() {
   ElMessage.success('图示已生成/刷新')
 }
 
+function openGraphEditor() {
+  router.push(graphEditorRoute(route.params.taskId, route.params.dataId, route.query))
+}
+
+function hydrateGraphPreview() {
+  const hasV2 = graphLayout.value?.version === 2 && graphLayout.value.nodes?.length
+  if (!propositions.value.length) return
+  if (isArbitration.value || hasV2) {
+    graphPropositions.value = propositions.value.map((item) => ({ ...item }))
+    graphRelations.value = relations.value.map((item) => ({ ...item }))
+    graphGenerated.value = true
+    graphDirty.value = false
+  }
+}
+
 async function submit(isDraft) {
   const taskId = Number(route.params.taskId)
   const dataId = Number(route.params.dataId)
@@ -734,7 +764,8 @@ async function submit(isDraft) {
       taskId,
       dataId,
       propositions: propositions.value,
-      relations: relations.value
+      relations: relations.value,
+      graphLayout: graphLayoutForSave(graphLayout.value)
     })
     markSaved()
     ElMessage.success('已保存裁定草稿，请在裁定界面确认')
@@ -748,6 +779,7 @@ async function submit(isDraft) {
     dataId,
     propositions: propositions.value,
     relations: relations.value,
+    graphLayout: graphLayoutForSave(graphLayout.value),
     isDraft
   })
   markSaved()
@@ -758,18 +790,13 @@ async function submit(isDraft) {
 async function load() {
   const taskId = route.params.taskId
   const dataId = route.params.dataId
-  let url = `/tasks/${taskId}/items/${dataId}`
-  const params = new URLSearchParams()
-  if (isArbitration.value && route.query.fromUserId) {
-    params.set('sourceUserId', route.query.fromUserId)
-  } else if (isArbitration.value && route.query.fromFinal === '1') {
-    params.set('sourceArbitration', '1')
-  }
-  if (params.toString()) url += `?${params.toString()}`
-  data.value = await client.get(url)
+  data.value = await fetchAnnotationItem(client, taskId, dataId, route.query)
   rejectAlertVisible.value = true
   propositions.value = [...(data.value.annotation.propositions || [])]
   relations.value = [...(data.value.annotation.relations || [])]
+  graphLayout.value = data.value.annotation.graphLayout
+    ? cloneLayout(data.value.annotation.graphLayout)
+    : EMPTY_LAYOUT()
   manualRelationOrder.value = false
   sortRelationsByMaxProp()
   renumberRelations()
@@ -777,6 +804,7 @@ async function load() {
   graphRelations.value = []
   graphGenerated.value = false
   graphDirty.value = propositions.value.length > 0 || relations.value.length > 0
+  hydrateGraphPreview()
   markSaved()
 }
 

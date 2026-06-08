@@ -12,8 +12,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO annotation(task_id, document_id, user_id, record_type, status, is_final, guide_version_id, guide_snapshot, submitted_at, reject_reason)
-        VALUES (#{taskId}, #{documentId}, #{userId}, #{recordType}, #{status}, #{isFinal}, #{guideVersionId}, #{guideSnapshot}, #{submittedAt}, #{rejectReason})
+        INSERT INTO annotation(task_id, document_id, user_id, record_type, status, is_final, guide_version_id, guide_snapshot, submitted_at, reject_reason, layout_json)
+        VALUES (#{taskId}, #{documentId}, #{userId}, #{recordType}, #{status}, #{isFinal}, #{guideVersionId}, #{guideSnapshot}, #{submittedAt}, #{rejectReason}, #{layoutJson})
     </insert>
 
     <update id="updateStatus">
@@ -22,6 +22,12 @@
             is_final = #{isFinal},
             submitted_at = #{submittedAt},
             reject_reason = #{rejectReason}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateLayout">
+        UPDATE annotation
+        SET layout_json = #{layoutJson}
         WHERE id = #{id}
     </update>
 

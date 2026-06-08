@@ -284,8 +284,9 @@ public class TaskService {
             } else {
                 ArbitrationResult arb = annotationPersistenceService.loadArbitration(tid, taskDocId, apiDataId,
                         snapshot.getArbitratorId(), snapshot);
+                boolean draft = snapshot.getFinalResult() == null || snapshot.getFinalResult() != 1;
                 annotation = new AnnotationResult(taskId, apiDataId, user.id, arb.propositions, arb.relations,
-                        false, arb.arbitratedAt);
+                        draft, arb.arbitratedAt, null, arb.graphLayout);
             }
         } else {
             annotation = annotationPersistenceService.loadAnnotation(tid, taskDocId, user.id, apiDataId);

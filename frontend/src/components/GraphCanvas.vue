@@ -13,7 +13,7 @@
     </div>
     <div class="graph-canvas-viewport-wrap" ref="viewportRef">
       <VueFlow
-        v-if="propositions.length && !layouting"
+        v-if="hasGraphInput && !layouting"
         :id="flowId"
         v-model:nodes="nodes"
         v-model:edges="edges"
@@ -40,11 +40,8 @@
 </template>
 
 <script setup>
-import { markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import {
-  VueFlow,
-  useVueFlow
-} from '@vue-flow/core'
+import { computed, markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import '@vue-flow/core/dist/style.css'
@@ -55,12 +52,15 @@ import PropNode from './graph/PropNode.vue'
 import HubNode from './graph/HubNode.vue'
 import ElkOrthogonalEdge from './graph/ElkOrthogonalEdge.vue'
 import { layoutArgumentGraphWithElk } from '../utils/argumentGraphElkLayout'
+import { applyLayoutOverride, EMPTY_LAYOUT } from '../utils/graphLayoutOverride'
+import { rebuildEdgePaths } from '../utils/graphDocument'
 
 const props = defineProps({
   propositions: { type: Array, default: () => [] },
   relations: { type: Array, default: () => [] },
   activeRelationId: { type: String, default: '' },
-  activeRelationKey: { type: String, default: '' }
+  activeRelationKey: { type: String, default: '' },
+  layoutOverride: { type: Object, default: null }
 })
 
 const rootRef = ref(null)
@@ -80,7 +80,8 @@ const nodeTypes = {
 }
 
 const edgeTypes = {
-  'elk-orthogonal': markRaw(ElkOrthogonalEdge)
+  'elk-orthogonal': markRaw(ElkOrthogonalEdge),
+  polyline: markRaw(ElkOrthogonalEdge)
 }
 
 const { fitView, zoomIn, zoomOut } = useVueFlow({ id: flowId })
@@ -88,9 +89,35 @@ const { fitView, zoomIn, zoomOut } = useVueFlow({ id: flowId })
 let layoutToken = 0
 let resizeObserver = null
 
+const hasGraphInput = computed(
+  () =>
+    props.propositions?.length > 0 ||
+    (props.layoutOverride?.version === 2 && props.layoutOverride?.nodes?.length > 0)
+)
+
+function applyHighlight(nextNodes, nextEdges) {
+  const { relIds, propIds } = relationHighlightInfo(props.activeRelationId, props.activeRelationKey)
+  nodes.value = nextNodes.map((node) => {
+    const highlighted = relIds.has(node.data?.relKey) || propNodeMatches(node, propIds)
+    return {
+      ...node,
+      class: highlighted ? 'is-relation-highlighted' : undefined,
+      data: { ...node.data, highlighted }
+    }
+  })
+  edges.value = nextEdges.map((edge) => {
+    const highlighted = relIds.has(edge.data?.relKey)
+    return {
+      ...edge,
+      class: highlighted ? 'is-relation-highlighted' : undefined,
+      data: { ...edge.data, highlighted }
+    }
+  })
+}
+
 async function runLayout() {
   const token = ++layoutToken
-  if (!props.propositions?.length) {
+  if (!props.propositions?.length && !(props.layoutOverride?.version === 2 && props.layoutOverride?.nodes?.length)) {
     nodes.value = []
     edges.value = []
     layouting.value = false
@@ -99,13 +126,18 @@ async function runLayout() {
 
   layouting.value = true
   try {
-    const result = await layoutArgumentGraphWithElk(props.propositions, props.relations)
+    if (props.layoutOverride?.version === 2 && props.layoutOverride.nodes?.length) {
+      if (token !== layoutToken) return
+      const docEdges = rebuildEdgePaths(props.layoutOverride.nodes, props.layoutOverride.edges || [])
+      applyHighlight(props.layoutOverride.nodes, docEdges)
+      return
+    }
+    const auto = await layoutArgumentGraphWithElk(props.propositions, props.relations)
     if (token !== layoutToken) return
-    nodes.value = result.nodes
-    edges.value = result.edges
-    applyActiveRelationHighlight()
+    const merged = applyLayoutOverride(auto, props.layoutOverride || EMPTY_LAYOUT())
+    applyHighlight(merged.nodes, merged.edges)
   } catch (err) {
-    console.error('[GraphCanvas] ELK layout failed', err)
+    console.error('[GraphCanvas] layout failed', err)
     nodes.value = []
     edges.value = []
   } finally {
@@ -166,26 +198,6 @@ function propNodeMatches(node, propIds) {
     .some((id) => propIds.has(id))
 }
 
-function applyActiveRelationHighlight() {
-  const { relIds, propIds } = relationHighlightInfo(props.activeRelationId, props.activeRelationKey)
-  nodes.value = nodes.value.map((node) => {
-    const highlighted = relIds.has(node.data?.relKey) || propNodeMatches(node, propIds)
-    return {
-      ...node,
-      class: highlighted ? 'is-relation-highlighted' : undefined,
-      data: { ...node.data, highlighted }
-    }
-  })
-  edges.value = edges.value.map((edge) => {
-    const highlighted = relIds.has(edge.data?.relKey)
-    return {
-      ...edge,
-      class: highlighted ? 'is-relation-highlighted' : undefined,
-      data: { ...edge.data, highlighted }
-    }
-  })
-}
-
 function fitViewNow() {
   requestAnimationFrame(() => {
     fitView({ padding: 0.18, duration: 280 })
@@ -214,16 +226,17 @@ function onFullscreenChange() {
 }
 
 watch(
-  () => [props.propositions, props.relations],
-  () => {
-    runLayout()
-  },
+  () => [props.propositions, props.relations, props.layoutOverride],
+  () => runLayout(),
   { deep: true, immediate: true }
 )
 
 watch(
   () => [props.activeRelationId, props.activeRelationKey],
-  () => applyActiveRelationHighlight()
+  () => {
+    if (!nodes.value.length) return
+    applyHighlight(nodes.value, edges.value)
+  }
 )
 
 onMounted(() => {

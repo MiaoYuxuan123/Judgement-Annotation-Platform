@@ -1,4 +1,6 @@
 import { layoutArgumentGraphWithElk, pointsToSvgPath } from './argumentGraphElkLayout'
+import { applyLayoutOverride, EMPTY_LAYOUT } from './graphLayoutOverride'
+import { rebuildEdgePaths } from './graphDocument'
 
 const PAD = 40
 
@@ -117,14 +119,51 @@ async function svgStringToPngBlob(svgString) {
 }
 
 /**
- * 离屏渲染论证图示并导出 PNG（与页面 ELK 布局一致）
+ * 离屏渲染论证图示并导出 PNG（支持 v1 覆盖层或 v2 完整文档）
  */
-export async function renderGraphPngBlob(propositions, relations) {
+export async function renderGraphPngBlob(propositions, relations, graphLayout = null) {
+  if (graphLayout?.version === 2 && graphLayout.nodes?.length) {
+    return renderGraphDocumentPngBlob(graphLayout)
+  }
   if (!propositions?.length) return null
-  const layout = await layoutArgumentGraphWithElk(propositions, relations || [])
+  const auto = await layoutArgumentGraphWithElk(propositions, relations || [])
+  const layout = applyLayoutOverride(auto, graphLayout || EMPTY_LAYOUT())
   const svg = renderToSvgString(layout)
   if (!svg) return null
   return svgStringToPngBlob(svg)
+}
+
+export async function exportGraphPng(propositions, relations, filename, layoutOverride = null) {
+  const blob = await renderGraphPngBlob(propositions, relations, layoutOverride)
+  if (!blob) return null
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename || 'argument-graph.png'
+  link.click()
+  URL.revokeObjectURL(url)
+  return blob
+}
+
+/** 从 v2 文档直接导出 PNG */
+export async function renderGraphDocumentPngBlob(document) {
+  if (!document?.nodes?.length) return null
+  const edges = rebuildEdgePaths(document.nodes, document.edges || [])
+  const svg = renderToSvgString({ nodes: document.nodes, edges })
+  if (!svg) return null
+  return svgStringToPngBlob(svg)
+}
+
+export async function exportGraphDocumentPng(document, filename) {
+  const blob = await renderGraphDocumentPngBlob(document)
+  if (!blob) return null
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename || 'argument-graph.png'
+  link.click()
+  URL.revokeObjectURL(url)
+  return blob
 }
 
 export { pointsToSvgPath }

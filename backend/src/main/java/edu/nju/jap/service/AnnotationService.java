@@ -1,6 +1,7 @@
 package edu.nju.jap.service;
 
 import edu.nju.jap.model.dto.request.AnnotationSubmit;
+import edu.nju.jap.model.dto.request.GraphLayoutSave;
 import edu.nju.jap.model.entity.Proposition;
 import edu.nju.jap.service.support.AnnotationPersistenceService;
 import edu.nju.jap.service.support.CurrentUserService;
@@ -42,9 +43,17 @@ public class AnnotationService {
             propositions.set(i, new Proposition(p.propId(), i + 1, p.startPos(), p.endPos(), p.text(), p.tag()));
         }
         annotationPersistenceService.saveAnnotation((int) body.taskId(), td.getId(), userId, propositions,
-                body.relations() == null ? List.of() : body.relations(), body.isDraft());
+                body.relations() == null ? List.of() : body.relations(), body.isDraft(), body.graphLayout());
         if (!body.isDraft()) {
             taskStageSyncService.afterAnnotationSubmitted((int) body.taskId());
         }
+    }
+
+    @Transactional
+    public void saveLayout(GraphLayoutSave body, HttpServletRequest request) {
+        long userId = currentUserService.requireCurrent(request).id;
+        var td = taskDocumentResolver.requireTaskDocument((int) body.taskId(), body.dataId());
+        annotationPersistenceService.saveGraphLayout((int) body.taskId(), td.getId(), userId, body.graphLayout(),
+                AnnotationPersistenceService.RECORD_ANNOTATION);
     }
 }

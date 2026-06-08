@@ -12,6 +12,7 @@ public class ArbitrationResult {
     public String adoptedFrom;
     public LocalDateTime arbitratedAt;
     public boolean finalResult = true;
+    public Object graphLayout;
 
     public ArbitrationResult(long taskId, long dataId, long arbitratorId, List<Proposition> propositions,
                              List<Relation> relations, String adoptedFrom, LocalDateTime arbitratedAt) {

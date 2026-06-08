@@ -14,6 +14,7 @@ public class AnnotationPo {
     private String guideSnapshot;
     private LocalDateTime submittedAt;
     private String rejectReason;
+    private String layoutJson;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -39,6 +40,8 @@ public class AnnotationPo {
     public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
     public String getRejectReason() { return rejectReason; }
     public void setRejectReason(String rejectReason) { this.rejectReason = rejectReason; }
+    public String getLayoutJson() { return layoutJson; }
+    public void setLayoutJson(String layoutJson) { this.layoutJson = layoutJson; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

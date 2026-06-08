@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS `annotation` (
     `guide_snapshot` JSON DEFAULT NULL,
     `submitted_at` DATETIME DEFAULT NULL,
     `reject_reason` VARCHAR(500) DEFAULT NULL COMMENT '裁定不予采纳理由',
+    `layout_json` JSON DEFAULT NULL COMMENT '论证图布局覆盖',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),

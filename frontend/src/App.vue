@@ -60,6 +60,7 @@ const adminPaths = ['/users', '/documents', '/configs']
 
 const shell = computed(() => {
   if (route.meta.public || !auth.user) return 'public'
+  if (route.meta.fullscreen) return 'public'
   if (auth.user?.role === 'admin' && adminPaths.includes(route.path)) return 'admin'
   if (auth.user?.canCreateTask) return 'creator'
   if (auth.user?.role !== 'admin') return 'participant'

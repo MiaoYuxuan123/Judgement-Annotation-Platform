@@ -16,6 +16,8 @@ public interface AnnotationMapper {
 
     int updateStatus(AnnotationPo annotation);
 
+    int updateLayout(@Param("id") long id, @Param("layoutJson") String layoutJson);
+
     int deleteById(@Param("id") long id);
 
     int deleteByTaskId(@Param("taskId") int taskId);
