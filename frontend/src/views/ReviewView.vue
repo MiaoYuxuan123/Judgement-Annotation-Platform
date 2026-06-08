@@ -5,6 +5,7 @@
         <el-button class="review-back-btn" @click="$router.push(`/tasks/${taskId}/data`)">← 返回数据列表</el-button>
         <span class="review-logo">⚖</span>
         <h1>裁定界面</h1>
+        <el-button v-if="guideAttachmentName" size="small" type="warning" style="margin-left:12px" @click="openAttachment">查看当前指南</el-button>
       </div>
       <div class="review-header-right">
         <el-select v-model="currentDocId" class="review-doc-select" placeholder="选择文书">
@@ -135,6 +136,20 @@
       </template>
     </el-dialog>
   </div>
+  <el-dialog v-model="previewVisible" title="指南附件预览" width="80%" :close-on-click-modal="false">
+    <div style="height:70vh">
+      <template v-if="isPreviewable">
+        <iframe v-if="previewUrl" :key="previewUrl" :src="previewUrl" style="width:100%;height:100%;border:none" />
+      </template>
+      <div v-else style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:16px">
+        该文件类型不支持在线预览，请下载后查看
+      </div>
+    </div>
+    <template #footer>
+      <el-button @click="previewVisible=false">关闭</el-button>
+      <el-button type="primary" @click="downloadAttachment">下载</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -152,6 +167,9 @@ const taskId = computed(() => Number(route.params.taskId))
 const review = ref(null)
 const taskDetail = ref(null)
 const currentDocId = ref(null)
+const guideAttachmentName = ref(''), guideVersionId = ref(null)
+const previewVisible = ref(false), previewUrl = ref('')
+const isPreviewable = computed(() => guideAttachmentName.value.toLowerCase().endsWith('.pdf') || guideAttachmentName.value.toLowerCase().endsWith('.txt'))
 const selectedKey = ref('')
 const graphPanelVisible = ref(true)
 const showGraph = ref(false)
@@ -327,6 +345,9 @@ async function load() {
   ])
   review.value = reviewData
   taskDetail.value = detail
+  const snap = detail.configSnapshot
+  guideVersionId.value = snap?.id || null
+  guideAttachmentName.value = snap?.attachmentName || ''
   const queryDoc = route.query.docId ? Number(route.query.docId) : null
   currentDocId.value = queryDoc || reviewData.documents[0]?.document.id
   if (route.query.select === 'final' && currentDoc.value?.finalResult) {
@@ -414,6 +435,21 @@ function partialModify() {
     path: `/annotate/${taskId.value}/${currentDocId.value}`,
     query
   })
+}
+
+function openAttachment() {
+  if (!guideVersionId.value || !guideAttachmentName.value) return
+  const token = localStorage.getItem('jap_token')
+  previewUrl.value = `/api/configs/versions/${guideVersionId.value}/attachment?token=${token}&t=${Date.now()}`
+  previewVisible.value = true
+}
+
+function downloadAttachment() {
+  if (!previewUrl.value || !guideAttachmentName.value) return
+  const a = document.createElement('a')
+  a.href = previewUrl.value
+  a.download = guideAttachmentName.value
+  a.click()
 }
 
 onMounted(load)

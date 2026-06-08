@@ -10,6 +10,7 @@
         <result property="canCreateTask" column="can_create_task"/>
         <result property="lastSeen" column="last_seen"/>
         <result property="status" column="status"/>
+        <result property="isDeleted" column="is_deleted"/>
     </resultMap>
 
     <select id="selectById" resultMap="SysUserMap">
@@ -22,14 +23,16 @@
         SELECT * FROM sys_user ORDER BY id
     </select>
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO sys_user(username, password_hash, real_name, role, can_create_task, status)
-        VALUES (#{username}, #{passwordHash}, #{realName}, #{role}, #{canCreateTask}, #{status})
+        INSERT INTO sys_user(username, password_hash, real_name, role, can_create_task, status, is_deleted)
+        VALUES (#{username}, #{passwordHash}, #{realName}, #{role}, #{canCreateTask}, #{status}, #{isDeleted})
     </insert>
     <update id="update">
-        UPDATE sys_user SET password_hash=#{passwordHash}, real_name=#{realName}, role=#{role},
-        can_create_task=#{canCreateTask}, status=#{status} WHERE id=#{id}
+        UPDATE sys_user SET username=#{username}, password_hash=#{passwordHash}, real_name=#{realName}, role=#{role},
+        can_create_task=#{canCreateTask}, status=#{status}, is_deleted=#{isDeleted} WHERE id=#{id}
     </update>
-    <delete id="deleteById">DELETE FROM sys_user WHERE id=#{id}</delete>
+    <update id="deleteById">
+        UPDATE sys_user SET is_deleted = 1 WHERE id = #{id}
+    </update>
 
     <update id="updateOnline">
         UPDATE sys_user SET last_seen = NOW(), status = 1 WHERE id = #{id}

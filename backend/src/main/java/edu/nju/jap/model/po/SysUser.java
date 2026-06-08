@@ -11,6 +11,7 @@ public class SysUser {
     private Integer canCreateTask;
     private LocalDateTime lastSeen;
     private Integer status;
+    private Integer isDeleted;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -28,4 +29,6 @@ public class SysUser {
     public void setLastSeen(LocalDateTime lastSeen) { this.lastSeen = lastSeen; }
     public Integer getStatus() { return status; }
     public void setStatus(Integer status) { this.status = status; }
+    public Integer getIsDeleted() { return isDeleted; }
+    public void setIsDeleted(Integer isDeleted) { this.isDeleted = isDeleted; }
 }

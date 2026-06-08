@@ -35,6 +35,9 @@ public class AuthService {
         if (stored == null || !stored.equals(request.password())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户名或密码错误");
         }
+        if (po.getIsDeleted() != null && po.getIsDeleted() == 1) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "该账号已被注销");
+        }
         if (po.getId() == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "用户数据异常：缺少 id");
         }

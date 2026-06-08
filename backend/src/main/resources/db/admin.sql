@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS `sys_user` (
     `can_create_task` TINYINT NOT NULL DEFAULT 0 COMMENT '1=可创建任务',
     `last_seen` DATETIME DEFAULT NULL COMMENT '最后活跃时间',
     `status` TINYINT NOT NULL DEFAULT 0 COMMENT '1=在线 0=离线',
+    `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '0=正常 1=已删除',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
@@ -16,6 +17,7 @@ CREATE TABLE IF NOT EXISTS `guide_version` (
     `version_name` VARCHAR(100) NOT NULL,
     `description` TEXT DEFAULT NULL,
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `attachment_name` VARCHAR(255) DEFAULT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指南版本';
 
