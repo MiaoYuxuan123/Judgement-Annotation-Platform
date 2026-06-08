@@ -14,6 +14,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
+import java.sql.Statement;
 
 @Component
 @Order(0)
@@ -46,7 +47,35 @@ public class DatabaseInitializer implements ApplicationRunner {
         }
 
         DatabasePopulatorUtils.execute(populator, dataSource);
+        patchMissingColumns();
         log.info("Database initialization completed.");
+    }
+
+    private void patchMissingColumns() {
+        try (Connection connection = dataSource.getConnection()) {
+            addColumnIfMissing(connection, "sys_user", "is_deleted",
+                    "ALTER TABLE `sys_user` ADD COLUMN `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '0=正常 1=已删除'");
+            addColumnIfMissing(connection, "guide_version", "attachment_name",
+                    "ALTER TABLE `guide_version` ADD COLUMN `attachment_name` VARCHAR(255) DEFAULT NULL");
+            addColumnIfMissing(connection, "annotation", "reject_reason",
+                    "ALTER TABLE `annotation` ADD COLUMN `reject_reason` VARCHAR(500) DEFAULT NULL COMMENT '裁定不予采纳理由'");
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to patch database schema", ex);
+        }
+    }
+
+    private void addColumnIfMissing(Connection connection, String tableName, String columnName, String ddl) throws Exception {
+        DatabaseMetaData metaData = connection.getMetaData();
+        String catalog = connection.getCatalog();
+        try (ResultSet columns = metaData.getColumns(catalog, null, tableName, columnName)) {
+            if (columns.next()) {
+                return;
+            }
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(ddl);
+            log.info("Patched missing column {}.{}", tableName, columnName);
+        }
     }
 
     private boolean isDatabaseInitialized() {

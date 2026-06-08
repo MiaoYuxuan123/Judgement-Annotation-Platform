@@ -156,7 +156,13 @@
           <strong>完成命题与关系标注后生成图示</strong>
           <span>右下角“生成图示”按钮会刷新这里的节点和关系。</span>
         </div>
-        <GraphCanvas v-else :propositions="graphPropositions" :relations="graphRelations" :active-relation-id="activeRelationId" />
+        <GraphCanvas
+            v-else
+            :propositions="graphPropositions"
+            :relations="graphRelations"
+            :active-relation-id="activeRelationId"
+            :active-relation-key="activeRelationKey"
+        />
         <div class="graph-footer">
           <el-button class="fullscreen-btn" :disabled="!graphGenerated" @click="fullscreen = true">↗ 全屏预览</el-button>
         </div>
@@ -230,7 +236,13 @@
     </div>
 
     <el-dialog v-model="fullscreen" title="论证图示全屏预览" fullscreen>
-      <GraphCanvas v-if="graphGenerated" :propositions="graphPropositions" :relations="graphRelations" :active-relation-id="activeRelationId" />
+      <GraphCanvas
+          v-if="graphGenerated"
+          :propositions="graphPropositions"
+          :relations="graphRelations"
+          :active-relation-id="activeRelationId"
+          :active-relation-key="activeRelationKey"
+      />
       <el-empty v-else description="请先在关系生成区点击“生成图示”" />
     </el-dialog>
     <el-dialog v-model="previewVisible" title="指南附件预览" width="80%" :close-on-click-modal="false">
@@ -368,6 +380,10 @@ const selectedTag = computed(() => (secondaryTag.value ? secondaryTag.value : pr
 const secondaryTagsForCurrent = computed(() =>
   (data.value?.config.secondaryTags || []).filter(t => t.parentTag === primaryTag.value)
 )
+const activeRelationKey = computed(() => {
+  const rel = relations.value.find((item) => item.relId === activeRelationId.value)
+  return relationSemanticKey(rel, relations.value)
+})
 
 watch(primaryTagOrder, (tags) => {
   if (tags.length > 0 && !primaryTag.value) primaryTag.value = tags[0].shortName
@@ -781,6 +797,21 @@ function displayRelationMember(id) {
 
 function relationMemberIds(relation) {
   return relation.members || [relation.source, relation.target].filter(Boolean)
+}
+
+function relationSemanticKey(relation, relationList = relations.value, visited = new Set()) {
+  if (!relation || visited.has(relation.relId)) return ''
+  visited.add(relation.relId)
+  const members = relationMemberIds(relation).map((id) => {
+    const value = String(id || '')
+    if (value.startsWith('P')) return value
+    if (value.startsWith('R')) {
+      const child = relationList.find((item) => item.relId === value)
+      return child ? relationSemanticKey(child, relationList, new Set(visited)) : value
+    }
+    return value
+  })
+  return `${relation.type}(${members.join(',')})`
 }
 
 function remapRelationMembers(idMap) {

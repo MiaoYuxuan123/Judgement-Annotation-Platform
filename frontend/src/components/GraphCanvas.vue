@@ -59,7 +59,8 @@ import { layoutArgumentGraphWithElk } from '../utils/argumentGraphElkLayout'
 const props = defineProps({
   propositions: { type: Array, default: () => [] },
   relations: { type: Array, default: () => [] },
-  activeRelationId: { type: String, default: '' }
+  activeRelationId: { type: String, default: '' },
+  activeRelationKey: { type: String, default: '' }
 })
 
 const rootRef = ref(null)
@@ -112,9 +113,13 @@ async function runLayout() {
   }
 }
 
-function relationHighlightInfo(activeId) {
-  if (!activeId) return { relIds: new Set(), propIds: new Set() }
+function relationHighlightInfo(activeId, activeKey) {
   const byId = new Map((props.relations || []).map((rel) => [rel.relId, rel]))
+  const matchedId = activeKey
+    ? (props.relations || []).find((rel) => relationSemanticKey(rel, props.relations) === activeKey)?.relId
+    : ''
+  const startId = matchedId || activeId
+  if (!startId) return { relIds: new Set(), propIds: new Set() }
   const relIds = new Set()
   const propIds = new Set()
   const visit = (relId) => {
@@ -129,8 +134,27 @@ function relationHighlightInfo(activeId) {
       if (value.startsWith('R')) visit(value)
     })
   }
-  visit(activeId)
+  visit(startId)
   return { relIds, propIds }
+}
+
+function relationMembers(relation) {
+  return relation?.members?.length ? relation.members : [relation?.source, relation?.target].filter(Boolean)
+}
+
+function relationSemanticKey(relation, relationList = props.relations, visited = new Set()) {
+  if (!relation || visited.has(relation.relId)) return ''
+  visited.add(relation.relId)
+  const members = relationMembers(relation).map((id) => {
+    const value = String(id || '')
+    if (value.startsWith('P')) return value
+    if (value.startsWith('R')) {
+      const child = relationList.find((item) => item.relId === value)
+      return child ? relationSemanticKey(child, relationList, new Set(visited)) : value
+    }
+    return value
+  })
+  return `${relation.type}(${members.join(',')})`
 }
 
 function propNodeMatches(node, propIds) {
@@ -143,7 +167,7 @@ function propNodeMatches(node, propIds) {
 }
 
 function applyActiveRelationHighlight() {
-  const { relIds, propIds } = relationHighlightInfo(props.activeRelationId)
+  const { relIds, propIds } = relationHighlightInfo(props.activeRelationId, props.activeRelationKey)
   nodes.value = nodes.value.map((node) => {
     const highlighted = relIds.has(node.data?.relKey) || propNodeMatches(node, propIds)
     return {
@@ -198,7 +222,7 @@ watch(
 )
 
 watch(
-  () => props.activeRelationId,
+  () => [props.activeRelationId, props.activeRelationKey],
   () => applyActiveRelationHighlight()
 )
 
