@@ -642,7 +642,9 @@ function buildManualGraph(propositions = [], relations = []) {
   const directTargets = optimizeDirectHubTargets(combined.nodes, combined.edges)
   const reoptimizedOnce = optimizeDirectedHubs(directTargets.nodes, directTargets.edges)
   const reoptimized = optimizeDirectedHubs(reoptimizedOnce.nodes, reoptimizedOnce.edges)
-  const compacted = compactDisconnectedComponents(reoptimized.nodes, reoptimized.edges)
+  const finalBranches = optimizeSharedSourceBranches(reoptimized.nodes, reoptimized.edges)
+  const targetBranches = optimizeSharedTargetBranches(finalBranches.nodes, finalBranches.edges)
+  const compacted = compactDisconnectedComponents(targetBranches.nodes, targetBranches.edges)
   const normalized = normalizeGraph(compacted.nodes, compacted.edges)
   return {
     ...normalized,
@@ -963,6 +965,96 @@ function optimizeSharedSourceBranches(nodes, edges) {
         const sourceOut = pointOnRectToward(sourceRect, hubCenter)
         const hubIn = pointOnRectToward(movedHubRect, sourceOut)
         const targetIn = pointOnRectToward(movedTargetRect, hubCenter)
+        const hubOut = pointOnRectToward(movedHubRect, targetIn)
+
+        branch.inEdge.data.points = orthogonal(sourceOut, hubIn)
+        branch.inEdge.data.path = pointsToSvgPath(branch.inEdge.data.points)
+        branch.outEdge.data.points = orthogonal(hubOut, targetIn)
+        branch.outEdge.data.path = pointsToSvgPath(branch.outEdge.data.points)
+      })
+  })
+
+  return { nodes: nextNodes, edges: nextEdges }
+}
+
+function optimizeSharedTargetBranches(nodes, edges) {
+  const nextNodes = nodes.map((node) => ({
+    ...node,
+    position: { ...node.position },
+    data: { ...node.data }
+  }))
+  const nextEdges = edges.map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data,
+      points: [...(edge.data?.points || [])]
+    }
+  }))
+  const nodeById = new Map(nextNodes.map((node) => [node.id, node]))
+  const incomingByTarget = new Map()
+
+  nextEdges.forEach((outEdge) => {
+    if (!outEdge.data?.directed) return
+    const hub = nodeById.get(outEdge.source)
+    const target = nodeById.get(outEdge.target)
+    if (!hub || !target || target.type !== 'prop' || !['hub-s', 'hub-a', 'hub-m'].includes(hub.type)) return
+    const inEdge = nextEdges.find((candidate) => candidate.target === hub.id && !candidate.data?.directed)
+    const source = inEdge ? nodeById.get(inEdge.source) : null
+    if (!inEdge || !source || source.type !== 'prop') return
+    if (!incomingByTarget.has(target.id)) incomingByTarget.set(target.id, [])
+    incomingByTarget.get(target.id).push({ source, hub, target, inEdge, outEdge })
+  })
+
+  incomingByTarget.forEach((branches) => {
+    if (branches.length < 2) return
+    const target = branches[0].target
+    const targetRect = nodeRect(target)
+    const targetCenter = nodeCenter(target)
+    const sourceGap = 150
+    const sideGap = 150
+
+    branches
+      .sort((a, b) => {
+        const relA = String(a.hub.data?.relKey || '')
+        const relB = String(b.hub.data?.relKey || '')
+        return relA.localeCompare(relB, undefined, { numeric: true })
+      })
+      .forEach((branch, index) => {
+        const sourceRect = nodeRect(branch.source)
+        const hubRect = nodeRect(branch.hub)
+        let sourceCenter
+        let hubCenter
+
+        if (index === 0) {
+          sourceCenter = {
+            x: targetCenter.x,
+            y: targetRect.y - Math.max(118, sourceRect.height + hubRect.height + 66)
+          }
+          hubCenter = {
+            x: targetCenter.x,
+            y: (sourceCenter.y + targetCenter.y) / 2
+          }
+        } else {
+          const side = index % 2 === 1 ? 1 : -1
+          const level = Math.ceil(index / 2)
+          sourceCenter = {
+            x: targetCenter.x + side * sideGap * level,
+            y: targetCenter.y
+          }
+          hubCenter = {
+            x: (sourceCenter.x + targetCenter.x) / 2,
+            y: targetCenter.y
+          }
+        }
+
+        moveNodeCenter(branch.source, sourceCenter)
+        moveNodeCenter(branch.hub, hubCenter)
+
+        const movedSourceRect = nodeRect(branch.source)
+        const movedHubRect = nodeRect(branch.hub)
+        const sourceOut = pointOnRectToward(movedSourceRect, hubCenter)
+        const hubIn = pointOnRectToward(movedHubRect, sourceOut)
+        const targetIn = pointOnRectToward(targetRect, hubCenter)
         const hubOut = pointOnRectToward(movedHubRect, targetIn)
 
         branch.inEdge.data.points = orthogonal(sourceOut, hubIn)

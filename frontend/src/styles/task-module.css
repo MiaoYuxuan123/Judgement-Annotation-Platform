@@ -51,10 +51,14 @@
   overflow: auto;
 }
 
-/* 任务目录页布局 */
+/* 任务目录页布局：左侧目录固定，右侧内容独立滚动 */
+.task-shell-body:has(.task-catalog-page) {
+  overflow: hidden;
+}
+
 .task-catalog-page {
   display: flex;
-  min-height: calc(100vh - 52px);
+  height: calc(100vh - 52px);
 }
 
 .task-catalog-sidebar {
@@ -66,6 +70,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
 }
 
 .task-catalog-sidebar-title {
@@ -128,8 +133,9 @@
 .task-catalog-main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   padding: 18px 20px 24px;
-  overflow: auto;
+  overflow-y: auto;
 }
 
 .task-filter-bar {

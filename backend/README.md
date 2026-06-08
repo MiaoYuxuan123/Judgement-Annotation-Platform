@@ -100,3 +100,9 @@ spring:
     init:
       mode: never
 ```
+
+## 后端打包
+
+```bash
+mvn clean package -DskipTests
+```
