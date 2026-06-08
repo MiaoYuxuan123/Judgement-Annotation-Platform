@@ -141,6 +141,7 @@ function pointsToSvgPath(points) {
 }
 
 function flowEdge(id, source, target, directed, points) {
+  const relKey = String(id).match(/-(R\d+)-/)?.[1] || ''
   return {
     id,
     source,
@@ -151,7 +152,8 @@ function flowEdge(id, source, target, directed, points) {
     data: {
       points,
       path: pointsToSvgPath(points),
-      directed
+      directed,
+      relKey
     }
   }
 }

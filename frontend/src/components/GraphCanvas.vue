@@ -58,7 +58,8 @@ import { layoutArgumentGraphWithElk } from '../utils/argumentGraphElkLayout'
 
 const props = defineProps({
   propositions: { type: Array, default: () => [] },
-  relations: { type: Array, default: () => [] }
+  relations: { type: Array, default: () => [] },
+  activeRelationId: { type: String, default: '' }
 })
 
 const rootRef = ref(null)
@@ -101,6 +102,7 @@ async function runLayout() {
     if (token !== layoutToken) return
     nodes.value = result.nodes
     edges.value = result.edges
+    applyActiveRelationHighlight()
   } catch (err) {
     console.error('[GraphCanvas] ELK layout failed', err)
     nodes.value = []
@@ -108,6 +110,56 @@ async function runLayout() {
   } finally {
     if (token === layoutToken) layouting.value = false
   }
+}
+
+function relationHighlightInfo(activeId) {
+  if (!activeId) return { relIds: new Set(), propIds: new Set() }
+  const byId = new Map((props.relations || []).map((rel) => [rel.relId, rel]))
+  const relIds = new Set()
+  const propIds = new Set()
+  const visit = (relId) => {
+    if (!relId || relIds.has(relId)) return
+    const rel = byId.get(relId)
+    if (!rel) return
+    relIds.add(relId)
+    const members = rel.members?.length ? rel.members : [rel.source, rel.target].filter(Boolean)
+    members.forEach((member) => {
+      const value = String(member)
+      if (value.startsWith('P')) propIds.add(value)
+      if (value.startsWith('R')) visit(value)
+    })
+  }
+  visit(activeId)
+  return { relIds, propIds }
+}
+
+function propNodeMatches(node, propIds) {
+  if (!propIds.size || node.type !== 'prop') return false
+  if (propIds.has(node.data?.stableId)) return true
+  return String(node.data?.label || '')
+    .split('/')
+    .map((item) => item.trim())
+    .some((id) => propIds.has(id))
+}
+
+function applyActiveRelationHighlight() {
+  const { relIds, propIds } = relationHighlightInfo(props.activeRelationId)
+  nodes.value = nodes.value.map((node) => {
+    const highlighted = relIds.has(node.data?.relKey) || propNodeMatches(node, propIds)
+    return {
+      ...node,
+      class: highlighted ? 'is-relation-highlighted' : undefined,
+      data: { ...node.data, highlighted }
+    }
+  })
+  edges.value = edges.value.map((edge) => {
+    const highlighted = relIds.has(edge.data?.relKey)
+    return {
+      ...edge,
+      class: highlighted ? 'is-relation-highlighted' : undefined,
+      data: { ...edge.data, highlighted }
+    }
+  })
 }
 
 function fitViewNow() {
@@ -143,6 +195,11 @@ watch(
     runLayout()
   },
   { deep: true, immediate: true }
+)
+
+watch(
+  () => props.activeRelationId,
+  () => applyActiveRelationHighlight()
 )
 
 onMounted(() => {

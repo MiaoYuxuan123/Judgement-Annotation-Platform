@@ -3,12 +3,12 @@
     <path
       :d="pathD"
       fill="none"
-      stroke="#111"
-      stroke-width="1.2"
+      :stroke="edgeColor"
+      :stroke-width="edgeWidth"
       stroke-linecap="square"
       stroke-linejoin="miter"
     />
-    <polygon v-if="arrowPoints" :points="arrowPoints" fill="#111" />
+    <polygon v-if="arrowPoints" :points="arrowPoints" :fill="edgeColor" />
   </g>
 </template>
 
@@ -35,6 +35,9 @@ const pathD = computed(() => {
   const endpoints = edgeEndpoints.value
   return `M ${endpoints.a.x} ${endpoints.a.y} L ${endpoints.b.x} ${endpoints.b.y}`
 })
+
+const edgeColor = computed(() => (props.data?.highlighted ? '#2563eb' : '#111'))
+const edgeWidth = computed(() => (props.data?.highlighted ? 3 : 1.2))
 
 const edgeEndpoints = computed(() => {
   const pts = props.data.points

@@ -18,7 +18,7 @@ const props = defineProps({
 
 const hubClass = computed(() => {
   const k = props.data.hubKind || 'hub-m'
-  return `ag-hub--${k.replace('hub-', '')}`
+  return [`ag-hub--${k.replace('hub-', '')}`, props.data.highlighted ? 'ag-hub--highlighted' : '']
 })
 
 const showPlus = computed(() => {
@@ -56,5 +56,18 @@ const showPlus = computed(() => {
   line-height: 1;
   color: #111;
   user-select: none;
+}
+
+.ag-hub--highlighted {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, .16);
+}
+
+.ag-hub--s.ag-hub--highlighted {
+  background: #2563eb;
+}
+
+.ag-hub--highlighted .ag-hub-plus {
+  color: #2563eb;
 }
 </style>

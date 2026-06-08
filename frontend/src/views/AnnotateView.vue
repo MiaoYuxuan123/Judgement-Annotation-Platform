@@ -19,10 +19,29 @@
           <h3>命题列表</h3>
           <el-tag size="small">{{ propositions.length }}</el-tag>
         </div>
-        <div class="list-box proposition-box">
-          <div v-for="p in propositions" :key="p.propId" class="plain-list-item annot-list-item">
-            <span class="item-main">{{ p.propId }} ({{ p.tag }}) {{ p.text }}</span>
-            <span class="item-actions">
+        <div class="list-box proposition-box proposition-table-list">
+          <div v-if="propositions.length" class="proposition-table-head">
+            <span>序号</span>
+            <span>命题内容</span>
+            <span>类型</span>
+          </div>
+          <div
+              v-for="p in propositions"
+              :key="p.propId"
+              class="plain-list-item annot-list-item proposition-table-row"
+          >
+            <span class="prop-col prop-seq">{{ p.propId }}</span>
+            <el-tooltip
+                :content="p.text"
+                placement="top"
+                effect="dark"
+                :show-after="260"
+                popper-class="proposition-full-tooltip"
+            >
+              <span class="prop-col prop-text">{{ p.text }}</span>
+            </el-tooltip>
+            <span class="prop-col prop-tag">{{ p.tag }}</span>
+            <span class="item-actions proposition-row-actions">
               <el-button link type="primary" @click="editProposition(p)">修改</el-button>
               <el-button link type="danger" @click="deleteProposition(p)">删除</el-button>
             </span>
@@ -38,10 +57,16 @@
           <div
               v-for="(r, index) in relations"
               :key="r.relId"
-              class="plain-list-item relation-row"
+              class="plain-list-item relation-row draggable-relation-row"
               :class="{ active: activeRelationId === r.relId }"
+              draggable="true"
+              @dragstart="startRelationDrag(index)"
+              @dragover.prevent
+              @drop.prevent="dropRelation(index)"
+              @dragend="draggedRelationIndex = -1"
               @click="activeRelationId = r.relId"
           >
+            <span class="relation-drag-handle" title="拖动调整顺序">⋮⋮</span>
             <span class="item-main">{{ r.relId }}, {{ formula(r) }}</span>
             <span class="item-actions">
               <el-button link type="primary" @click.stop="editRelation(r)">修改</el-button>
@@ -61,7 +86,7 @@
               <el-button @click="redo">重做</el-button>
             </div>
           </div>
-          <div class="source-text" @mouseup="handleSelection" v-html="markedHtml"></div>
+          <div ref="sourceTextEl" class="source-text" @mouseup="handleSelection" v-html="markedHtml"></div>
         </section>
 
         <section class="relation-builder">
@@ -119,7 +144,7 @@
           <strong>完成命题与关系标注后生成图示</strong>
           <span>右下角“生成图示”按钮会刷新这里的节点和关系。</span>
         </div>
-        <GraphCanvas v-else :propositions="graphPropositions" :relations="graphRelations" />
+        <GraphCanvas v-else :propositions="graphPropositions" :relations="graphRelations" :active-relation-id="activeRelationId" />
         <div class="graph-footer">
           <el-button class="fullscreen-btn" :disabled="!graphGenerated" @click="fullscreen = true">↗ 全屏预览</el-button>
         </div>
@@ -127,8 +152,8 @@
     </div>
 
     <div v-if="labelDialog" class="floating-label-root" :style="labelPopupStyle">
-      <div class="tag-popover">
-        <div class="tag-popover-head">
+      <div class="tag-popover draggable-tag-popover">
+        <div class="tag-popover-head draggable-tag-head" @mousedown="startLabelDrag">
           <strong>选择命题标签</strong>
           <span>{{ selectedText }}</span>
         </div>
@@ -193,14 +218,14 @@
     </div>
 
     <el-dialog v-model="fullscreen" title="论证图示全屏预览" fullscreen>
-      <GraphCanvas v-if="graphGenerated" :propositions="graphPropositions" :relations="graphRelations" />
+      <GraphCanvas v-if="graphGenerated" :propositions="graphPropositions" :relations="graphRelations" :active-relation-id="activeRelationId" />
       <el-empty v-else description="请先在关系生成区点击“生成图示”" />
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
@@ -227,12 +252,17 @@ const selectedStart = ref(0)
 const selectedEnd = ref(0)
 const editingPropositionId = ref('')
 const labelPosition = ref({ left: 720, top: 160 })
+const sourceTextEl = ref(null)
+const labelDragging = ref(false)
+const labelDragOffset = ref({ x: 0, y: 0 })
 const primaryTag = ref('GM')
 const secondaryTag = ref('GM-L')
 const relationForm = reactive({ type: 'S' })
 const relationMembers = ref(['', ''])
 const activeRelationId = ref('')
 const editingRelationId = ref('')
+const draggedRelationIndex = ref(-1)
+const manualRelationOrder = ref(false)
 const savedSnapshot = ref('')
 const skipLeaveGuard = ref(false)
 
@@ -305,7 +335,8 @@ const selectedTag = computed(() => (primaryTag.value === 'GM' ? secondaryTag.val
 
 const labelPopupStyle = computed(() => ({
   left: `${labelPosition.value.left}px`,
-  top: `${labelPosition.value.top}px`
+  top: `${labelPosition.value.top}px`,
+  maxHeight: `calc(100vh - ${Math.max(32, Math.round(labelPosition.value.top + 16))}px)`
 }))
 
 const markedHtml = computed(() => {
@@ -382,6 +413,31 @@ function handleSelection(event) {
   labelDialog.value = true
 }
 
+function startLabelDrag(event) {
+  if (event.button !== 0) return
+  labelDragging.value = true
+  labelDragOffset.value = {
+    x: event.clientX - labelPosition.value.left,
+    y: event.clientY - labelPosition.value.top
+  }
+  event.preventDefault()
+}
+
+function moveLabelDrag(event) {
+  if (!labelDragging.value) return
+  const width = 360
+  const minTop = 16
+  const minLeft = 16
+  labelPosition.value = {
+    left: Math.min(window.innerWidth - width - 16, Math.max(minLeft, event.clientX - labelDragOffset.value.x)),
+    top: Math.min(window.innerHeight - 80, Math.max(minTop, event.clientY - labelDragOffset.value.y))
+  }
+}
+
+function stopLabelDrag() {
+  labelDragging.value = false
+}
+
 function choosePrimary(tag) {
   primaryTag.value = tag
   if (tag === 'GM' && !secondaryTag.value) secondaryTag.value = 'GM-L'
@@ -433,6 +489,7 @@ function reorder() {
     return { ...p, propId: nextId, sequenceNo: i + 1 }
   })
   remapRelationMembers(oldToNew)
+  if (!manualRelationOrder.value) sortRelationsByMaxProp()
   renumberRelations()
 }
 
@@ -471,8 +528,9 @@ function addRelation() {
   }
   if (existingIndex >= 0) relations.value[existingIndex] = rel
   else relations.value.push(rel)
-  renumberRelations()
   activeRelationId.value = rel.relId
+  if (!manualRelationOrder.value) sortRelationsByMaxProp()
+  renumberRelations()
   graphDirty.value = true
   clearRelation()
 }
@@ -510,6 +568,7 @@ function deleteRelation(rel) {
   snapshot()
   relations.value = relations.value.filter((item) => item.relId !== rel.relId)
   removeInvalidRelations()
+  if (!manualRelationOrder.value) sortRelationsByMaxProp()
   renumberRelations()
   activeRelationId.value = ''
   graphDirty.value = true
@@ -523,6 +582,49 @@ function renumberRelations() {
     return { ...rel, relId: nextId }
   })
   remapRelationMembers(oldToNew)
+  activeRelationId.value = oldToNew.get(activeRelationId.value) || activeRelationId.value
+  editingRelationId.value = oldToNew.get(editingRelationId.value) || editingRelationId.value
+}
+
+function sortRelationsByMaxProp() {
+  const originalIndex = new Map(relations.value.map((rel, index) => [rel.relId, index]))
+  relations.value = [...relations.value].sort((a, b) => {
+    const maxDiff = maxPropNoInRelation(a) - maxPropNoInRelation(b)
+    if (maxDiff !== 0) return maxDiff
+    return (originalIndex.get(a.relId) || 0) - (originalIndex.get(b.relId) || 0)
+  })
+}
+
+function maxPropNoInRelation(relation, visited = new Set()) {
+  if (!relation || visited.has(relation.relId)) return 0
+  visited.add(relation.relId)
+  return relationMemberIds(relation).reduce((maxNo, id) => {
+    const value = String(id || '')
+    if (value.startsWith('P')) return Math.max(maxNo, Number(value.slice(1)) || 0)
+    if (value.startsWith('R')) {
+      const nested = relations.value.find((item) => item.relId === value)
+      return Math.max(maxNo, maxPropNoInRelation(nested, visited))
+    }
+    return maxNo
+  }, 0)
+}
+
+function startRelationDrag(index) {
+  draggedRelationIndex.value = index
+}
+
+function dropRelation(targetIndex) {
+  const sourceIndex = draggedRelationIndex.value
+  draggedRelationIndex.value = -1
+  if (sourceIndex < 0 || sourceIndex === targetIndex) return
+  snapshot()
+  const next = [...relations.value]
+  const [moving] = next.splice(sourceIndex, 1)
+  next.splice(targetIndex, 0, moving)
+  relations.value = next
+  manualRelationOrder.value = true
+  renumberRelations()
+  graphDirty.value = true
 }
 
 function addMember() {
@@ -602,6 +704,9 @@ async function load() {
   data.value = await client.get(url)
   propositions.value = [...(data.value.annotation.propositions || [])]
   relations.value = [...(data.value.annotation.relations || [])]
+  manualRelationOrder.value = false
+  sortRelationsByMaxProp()
+  renumberRelations()
   graphPropositions.value = []
   graphRelations.value = []
   graphGenerated.value = false
@@ -655,5 +760,14 @@ function overlapsExisting(start, end, ignoredPropId = '') {
   return propositions.value.some((p) => p.propId !== ignoredPropId && Math.max(start, p.startPos) < Math.min(end, p.endPos))
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  window.addEventListener('mousemove', moveLabelDrag)
+  window.addEventListener('mouseup', stopLabelDrag)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('mousemove', moveLabelDrag)
+  window.removeEventListener('mouseup', stopLabelDrag)
+})
 </script>

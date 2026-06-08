@@ -1,5 +1,5 @@
 <template>
-  <div class="ag-prop-node">
+  <div class="ag-prop-node" :class="{ 'ag-prop-node--highlighted': data.highlighted }">
     <span class="ag-prop-label">{{ data.label }}</span>
     <Handle id="top" type="target" :position="Position.Top" />
     <Handle id="bottom" type="source" :position="Position.Bottom" />
@@ -30,6 +30,14 @@ defineProps({
   color: #111;
   font-family: Inter, 'Microsoft YaHei', sans-serif;
   pointer-events: none;
+}
+
+.ag-prop-node--highlighted {
+  border-color: #2563eb;
+  border-width: 2.4px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, .14);
 }
 
 .ag-prop-label {
