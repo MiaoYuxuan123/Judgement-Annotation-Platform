@@ -94,10 +94,16 @@
           </button>
         </div>
         <footer v-if="showPendingActions" class="review-actions review-sidebar-actions">
+          <p v-if="!allAnnotatorsSubmitted" class="review-action-hint">
+            尚有 {{ pendingAnnotatorHint }} 未提交，可暂存裁定草稿；全部提交后可确认最终裁定。
+          </p>
           <el-button @click="cancelPending">取消</el-button>
-          <el-button type="primary" @click="confirmFinal">确认</el-button>
+          <el-button type="primary" :disabled="!canConfirmFinal" @click="confirmFinal">确认</el-button>
         </footer>
         <footer v-else class="review-actions review-sidebar-actions">
+          <p v-if="hasPartialSubmission" class="review-action-hint">
+            已提交 {{ submittedAnnotatorCount }}/{{ annotatorCount }}，全部提交后可「全部采纳」或确认最终裁定。
+          </p>
           <el-button :disabled="!canAdopt" @click="adoptAll">全部采纳</el-button>
           <el-button type="danger" :disabled="!canReject" @click="openRejectDialog">不予采纳</el-button>
           <el-button type="primary" :disabled="!canEdit" @click="partialModify">部分修改</el-button>
@@ -137,6 +143,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
 import { buildAnnotatedParts, circledNo, formatRelationFormula } from '../utils/reviewHelpers'
+import { allAnnotatorsSubmitted as checkAllAnnotatorsSubmitted, countSubmittedAnnotators } from '../utils/taskRows'
 
 const route = useRoute()
 const router = useRouter()
@@ -225,11 +232,50 @@ const pendingFinal = computed(() => {
   return f && typeof f === 'object' && f.propositions && f.finalResult === false
 })
 
+const annotatorCount = computed(() => {
+  if (currentDoc.value?.annotatorCount != null) return currentDoc.value.annotatorCount
+  return taskDetail.value?.annotators?.length || 0
+})
+
+const submittedAnnotatorCount = computed(() => {
+  if (currentDoc.value?.submittedAnnotatorCount != null) {
+    return currentDoc.value.submittedAnnotatorCount
+  }
+  return countSubmittedAnnotators(currentDoc.value)
+})
+
+const allAnnotatorsSubmitted = computed(() => {
+  if (currentDoc.value?.allAnnotatorsSubmitted != null) {
+    return currentDoc.value.allAnnotatorsSubmitted
+  }
+  return checkAllAnnotatorsSubmitted(currentDoc.value, annotatorCount.value)
+})
+
+const hasPartialSubmission = computed(() =>
+  submittedAnnotatorCount.value > 0 && !allAnnotatorsSubmitted.value
+)
+
+const pendingAnnotatorHint = computed(() => {
+  const pending = annotatorCount.value - submittedAnnotatorCount.value
+  return pending > 0 ? `${pending} 名标注员` : '标注员'
+})
+
 const showPendingActions = computed(() => selectedKey.value === 'final' && pendingFinal.value)
 
-const canAdopt = computed(() => activeData.value.type === 'annotator' && activeData.value.userId && !activeData.value.draft)
-const canReject = computed(() => canAdopt.value)
-const canEdit = computed(() => selectedKey.value && activeData.value.propositions.length >= 0)
+const canAdopt = computed(() =>
+  allAnnotatorsSubmitted.value &&
+  activeData.value.type === 'annotator' &&
+  activeData.value.userId &&
+  !activeData.value.draft
+)
+const canReject = computed(() =>
+  activeData.value.type === 'annotator' && activeData.value.userId && !activeData.value.draft
+)
+const canEdit = computed(() => {
+  if (selectedKey.value === 'final' && pendingFinal.value) return true
+  return canReject.value
+})
+const canConfirmFinal = computed(() => showPendingActions.value && allAnnotatorsSubmitted.value)
 
 watch(sidebarItems, (items) => {
   if (!items.length) return
@@ -336,7 +382,7 @@ async function confirmReject() {
 }
 
 async function confirmFinal() {
-  if (!showPendingActions.value) return
+  if (!canConfirmFinal.value) return
   await ElMessageBox.confirm('确认将该裁定结果作为最终版？', '确认裁定', { type: 'warning' })
   await client.post('/reviews/confirm', { taskId: taskId.value, dataId: currentDocId.value })
   ElMessage.success('裁定结果已确认')
@@ -372,3 +418,12 @@ function partialModify() {
 
 onMounted(load)
 </script>
+
+<style scoped>
+.review-action-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #92400e;
+}
+</style>

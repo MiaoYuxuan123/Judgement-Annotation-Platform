@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  allAnnotatorsSubmitted,
+  canParticipantAnnotateDoc,
+  hasAnyAnnotatorSubmitted,
   participantActions,
   resolveDocStage,
-  resolveTaskViewerRoles
+  resolveDocStageForParticipant,
+  resolveTaskViewerRoles,
+  reviewerCanAccessReview
 } from '../taskRows.js'
 
 describe('taskRows', () => {
@@ -43,5 +48,46 @@ describe('taskRows', () => {
 
     expect(actions).toHaveLength(1)
     expect(actions[0].label).toBe('查看结果/导出')
+  })
+
+  it('allows reviewer early access when any annotator submitted', () => {
+    const entry = {
+      annotatorResults: [
+        { userId: 3, draft: false, propositions: [{ propId: 'P1' }], relations: [] }
+      ]
+    }
+    expect(reviewerCanAccessReview(entry, { annotatorCount: 2, documentStatus: '标注中' })).toBe(true)
+    expect(allAnnotatorsSubmitted(entry, 2)).toBe(false)
+    expect(hasAnyAnnotatorSubmitted(entry)).toBe(true)
+  })
+
+  it('blocks final adjudication until all annotators submit', () => {
+    const entry = {
+      annotatorResults: [
+        { userId: 3, draft: false, propositions: [{ propId: 'P1' }], relations: [] },
+        { userId: 4, draft: false, propositions: [{ propId: 'P1' }], relations: [] }
+      ]
+    }
+    expect(allAnnotatorsSubmitted(entry, 2)).toBe(true)
+    expect(resolveDocStage(entry, { viewerRole: 'reviewer', annotatorCount: 2, documentStatus: '标注中' })).toBe('待裁定')
+  })
+
+  it('prioritizes personal annotator stage for dual-role participants after submit', () => {
+    const entry = {
+      annotatorResults: [
+        { userId: 3, draft: false, propositions: [{ propId: 'P1' }], relations: [] }
+      ]
+    }
+    const options = {
+      annotatorCount: 2,
+      documentStatus: '标注中',
+      userId: 3,
+      isAnnotator: true,
+      isReviewer: true
+    }
+
+    expect(resolveDocStageForParticipant(entry, options)).toBe('待裁定')
+    expect(canParticipantAnnotateDoc(entry, options)).toBe(false)
+    expect(reviewerCanAccessReview(entry, options)).toBe(true)
   })
 })

@@ -1,6 +1,7 @@
 package edu.nju.jap.service;
 
 import edu.nju.jap.common.MapBodyUtils;
+import edu.nju.jap.mapper.AnnotationMapper;
 import edu.nju.jap.mapper.ArbitrationSnapshotMapper;
 import edu.nju.jap.model.dto.request.ArbitrationSubmit;
 import edu.nju.jap.model.entity.AnnotationResult;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,6 +28,7 @@ public class ReviewService {
     private final TaskAggregateService taskAggregateService;
     private final TaskDocumentResolver taskDocumentResolver;
     private final AnnotationPersistenceService annotationPersistenceService;
+    private final AnnotationMapper annotationMapper;
     private final ArbitrationSnapshotMapper arbitrationSnapshotMapper;
     private final CurrentUserService currentUserService;
     private final TaskStageSyncService taskStageSyncService;
@@ -33,12 +36,14 @@ public class ReviewService {
     public ReviewService(TaskService taskService, TaskAggregateService taskAggregateService,
                          TaskDocumentResolver taskDocumentResolver,
                          AnnotationPersistenceService annotationPersistenceService,
+                         AnnotationMapper annotationMapper,
                          ArbitrationSnapshotMapper arbitrationSnapshotMapper,
                          CurrentUserService currentUserService, TaskStageSyncService taskStageSyncService) {
         this.taskService = taskService;
         this.taskAggregateService = taskAggregateService;
         this.taskDocumentResolver = taskDocumentResolver;
         this.annotationPersistenceService = annotationPersistenceService;
+        this.annotationMapper = annotationMapper;
         this.arbitrationSnapshotMapper = arbitrationSnapshotMapper;
         this.currentUserService = currentUserService;
         this.taskStageSyncService = taskStageSyncService;
@@ -49,6 +54,7 @@ public class ReviewService {
         User user = currentUserService.requireCurrent(request);
         boolean canSeeAll = canSeeAllReviewResults(task, user);
         int tid = (int) taskId;
+        int annotatorCount = task.annotatorIds.size();
         List<Map<String, Object>> documents = taskAggregateService.listTaskDocuments(tid).stream().map(td -> {
             long dataId = taskDocumentResolver.apiDataId(td);
             List<AnnotationResult> results = task.annotatorIds.stream()
@@ -58,8 +64,16 @@ public class ReviewService {
                     .toList();
             ArbitrationSnapshot snap = arbitrationSnapshotMapper.selectByTaskAndDoc(tid, td.getId());
             Object finalResult = resolveFinalResultForViewer(tid, td.getId(), dataId, snap, canSeeAll);
-            return Map.<String, Object>of("document", taskDocumentResolver.toDocumentItem(td),
-                    "annotatorResults", results, "finalResult", finalResult);
+            int submittedCount = annotationMapper.countSubmittedByTaskDocument(tid, td.getId());
+            boolean allSubmitted = annotatorCount > 0 && submittedCount >= annotatorCount;
+            Map<String, Object> doc = new LinkedHashMap<>();
+            doc.put("document", taskDocumentResolver.toDocumentItem(td));
+            doc.put("annotatorResults", results);
+            doc.put("finalResult", finalResult);
+            doc.put("annotatorCount", annotatorCount);
+            doc.put("submittedAnnotatorCount", submittedCount);
+            doc.put("allAnnotatorsSubmitted", allSubmitted);
+            return doc;
         }).toList();
         return Map.of("task", taskService.toSummary(task), "documents", documents);
     }
@@ -87,6 +101,7 @@ public class ReviewService {
         long dataId = MapBodyUtils.longValue(body.get("dataId"), MapBodyUtils.longValue(body.get("documentId"), 0));
         long annotatorId = MapBodyUtils.longValue(body.get("annotatorId"), 0);
         TaskDocument td = taskDocumentResolver.requireTaskDocument(taskId, dataId);
+        requireAllAnnotatorsSubmitted(taskId, td);
         AnnotationResult source = annotationPersistenceService.loadAnnotation(taskId, td.getId(), annotatorId,
                 taskDocumentResolver.apiDataId(td));
         if (source.propositions.isEmpty() && source.relations.isEmpty()) {
@@ -114,6 +129,7 @@ public class ReviewService {
         int taskId = (int) MapBodyUtils.longValue(body.get("taskId"), 0);
         long dataId = MapBodyUtils.longValue(body.get("dataId"), MapBodyUtils.longValue(body.get("documentId"), 0));
         TaskDocument td = taskDocumentResolver.requireTaskDocument(taskId, dataId);
+        requireAllAnnotatorsSubmitted(taskId, td);
         ArbitrationSnapshot arb = arbitrationSnapshotMapper.selectByTaskAndDoc(taskId, td.getId());
         if (arb == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "暂无待确认的裁定结果");
@@ -164,6 +180,18 @@ public class ReviewService {
         }
         annotationPersistenceService.deleteArbitration(taskId, td.getId(), arb.getArbitratorId());
         arbitrationSnapshotMapper.deleteByTaskAndDoc(taskId, td.getId());
+    }
+
+    private void requireAllAnnotatorsSubmitted(int taskId, TaskDocument td) {
+        TaskItem task = taskAggregateService.loadTaskItem(taskId);
+        int annotatorCount = task.annotatorIds.size();
+        if (annotatorCount <= 0) {
+            return;
+        }
+        int submitted = annotationMapper.countSubmittedByTaskDocument(taskId, td.getId());
+        if (submitted < annotatorCount) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "尚有标注员未提交，无法确认最终裁定");
+        }
     }
 
     private void upsertSnapshot(int taskId, int taskDocumentId, long arbitratorId, String adoptedFrom,

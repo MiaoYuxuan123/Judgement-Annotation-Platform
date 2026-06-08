@@ -105,18 +105,18 @@
               </td>
               <td>
                 <button
-                  v-if="canAnnotate && docStage(row) === '标注中'"
+                  v-if="canAnnotateDoc(row)"
                   class="task-action-btn orange"
                   @click="$router.push(`/annotate/${id}/${row.id}`)"
                 >
                   {{ hasMyAnnotation(row) ? '继续标注' : '开始标注' }}
                 </button>
                 <button
-                  v-if="canReview && docStage(row) === '待裁定'"
+                  v-if="canReview && canReviewerAccessDoc(row) && docStage(row) !== '可导出'"
                   class="task-action-btn orange"
                   @click="$router.push(`/review/${id}?docId=${row.id}`)"
                 >
-                  开始裁定
+                  {{ reviewerDocHasDraft(row) ? '继续裁定' : '开始裁定' }}
                 </button>
                 <button
                   v-if="canViewResult(row)"
@@ -145,7 +145,7 @@ import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import DataDirectorySidebar from '../components/task/DataDirectorySidebar.vue'
 import { exportTaskZipBatch, resolveExportAnnotatorId } from '../utils/taskZipExport'
-import { resolveDocStage, resolveTaskViewerRoles } from '../utils/taskRows'
+import { resolveTaskViewerRoles, reviewerCanAccessReview, hasReviewerDraft, resolveDocStageForParticipant, canParticipantAnnotateDoc } from '../utils/taskRows'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -171,25 +171,47 @@ const canBatchExport = computed(() => {
 const exportAnnotatorId = computed(() => resolveExportAnnotatorId(detail.value, auth.user))
 const viewerRoleDisplay = computed(() => resolveTaskViewerRoles(detail.value, auth.user))
 
+const participantFlags = computed(() => ({
+  isAnnotator: canAnnotate.value,
+  isReviewer: canReview.value,
+  isCreator: Boolean(auth.user?.canCreateTask),
+  userId: auth.user?.id
+}))
+
 const allDocs = computed(() => detail.value?.documents || [])
 
 function getReviewEntry(row) {
   return review.value?.documents?.find((d) => d.document.id === row.id)
 }
 
-const viewerRole = computed(() => {
-  if (canReview.value || auth.user?.canCreateTask) return 'reviewer'
-  return 'annotator'
-})
-
 function docStage(row) {
   const annotatorCount = detail.value?.annotators?.length || 0
-  return resolveDocStage(getReviewEntry(row), {
+  return resolveDocStageForParticipant(getReviewEntry(row), {
     annotatorCount,
     documentStatus: row.status,
-    viewerRole: viewerRole.value,
-    userId: auth.user?.id
+    ...participantFlags.value
   })
+}
+
+function canAnnotateDoc(row) {
+  const annotatorCount = detail.value?.annotators?.length || 0
+  return canParticipantAnnotateDoc(getReviewEntry(row), {
+    annotatorCount,
+    documentStatus: row.status,
+    ...participantFlags.value
+  })
+}
+
+function canReviewerAccessDoc(row) {
+  const annotatorCount = detail.value?.annotators?.length || 0
+  return reviewerCanAccessReview(getReviewEntry(row), {
+    annotatorCount,
+    documentStatus: row.status
+  })
+}
+
+function reviewerDocHasDraft(row) {
+  return hasReviewerDraft(getReviewEntry(row))
 }
 
 function statusClass(row) {

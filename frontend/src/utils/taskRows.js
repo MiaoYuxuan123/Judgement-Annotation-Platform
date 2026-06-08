@@ -3,7 +3,7 @@
  *
  * 三阶段：标注中 → 待裁定 → 可导出
  * - 标注员视角：本人提交后 → 待裁定
- * - 裁定者视角：每条文书全员提交后可单独进入「待裁定」；任务列表展示「开始/继续裁定」
+ * - 裁定者视角：任意标注员提交后可提前进入裁定界面暂存草稿；全员提交后可确认最终裁定
  * - 任务进入「可导出」后，参与者操作按钮统一为「查看结果/导出」
  * - 任务目录操作按钮由 creatorActions / participantActions 按角色与阶段生成
  */
@@ -34,10 +34,38 @@ export function isAnnotatorSubmitted(reviewEntry, userId) {
   return Boolean(mine && (mine.propositions?.length || mine.relations?.length) && !mine.draft)
 }
 
-function countSubmittedAnnotators(reviewEntry) {
+export function countSubmittedAnnotators(reviewEntry) {
   return (reviewEntry?.annotatorResults || []).filter(
     (r) => (r.propositions?.length || r.relations?.length) && !r.draft
   ).length
+}
+
+export function hasAnyAnnotatorSubmitted(reviewEntry) {
+  return countSubmittedAnnotators(reviewEntry) > 0
+}
+
+export function allAnnotatorsSubmitted(reviewEntry, annotatorCount) {
+  return annotatorCount > 0 && countSubmittedAnnotators(reviewEntry) >= annotatorCount
+}
+
+export function hasReviewerDraft(reviewEntry) {
+  const final = reviewEntry?.finalResult
+  return Boolean(
+    final &&
+      typeof final === 'object' &&
+      final.propositions &&
+      final.finalResult === false
+  )
+}
+
+/** 裁定者是否可进入该文书的裁定界面（含提前介入） */
+export function reviewerCanAccessReview(reviewEntry, options = {}) {
+  const { annotatorCount = 0, documentStatus = '' } = options
+  if (!reviewEntry || isDocExportable(reviewEntry)) return false
+  if (normalizeDocStatus(documentStatus) === '待裁定') return true
+  if (hasReviewerDraft(reviewEntry)) return true
+  if (allAnnotatorsSubmitted(reviewEntry, annotatorCount)) return true
+  return hasAnyAnnotatorSubmitted(reviewEntry)
 }
 
 /** 单篇文书阶段（数据列表用） */
@@ -68,10 +96,49 @@ export function resolveDocStage(reviewEntry, options = {}) {
     return '待裁定'
   }
 
-  const allAnnotatorsDone = annotatorCount > 0 && countSubmittedAnnotators(reviewEntry) >= annotatorCount
-  if (allAnnotatorsDone) return '待裁定'
+  if (allAnnotatorsSubmitted(reviewEntry, annotatorCount)) return '待裁定'
 
   return '标注中'
+}
+
+/** 数据列表等场景：按参与者实际身份解析文书阶段（双角色时本人已提交优先视为待裁定） */
+export function resolveDocStageForParticipant(reviewEntry, options = {}) {
+  const {
+    annotatorCount = 0,
+    documentStatus = '',
+    userId = null,
+    isAnnotator = false,
+    isReviewer = false,
+    isCreator = false
+  } = options
+  const base = { annotatorCount, documentStatus, userId }
+
+  if (isAnnotator && isReviewer) {
+    const personalStage = resolveDocStage(reviewEntry, { ...base, viewerRole: 'annotator' })
+    if (personalStage === '待裁定' || personalStage === '可导出') {
+      return personalStage
+    }
+  }
+
+  if (isReviewer || isCreator) {
+    return resolveDocStage(reviewEntry, { ...base, viewerRole: 'reviewer' })
+  }
+
+  return resolveDocStage(reviewEntry, { ...base, viewerRole: 'annotator' })
+}
+
+/** 标注员是否仍可编辑该文书（本人未提交） */
+export function canParticipantAnnotateDoc(reviewEntry, options = {}) {
+  const { isAnnotator = false, annotatorCount = 0, documentStatus = '', userId = null } = options
+  if (!isAnnotator || userId == null) return false
+  return (
+    resolveDocStage(reviewEntry, {
+      annotatorCount,
+      documentStatus,
+      userId,
+      viewerRole: 'annotator'
+    }) === '标注中'
+  )
 }
 
 /** 标注员在整个任务下的阶段（任务目录用） */
@@ -107,11 +174,10 @@ function countDocsReadyForArbitration(taskDetail, review) {
   const reviewDocs = review?.documents || []
   return docs.filter((doc) => {
     const entry = reviewDocs.find((d) => d.document.id === doc.id)
-    return resolveDocStage(entry, {
+    return reviewerCanAccessReview(entry, {
       annotatorCount,
-      documentStatus: doc.status,
-      viewerRole: 'reviewer'
-    }) === '待裁定'
+      documentStatus: doc.status
+    })
   }).length
 }
 
@@ -149,6 +215,14 @@ export function resolveReviewerTaskStage(taskDetail, review) {
   if (stages.every((s) => s === '可导出')) return '可导出'
   if (stages.some((s) => s === '待裁定')) return '待裁定'
   if (stages.some((s) => s === '可导出')) return '待裁定'
+  const hasAccessible = docs.some((doc) => {
+    const entry = reviewDocs.find((d) => d.document.id === doc.id)
+    return reviewerCanAccessReview(entry, {
+      annotatorCount,
+      documentStatus: doc.status
+    })
+  })
+  if (hasAccessible) return '待裁定'
   return '标注中'
 }
 
@@ -281,16 +355,6 @@ function hasAnnotatorDraft(entry, userId) {
   return Boolean(mine?.propositions?.length || mine?.relations?.length)
 }
 
-function hasReviewerDraft(entry) {
-  const final = entry?.finalResult
-  return Boolean(
-    final &&
-      typeof final === 'object' &&
-      final.propositions &&
-      final.finalResult === false
-  )
-}
-
 /** 标注员下一份待标注文书（优先有草稿的） */
 export function findAnnotatorWorkDoc(detail, review, userId) {
   const docs = detail?.documents || []
@@ -328,12 +392,7 @@ export function findReviewerWorkDoc(detail, review) {
 
   for (const doc of docs) {
     const entry = reviewDocs.find((d) => d.document.id === doc.id)
-    const stage = resolveDocStage(entry, {
-      annotatorCount,
-      documentStatus: doc.status,
-      viewerRole: 'reviewer'
-    })
-    if (stage !== '待裁定') continue
+    if (!reviewerCanAccessReview(entry, { annotatorCount, documentStatus: doc.status })) continue
 
     const inProgress = hasReviewerDraft(entry)
     if (inProgress) return { docId: doc.id, inProgress: true }
@@ -405,12 +464,10 @@ export function reviewerHasInProgressWork(detail, review) {
   const annotatorCount = detail?.annotators?.length || 0
   return docs.some((doc) => {
     const entry = reviewDocs.find((d) => d.document.id === doc.id)
-    const stage = resolveDocStage(entry, {
+    return reviewerCanAccessReview(entry, {
       annotatorCount,
-      documentStatus: doc.status,
-      viewerRole: 'reviewer'
-    })
-    return stage === '待裁定' && hasReviewerDraft(entry)
+      documentStatus: doc.status
+    }) && hasReviewerDraft(entry)
   })
 }
 
@@ -447,7 +504,7 @@ export function participantActions(row, userId) {
 
   if (roles.some((r) => r.role === 'arbitrate')) {
     const stage = resolveReviewerTaskStage(detail, review)
-    if (stage === '待裁定') {
+    if (stage === '待裁定' || countDocsReadyForArbitration(detail, review) > 0) {
       actions.push({
         label: reviewerHasInProgressWork(detail, review) ? '继续裁定' : '开始裁定',
         color: 'orange',
