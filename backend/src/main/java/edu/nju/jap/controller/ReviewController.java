@@ -18,8 +18,8 @@ public class ReviewController {
     }
 
     @GetMapping("/{taskId}")
-    ApiResponse<Map<String, Object>> review(@PathVariable long taskId) {
-        return ApiResponse.ok(reviewService.review(taskId));
+    ApiResponse<Map<String, Object>> review(@PathVariable long taskId, HttpServletRequest request) {
+        return ApiResponse.ok(reviewService.review(taskId, request));
     }
 
     @PostMapping("/adopt")

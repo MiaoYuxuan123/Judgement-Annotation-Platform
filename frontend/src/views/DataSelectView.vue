@@ -144,7 +144,7 @@ import { ElLoading, ElMessage } from 'element-plus'
 import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import DataDirectorySidebar from '../components/task/DataDirectorySidebar.vue'
-import { exportTaskZipBatch } from '../utils/taskZipExport'
+import { exportTaskZipBatch, resolveExportAnnotatorId } from '../utils/taskZipExport'
 import { resolveDocStage, resolveTaskViewerRoles } from '../utils/taskRows'
 
 const route = useRoute()
@@ -168,6 +168,7 @@ const canBatchExport = computed(() => {
     canReview.value
   )
 })
+const exportAnnotatorId = computed(() => resolveExportAnnotatorId(detail.value, auth.user))
 const viewerRoleDisplay = computed(() => resolveTaskViewerRoles(detail.value, auth.user))
 
 const allDocs = computed(() => detail.value?.documents || [])
@@ -298,6 +299,7 @@ async function runExport(docIds, loadingText = '正在准备导出…') {
       review: review.value,
       taskDetail: detail.value,
       docIds,
+      annotatorId: exportAnnotatorId.value,
       onProgress: (text) => {
         if (text) loading.setText(text)
       }
