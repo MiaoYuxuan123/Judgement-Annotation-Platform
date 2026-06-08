@@ -18,8 +18,8 @@ public class ReviewController {
     }
 
     @GetMapping("/{taskId}")
-    ApiResponse<Map<String, Object>> review(@PathVariable long taskId) {
-        return ApiResponse.ok(reviewService.review(taskId));
+    ApiResponse<Map<String, Object>> review(@PathVariable long taskId, HttpServletRequest request) {
+        return ApiResponse.ok(reviewService.review(taskId, request));
     }
 
     @PostMapping("/adopt")
@@ -44,5 +44,11 @@ public class ReviewController {
     ApiResponse<Void> cancelPending(@RequestBody Map<String, Object> body) {
         reviewService.cancelPending(body);
         return ApiResponse.ok("已取消待确认的裁定结果", null);
+    }
+
+    @PostMapping("/reject")
+    ApiResponse<Void> reject(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        reviewService.reject(body, request);
+        return ApiResponse.ok("已退回标注员重新标注", null);
     }
 }

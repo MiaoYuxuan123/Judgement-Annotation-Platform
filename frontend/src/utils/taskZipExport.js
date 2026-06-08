@@ -96,12 +96,13 @@ async function addVersionFolder(folder, label, propositions, relations, onProgre
   }
 }
 
-async function addDocumentToZip(root, docEntry, { taskName, nameMap, onProgress }) {
+async function addDocumentToZip(root, docEntry, { taskName, nameMap, onProgress, annotatorId = null }) {
   const doc = docEntry.document
   const rootLabel = `${doc.id}_${sanitizePath(doc.title)}`
   const folder = root.folder(rootLabel)
 
   const exportedAt = new Date().toLocaleString('zh-CN', { hour12: false })
+  const annotatorOnly = annotatorId != null
   folder.file(
     '导出说明.txt',
     [
@@ -110,16 +111,22 @@ async function addDocumentToZip(root, docEntry, { taskName, nameMap, onProgress 
       `导出时间：${exportedAt}`,
       '',
       '目录结构：',
-      '  {标注员姓名或最终裁定结果}/',
+      annotatorOnly
+        ? '  {我的标注或最终裁定结果}/'
+        : '  {标注员姓名或最终裁定结果}/',
       '    命题列表.csv',
       '    关系列表.csv',
       '    论证图示.png',
       '',
-      '说明：CSV 列与页面列表一致；UTF-8 编码，可用 Excel 直接打开。'
+      annotatorOnly
+        ? '说明：本 ZIP 仅包含您本人的标注结果与最终裁定结果。'
+        : '说明：CSV 列与页面列表一致；UTF-8 编码，可用 Excel 直接打开。'
     ].join('\n')
   )
 
-  const annotators = docEntry.annotatorResults || []
+  const annotators = (docEntry.annotatorResults || []).filter(
+    (result) => annotatorId == null || result.userId === annotatorId
+  )
   if (!annotators.length && !isDocExportable(docEntry)) {
     throw new Error(`「${doc.title}」暂无可导出的标注或裁定结果`)
   }
@@ -128,7 +135,9 @@ async function addDocumentToZip(root, docEntry, { taskName, nameMap, onProgress 
 
   for (let i = 0; i < annotators.length; i += 1) {
     const result = annotators[i]
-    const label = nameMap.get(result.userId) || `标注员_${result.userId}`
+    const label = annotatorOnly
+      ? '我的标注'
+      : (nameMap.get(result.userId) || `标注员_${result.userId}`)
     const versionFolder = folder.folder(sanitizePath(label))
     await addVersionFolder(
       versionFolder,
@@ -157,7 +166,22 @@ async function addDocumentToZip(root, docEntry, { taskName, nameMap, onProgress 
 /**
  * 导出当前文书下全部标注员版本与最终裁定结果为 ZIP，并由用户选择保存位置与文件名。
  */
-export async function exportTaskZip({ review, taskDetail, currentDocId, onProgress }) {
+/** 仅本任务创建者、裁定者可导出全部结果；标注员只导出本人 + 最终裁定。 */
+export function canAccessAllTaskResults(taskDetail, user) {
+  const userId = user?.id
+  if (!userId || !taskDetail) return false
+  return taskDetail.reviewer?.id === userId || taskDetail.summary?.creatorId === userId
+}
+
+export function resolveExportAnnotatorId(taskDetail, user) {
+  const userId = user?.id
+  if (!userId) return null
+  if (canAccessAllTaskResults(taskDetail, user)) return null
+  if (taskDetail?.annotators?.some((u) => u.id === userId)) return userId
+  return null
+}
+
+export async function exportTaskZip({ review, taskDetail, currentDocId, onProgress, annotatorId = null }) {
   if (!review?.documents?.length) {
     throw new Error('暂无可导出的文书数据')
   }
@@ -173,7 +197,7 @@ export async function exportTaskZip({ review, taskDetail, currentDocId, onProgre
   const nameMap = buildAnnotatorNameMap(taskDetail)
 
   const zip = new JSZip()
-  await addDocumentToZip(zip, docEntry, { taskName, nameMap, onProgress })
+  await addDocumentToZip(zip, docEntry, { taskName, nameMap, onProgress, annotatorId })
 
   onProgress?.('正在压缩打包…')
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
@@ -186,7 +210,7 @@ export async function exportTaskZip({ review, taskDetail, currentDocId, onProgre
 /**
  * 批量导出多篇「可导出」文书为单个 ZIP（每篇文书一个子目录）。
  */
-export async function exportTaskZipBatch({ review, taskDetail, docIds, onProgress }) {
+export async function exportTaskZipBatch({ review, taskDetail, docIds, onProgress, annotatorId = null }) {
   if (!review?.documents?.length) {
     throw new Error('暂无可导出的文书数据')
   }
@@ -217,7 +241,7 @@ export async function exportTaskZipBatch({ review, taskDetail, docIds, onProgres
   const exportedDocs = []
 
   for (const docEntry of exportable) {
-    const doc = await addDocumentToZip(zip, docEntry, { taskName, nameMap, onProgress })
+    const doc = await addDocumentToZip(zip, docEntry, { taskName, nameMap, onProgress, annotatorId })
     exportedDocs.push(doc)
   }
 
@@ -231,7 +255,9 @@ export async function exportTaskZipBatch({ review, taskDetail, docIds, onProgres
       '文书列表：',
       ...exportedDocs.map((doc) => `  - D${doc.id} ${doc.title}`),
       '',
-      '每个子目录结构与单篇导出一致，含各标注员版本及最终裁定结果。'
+      annotatorId != null
+        ? '每个子目录结构与单篇导出一致，仅含您本人的标注结果与最终裁定结果。'
+        : '每个子目录结构与单篇导出一致，含各标注员版本及最终裁定结果。'
     ].join('\n')
   )
 

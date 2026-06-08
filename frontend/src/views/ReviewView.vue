@@ -99,10 +99,35 @@
         </footer>
         <footer v-else class="review-actions review-sidebar-actions">
           <el-button :disabled="!canAdopt" @click="adoptAll">全部采纳</el-button>
+          <el-button type="danger" :disabled="!canReject" @click="openRejectDialog">不予采纳</el-button>
           <el-button type="primary" :disabled="!canEdit" @click="partialModify">部分修改</el-button>
         </footer>
       </aside>
     </div>
+
+    <el-dialog
+      v-model="rejectDialogVisible"
+      title="不予采纳"
+      width="520px"
+      class="reject-reason-dialog"
+      :close-on-click-modal="false"
+      destroy-on-close
+      @closed="resetRejectDialog"
+    >
+      <p class="reject-dialog-hint">请填写不予采纳理由，标注员将看到该理由并重新标注。</p>
+      <el-input
+        v-model="rejectReasonInput"
+        type="textarea"
+        class="reject-dialog-textarea"
+        :rows="4"
+        placeholder="请输入理由..."
+        resize="none"
+      />
+      <template #footer>
+        <el-button @click="rejectDialogVisible = false">取消</el-button>
+        <el-button type="danger" :loading="rejectSubmitting" @click="confirmReject">确认退回</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -124,6 +149,9 @@ const selectedKey = ref('')
 const graphPanelVisible = ref(true)
 const showGraph = ref(false)
 const GraphCanvas = shallowRef(null)
+const rejectDialogVisible = ref(false)
+const rejectReasonInput = ref('')
+const rejectSubmitting = ref(false)
 
 const currentDoc = computed(() => review.value?.documents.find((d) => d.document.id === currentDocId.value))
 
@@ -158,14 +186,15 @@ const sidebarItems = computed(() => {
 })
 
 const activeData = computed(() => {
-  if (!currentDoc.value) return { propositions: [], relations: [], userId: null, type: null }
+  if (!currentDoc.value) return { propositions: [], relations: [], userId: null, type: null, draft: true }
   if (selectedKey.value === 'final') {
     const f = currentDoc.value.finalResult
     return {
       propositions: f.propositions || [],
       relations: f.relations || [],
       userId: null,
-      type: 'final'
+      type: 'final',
+      draft: false
     }
   }
   const userId = Number(selectedKey.value.replace('annotator-', ''))
@@ -174,7 +203,8 @@ const activeData = computed(() => {
     propositions: result?.propositions || [],
     relations: result?.relations || [],
     userId: result?.userId,
-    type: 'annotator'
+    type: 'annotator',
+    draft: Boolean(result?.draft)
   }
 })
 
@@ -197,7 +227,8 @@ const pendingFinal = computed(() => {
 
 const showPendingActions = computed(() => selectedKey.value === 'final' && pendingFinal.value)
 
-const canAdopt = computed(() => activeData.value.type === 'annotator' && activeData.value.userId)
+const canAdopt = computed(() => activeData.value.type === 'annotator' && activeData.value.userId && !activeData.value.draft)
+const canReject = computed(() => canAdopt.value)
 const canEdit = computed(() => selectedKey.value && activeData.value.propositions.length >= 0)
 
 watch(sidebarItems, (items) => {
@@ -269,6 +300,39 @@ async function adoptAll() {
   })
   ElMessage.success('已采纳为最终裁定版')
   router.push(`/tasks/${taskId.value}/data`)
+}
+
+function openRejectDialog() {
+  if (!canReject.value) return
+  rejectReasonInput.value = ''
+  rejectDialogVisible.value = true
+}
+
+function resetRejectDialog() {
+  rejectReasonInput.value = ''
+  rejectSubmitting.value = false
+}
+
+async function confirmReject() {
+  const reason = rejectReasonInput.value.trim()
+  if (!reason) {
+    ElMessage.warning('请填写理由')
+    return
+  }
+  rejectSubmitting.value = true
+  try {
+    await client.post('/reviews/reject', {
+      taskId: taskId.value,
+      dataId: currentDocId.value,
+      annotatorId: activeData.value.userId,
+      reason
+    })
+    rejectDialogVisible.value = false
+    ElMessage.success('已退回，等待标注员重新标注')
+    router.push(`/tasks/${taskId.value}/data`)
+  } finally {
+    rejectSubmitting.value = false
+  }
 }
 
 async function confirmFinal() {

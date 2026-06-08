@@ -12,8 +12,10 @@ import edu.nju.jap.model.po.AnnotationPo;
 import edu.nju.jap.model.po.PropositionPo;
 import edu.nju.jap.model.po.RelationMember;
 import edu.nju.jap.model.po.RelationPo;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -63,6 +65,18 @@ public class AnnotationPersistenceService {
     }
 
     @Transactional
+    public void rejectAnnotation(int taskId, int taskDocumentId, long annotatorId, String reason) {
+        AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, annotatorId, RECORD_ANNOTATION);
+        if (annotation == null || !"SUBMITTED".equalsIgnoreCase(annotation.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "标注结果不存在或未提交");
+        }
+        annotation.setStatus("DRAFT");
+        annotation.setSubmittedAt(null);
+        annotation.setRejectReason(reason);
+        annotationMapper.updateStatus(annotation);
+    }
+
+    @Transactional
     public void markArbitrationSubmitted(int taskId, int taskDocumentId, long arbitratorId) {
         AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, arbitratorId, RECORD_ARBITRATION);
         if (annotation == null) {
@@ -87,12 +101,14 @@ public class AnnotationPersistenceService {
             annotation.setIsFinal(0);
             annotation.setStatus(draft ? "DRAFT" : "SUBMITTED");
             annotation.setSubmittedAt(draft ? null : now);
+            annotation.setRejectReason(null);
             annotationMapper.insert(annotation);
         } else {
             clearAnnotationContent(annotation.getId());
             annotation.setIsFinal(0);
             annotation.setStatus(draft ? "DRAFT" : "SUBMITTED");
             annotation.setSubmittedAt(draft ? null : now);
+            annotation.setRejectReason(draft ? annotation.getRejectReason() : null);
             annotationMapper.updateStatus(annotation);
         }
 
@@ -172,7 +188,7 @@ public class AnnotationPersistenceService {
                                         String recordType) {
         AnnotationPo annotation = annotationMapper.selectByScope(taskId, taskDocumentId, userId, recordType);
         if (annotation == null) {
-            return new AnnotationResult(taskId, apiDataId, userId, List.of(), List.of(), true, null);
+            return new AnnotationResult(taskId, apiDataId, userId, List.of(), List.of(), true, null, null);
         }
 
         List<PropositionPo> props = propositionMapper.selectByAnnotationId(annotation.getId());
@@ -209,7 +225,8 @@ public class AnnotationPersistenceService {
                         .filter(t -> t != null)
                         .max(Comparator.naturalOrder())
                         .orElse(null);
-        return new AnnotationResult(taskId, apiDataId, userId, propositions, relations, draft, submitted);
+        return new AnnotationResult(taskId, apiDataId, userId, propositions, relations, draft, submitted,
+                annotation.getRejectReason());
     }
 
     private static List<String> relationMembers(Relation relation) {

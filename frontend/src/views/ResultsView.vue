@@ -128,7 +128,7 @@ import { ElLoading, ElMessage } from 'element-plus'
 import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { buildAnnotatedParts, circledNo, formatRelationFormula } from '../utils/reviewHelpers'
-import { exportTaskZip } from '../utils/taskZipExport'
+import { canAccessAllTaskResults, exportTaskZip, resolveExportAnnotatorId } from '../utils/taskZipExport'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -154,13 +154,23 @@ const annotatorNameMap = computed(() => {
   return map
 })
 
+const exportAnnotatorId = computed(() => resolveExportAnnotatorId(taskDetail.value, auth.user))
+
+const visibleAnnotatorResults = computed(() => {
+  const results = currentDoc.value?.annotatorResults || []
+  const scopeId = exportAnnotatorId.value
+  if (scopeId == null) return results
+  return results.filter((r) => r.userId === scopeId)
+})
+
 const sidebarItems = computed(() => {
-  const items = (currentDoc.value?.annotatorResults || []).map((r, index) => {
+  const items = visibleAnnotatorResults.value.map((r, index) => {
     const props = r.propositions || []
     const rels = r.relations || []
+    const isMine = exportAnnotatorId.value != null && r.userId === exportAnnotatorId.value
     return {
       key: `annotator-${r.userId}`,
-      label: annotatorNameMap.value.get(r.userId) || `标注员 ${String.fromCharCode(65 + index)}`,
+      label: isMine ? '我的标注' : (annotatorNameMap.value.get(r.userId) || `标注员 ${String.fromCharCode(65 + index)}`),
       icon: '👤',
       countText: `${props.length} 命题 / ${rels.length} 关系`
     }
@@ -189,7 +199,7 @@ const activeData = computed(() => {
     }
   }
   const userId = Number(selectedKey.value.replace('annotator-', ''))
-  const result = currentDoc.value.annotatorResults.find((r) => r.userId === userId)
+  const result = visibleAnnotatorResults.value.find((r) => r.userId === userId)
   return {
     propositions: result?.propositions || [],
     relations: result?.relations || []
@@ -211,8 +221,7 @@ const relationRows = computed(() =>
 const canExport = computed(() => {
   const userId = auth.user?.id
   return (
-    auth.user?.canCreateTask ||
-    taskDetail.value?.reviewer?.id === userId ||
+    canAccessAllTaskResults(taskDetail.value, auth.user) ||
     taskDetail.value?.annotators?.some((u) => u.id === userId)
   )
 })
@@ -299,6 +308,7 @@ async function exportData() {
       review: review.value,
       taskDetail: taskDetail.value,
       currentDocId: currentDocId.value,
+      annotatorId: exportAnnotatorId.value,
       onProgress: (text) => {
         if (text) loading.setText(text)
       }

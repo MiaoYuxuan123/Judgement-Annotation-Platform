@@ -1,4 +1,4 @@
-﻿-- Production schema init (idempotent: safe to re-run, does not drop data)
+-- Production schema init (idempotent: safe to re-run, does not drop data)
 -- Used by server ~/judgment-platform/init.sql on first MySQL container start.
 
 CREATE TABLE IF NOT EXISTS `sys_user` (
@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS `annotation` (
     `guide_version_id` BIGINT UNSIGNED DEFAULT NULL,
     `guide_snapshot` JSON DEFAULT NULL,
     `submitted_at` DATETIME DEFAULT NULL,
+    `reject_reason` VARCHAR(500) DEFAULT NULL COMMENT '裁定不予采纳理由',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),

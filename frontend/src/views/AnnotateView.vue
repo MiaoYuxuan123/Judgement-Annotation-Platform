@@ -1,5 +1,16 @@
 <template>
   <div v-if="data" class="annotate-page">
+    <el-alert
+      v-if="rejectReason && rejectAlertVisible"
+      class="annotate-reject-alert"
+      type="warning"
+      title="裁定未采纳，请修改后重新提交"
+      :description="rejectReason"
+      show-icon
+      closable
+      @close="rejectAlertVisible = false"
+    />
+
     <section class="annotate-topbar modern">
       <div>
         <span class="annotate-logo">JAP</span>
@@ -235,6 +246,8 @@ import { selectionSpanFromSourceElement } from '../utils/reviewHelpers'
 const route = useRoute()
 const router = useRouter()
 const isArbitration = computed(() => route.query.mode === 'arbitration')
+const rejectReason = computed(() => data.value?.annotation?.rejectReason || '')
+const rejectAlertVisible = ref(true)
 
 const data = ref(null)
 const propositions = ref([])
@@ -702,6 +715,7 @@ async function load() {
   }
   if (params.toString()) url += `?${params.toString()}`
   data.value = await client.get(url)
+  rejectAlertVisible.value = true
   propositions.value = [...(data.value.annotation.propositions || [])]
   relations.value = [...(data.value.annotation.relations || [])]
   manualRelationOrder.value = false
