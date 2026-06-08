@@ -82,4 +82,42 @@ describe('argumentGraphElkLayout', () => {
     expect(propNodes).toHaveLength(1)
     expect(propNodes[0].data.label).toBe('P1 / P2')
   })
+
+  it('fans out multiple directed relations from one proposition without overlapping hubs', () => {
+    const graph = buildElkGraph(propositions, [
+      { relId: 'R1', type: 'S', members: ['P1', 'P2'] },
+      { relId: 'R2', type: 'S', members: ['P1', 'P3'] },
+      { relId: 'R3', type: 'S', members: ['P1', 'P4'] }
+    ])
+
+    const p1 = nodeByLabel(graph, 'P1')
+    const p2 = nodeByLabel(graph, 'P2')
+    const p3 = nodeByLabel(graph, 'P3')
+    const p4 = nodeByLabel(graph, 'P4')
+    const hubs = nodesByType(graph, 'hub-s')
+
+    expect(hubs).toHaveLength(3)
+    expect(new Set(hubs.map((hub) => `${Math.round(center(hub).x)},${Math.round(center(hub).y)}`)).size).toBe(3)
+    expect(center(p2).y).toBeGreaterThan(center(p1).y)
+    expect(center(p3).x).toBeLessThan(center(p1).x)
+    expect(center(p4).x).toBeGreaterThan(center(p1).x)
+  })
+
+  it('fans in multiple source propositions to one target without overlapping hubs', () => {
+    const graph = buildElkGraph(propositions, [
+      { relId: 'R1', type: 'S', members: ['P1', 'P2'] },
+      { relId: 'R2', type: 'S', members: ['P3', 'P2'] }
+    ])
+
+    const p1 = nodeByLabel(graph, 'P1')
+    const p2 = nodeByLabel(graph, 'P2')
+    const p3 = nodeByLabel(graph, 'P3')
+    const hubs = nodesByType(graph, 'hub-s')
+
+    expect(hubs).toHaveLength(2)
+    expect(new Set(hubs.map((hub) => `${Math.round(center(hub).x)},${Math.round(center(hub).y)}`)).size).toBe(2)
+    expect(center(p1).y).toBeLessThan(center(p2).y)
+    expect(center(p3).y).toBeCloseTo(center(p2).y, 0)
+    expect(center(p3).x).toBeGreaterThan(center(p2).x)
+  })
 })
