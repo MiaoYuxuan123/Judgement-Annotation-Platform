@@ -45,4 +45,10 @@ public class ReviewController {
         reviewService.cancelPending(body);
         return ApiResponse.ok("已取消待确认的裁定结果", null);
     }
+
+    @PostMapping("/reject")
+    ApiResponse<Void> reject(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        reviewService.reject(body, request);
+        return ApiResponse.ok("已退回标注员重新标注", null);
+    }
 }

@@ -13,6 +13,7 @@ public class AnnotationPo {
     private Long guideVersionId;
     private String guideSnapshot;
     private LocalDateTime submittedAt;
+    private String rejectReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -36,6 +37,8 @@ public class AnnotationPo {
     public void setGuideSnapshot(String guideSnapshot) { this.guideSnapshot = guideSnapshot; }
     public LocalDateTime getSubmittedAt() { return submittedAt; }
     public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
+    public String getRejectReason() { return rejectReason; }
+    public void setRejectReason(String rejectReason) { this.rejectReason = rejectReason; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

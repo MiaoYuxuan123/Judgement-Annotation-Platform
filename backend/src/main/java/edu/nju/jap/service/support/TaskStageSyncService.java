@@ -60,6 +60,21 @@ public class TaskStageSyncService {
         syncTaskStatus(taskId);
     }
 
+    /**
+     * 裁定不予采纳后：若该文书尚未全员重新提交，则回退为「标注中」并同步任务阶段。
+     */
+    public void afterAnnotationRejected(int taskId, int taskDocumentId) {
+        TaskItem task = taskAggregateService.loadTaskItem(taskId);
+        int annotatorCount = task.annotatorIds.size();
+        if (annotatorCount <= 0) {
+            return;
+        }
+        if (annotationMapper.countSubmittedByTaskDocument(taskId, taskDocumentId) < annotatorCount) {
+            taskDocumentMapper.updateStatus(taskDocumentId, STAGE_ANNOTATING);
+        }
+        syncTaskStatus(taskId);
+    }
+
     private void syncTaskStatus(int taskId) {
         List<TaskDocument> docs = taskDocumentMapper.selectByTaskId(taskId);
         if (docs.isEmpty()) {
@@ -72,6 +87,8 @@ public class TaskStageSyncService {
         if (docs.stream().anyMatch(doc -> STAGE_ARBITRATION.equals(doc.getStatus())
                 || STAGE_EXPORTABLE.equals(doc.getStatus()))) {
             taskMapper.updateStatus(taskId, STAGE_ARBITRATION);
+            return;
         }
+        taskMapper.updateStatus(taskId, STAGE_ANNOTATING);
     }
 }

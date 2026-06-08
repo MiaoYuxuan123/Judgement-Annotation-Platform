@@ -110,6 +110,27 @@ public class ReviewService {
     }
 
     @Transactional
+    public void reject(Map<String, Object> body, HttpServletRequest request) {
+        int taskId = (int) MapBodyUtils.longValue(body.get("taskId"), 0);
+        long dataId = MapBodyUtils.longValue(body.get("dataId"), MapBodyUtils.longValue(body.get("documentId"), 0));
+        long annotatorId = MapBodyUtils.longValue(body.get("annotatorId"), 0);
+        String reason = MapBodyUtils.text(body, "reason", "").trim();
+        if (reason.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请填写不予采纳理由");
+        }
+        TaskDocument td = taskDocumentResolver.requireTaskDocument(taskId, dataId);
+        currentUserService.requireCurrent(request);
+        annotationPersistenceService.rejectAnnotation(taskId, td.getId(), annotatorId, reason);
+
+        ArbitrationSnapshot arb = arbitrationSnapshotMapper.selectByTaskAndDoc(taskId, td.getId());
+        if (arb != null && (arb.getFinalResult() == null || arb.getFinalResult() != 1)) {
+            annotationPersistenceService.deleteArbitration(taskId, td.getId(), arb.getArbitratorId());
+            arbitrationSnapshotMapper.deleteByTaskAndDoc(taskId, td.getId());
+        }
+        taskStageSyncService.afterAnnotationRejected(taskId, td.getId());
+    }
+
+    @Transactional
     public void cancelPending(Map<String, Object> body) {
         int taskId = (int) MapBodyUtils.longValue(body.get("taskId"), 0);
         long dataId = MapBodyUtils.longValue(body.get("dataId"), MapBodyUtils.longValue(body.get("documentId"), 0));
