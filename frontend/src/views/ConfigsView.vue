@@ -14,6 +14,20 @@
     </div>
 
     <template v-if="currentConfig">
+      <!-- 指南附件 -->
+      <div class="config-table-section">
+        <div class="config-table-header">
+          <h4>指南附件</h4>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span v-if="currentConfig.attachmentName" style="color:#666;font-size:13px">{{ currentConfig.attachmentName }}</span>
+            <el-button v-if="currentConfig.attachmentName" size="small" @click="viewAttachment">查看</el-button>
+            <el-upload :show-file-list="false" :http-request="uploadAttachment" accept=".pdf,.docx,.txt">
+              <el-button size="small" type="primary">{{ currentConfig.attachmentName ? '重新上传' : '上传附件' }}</el-button>
+            </el-upload>
+            <el-button v-if="currentConfig.attachmentName" size="small" type="danger" @click="removeAttachment">删除附件</el-button>
+          </div>
+        </div>
+      </div>
       <!-- 一级标签配置 -->
       <div class="config-table-section">
         <div class="config-table-header">
@@ -118,7 +132,7 @@
     <el-dialog v-model="tagDialogVisible" :title="tagDialogTitle" width="460px">
       <el-form :model="tagForm" label-position="top">
         <el-form-item label="简称">
-          <el-input v-model="tagForm.shortName" placeholder="" :disabled="tagEditing" />
+          <el-input v-model="tagForm.shortName" placeholder="" />
         </el-form-item>
         <el-form-item label="名称">
           <el-input v-model="tagForm.name" placeholder="" />
@@ -137,6 +151,20 @@
         <el-button type="primary" @click="confirmTag">确认</el-button>
       </template>
     </el-dialog>
+    <el-dialog v-model="previewVisible" title="附件预览" width="80%" :close-on-click-modal="false">
+      <div style="height:70vh">
+        <template v-if="isPreviewable">
+          <iframe v-if="previewUrl" :key="previewUrl" :src="previewUrl" style="width:100%;height:100%;border:none" />
+        </template>
+        <div v-else style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:16px">
+          该文件类型不支持在线预览，请下载后查看
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="previewVisible=false">关闭</el-button>
+        <el-button type="primary" @click="downloadAttachment">下载</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -149,6 +177,11 @@ const configs = ref([])
 const currentConfig = ref(null)
 
 const dirty = ref(false)
+const previewVisible = ref(false), previewUrl = ref('')
+const isPreviewable = computed(() => {
+  const name = currentConfig.value?.attachmentName || ''
+  return name.toLowerCase().endsWith('.pdf') || name.toLowerCase().endsWith('.txt')
+})
 
 // ─── Version management ───
 
@@ -307,6 +340,50 @@ function removeTag(type, index) {
 
 async function load() {
   configs.value = await client.get('/configs/versions')
+}
+
+// ─── Attachment ───
+
+async function uploadAttachment({ file, onSuccess, onError }) {
+  if (!currentConfig.value?.id) { ElMessage.warning('请先保存版本后再上传附件'); onError?.(); return }
+  const fd = new FormData(); fd.append('file', file)
+  try {
+    await client.post(`/configs/versions/${currentConfig.value.id}/attachment`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    currentConfig.value.attachmentName = file.name
+    ElMessage.success('附件上传成功')
+    onSuccess?.()
+  } catch (e) { ElMessage.error('上传失败: ' + (e.message || '')); onError?.(e) }
+}
+
+async function removeAttachment() {
+  if (!currentConfig.value?.id) return
+  try {
+    await client.put(`/configs/versions/${currentConfig.value.id}`, {
+      versionName: currentConfig.value.versionName,
+      description: currentConfig.value.description,
+      primaryTags: currentConfig.value.primaryTags,
+      secondaryTags: currentConfig.value.secondaryTags,
+      relationTypes: currentConfig.value.relationTypes,
+      attachmentName: ''
+    })
+    currentConfig.value.attachmentName = null
+    ElMessage.success('附件已删除')
+  } catch (e) { ElMessage.error('删除失败') }
+}
+
+async function viewAttachment() {
+  if (!currentConfig.value?.id || !currentConfig.value?.attachmentName) return
+  const token = localStorage.getItem('jap_token')
+  previewUrl.value = `/api/configs/versions/${currentConfig.value.id}/attachment?token=${token}&t=${Date.now()}`
+  previewVisible.value = true
+}
+
+function downloadAttachment() {
+  if (!previewUrl.value || !currentConfig.value?.attachmentName) return
+  const a = document.createElement('a')
+  a.href = previewUrl.value
+  a.download = currentConfig.value.attachmentName
+  a.click()
 }
 
 onMounted(load)

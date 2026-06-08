@@ -89,7 +89,7 @@ public final class DomainConverter {
                 .toList();
         String created = version.getCreatedAt() == null ? "" : version.getCreatedAt().toLocalDate().toString();
         return new GuideConfig(version.getId(), version.getVersionName(), version.getDescription(),
-                false, created, primary, secondary, relations);
+                false, created, version.getAttachmentName(), primary, secondary, relations);
     }
 
     public static Proposition toProposition(PropositionPo po, int sequence) {

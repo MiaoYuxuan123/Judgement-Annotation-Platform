@@ -14,7 +14,7 @@
         INSERT INTO guide_version(version_name, description) VALUES (#{versionName}, #{description})
     </insert>
     <update id="update">
-        UPDATE guide_version SET version_name=#{versionName}, description=#{description} WHERE id=#{id}
+        UPDATE guide_version SET version_name=#{versionName}, description=#{description}, attachment_name=#{attachmentName} WHERE id=#{id}
     </update>
     <delete id="deleteById">DELETE FROM guide_version WHERE id=#{id}</delete>
 </mapper>

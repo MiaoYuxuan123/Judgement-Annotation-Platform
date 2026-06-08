@@ -22,7 +22,14 @@ public class SimpleAuthInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
-        User user = jwtService.resolveUser(request.getHeader("Authorization"));
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null) {
+            String tokenParam = request.getParameter("token");
+            if (tokenParam != null && !tokenParam.isEmpty()) {
+                authHeader = "Bearer " + tokenParam;
+            }
+        }
+        User user = jwtService.resolveUser(authHeader);
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "未登录或令牌无效/已过期");
         }

@@ -7,6 +7,7 @@ public class GuideVersion {
     private String versionName;
     private String description;
     private LocalDateTime createdAt;
+    private String attachmentName;
 
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -16,4 +17,6 @@ public class GuideVersion {
     public void setDescription(String description) { this.description = description; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public String getAttachmentName() { return attachmentName; }
+    public void setAttachmentName(String attachmentName) { this.attachmentName = attachmentName; }
 }

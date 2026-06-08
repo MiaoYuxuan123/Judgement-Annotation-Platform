@@ -34,6 +34,12 @@ public class UserController {
         return ApiResponse.ok("用户创建成功", Map.of("userId", id));
     }
 
+    @PostMapping("/batch")
+    ApiResponse<List<Map<String, Object>>> batchCreate(@RequestBody Map<String, Object> body) {
+        List<Map<String, Object>> results = userService.batchCreate(body);
+        return ApiResponse.ok("批量创建完成，成功 " + results.size() + " 个用户", results);
+    }
+
     @PutMapping("/{id}")
     ApiResponse<Void> update(@PathVariable long id, @RequestBody Map<String, Object> body) {
         userService.update(id, body);

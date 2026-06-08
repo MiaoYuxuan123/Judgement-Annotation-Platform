@@ -16,6 +16,7 @@
         <span class="annotate-logo">JAP</span>
         <strong>标注工作台</strong>
         <span class="annotate-doc-title">{{ data.document.title }}</span>
+        <el-button v-if="data.config?.attachmentName" size="small" type="warning" @click="openAttachment">查看当前指南</el-button>
       </div>
       <div>
         <el-button class="topbar-btn" @click="goBack">返回</el-button>
@@ -181,11 +182,11 @@
             <span>{{ tag.name }}</span>
           </button>
         </div>
-        <template v-if="primaryTag === 'GM'">
-          <div class="tag-group-title">GM 二级标签</div>
+        <template v-if="secondaryTagsForCurrent.length > 0">
+          <div class="tag-group-title">{{ primaryTag }} 二级标签</div>
           <div class="tag-choice-grid secondary-grid">
             <button
-                v-for="tag in data.config.secondaryTags"
+                v-for="tag in secondaryTagsForCurrent"
                 :key="tag.shortName"
                 class="modern-tag-option compact"
                 :class="{ selected: secondaryTag === tag.shortName }"
@@ -232,11 +233,25 @@
       <GraphCanvas v-if="graphGenerated" :propositions="graphPropositions" :relations="graphRelations" :active-relation-id="activeRelationId" />
       <el-empty v-else description="请先在关系生成区点击“生成图示”" />
     </el-dialog>
+    <el-dialog v-model="previewVisible" title="指南附件预览" width="80%" :close-on-click-modal="false">
+      <div style="height:70vh">
+        <template v-if="isPreviewable">
+          <iframe v-if="previewUrl" :key="previewUrl" :src="previewUrl" style="width:100%;height:100%;border:none" />
+        </template>
+        <div v-else style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:16px">
+          该文件类型不支持在线预览，请下载后查看
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="previewVisible=false">关闭</el-button>
+        <el-button type="primary" @click="downloadAttachment">下载</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
@@ -260,6 +275,11 @@ const history = ref([])
 const redoStack = ref([])
 const labelDialog = ref(false)
 const fullscreen = ref(false)
+const previewVisible = ref(false), previewUrl = ref('')
+const isPreviewable = computed(() => {
+  const name = data.value?.config?.attachmentName || ''
+  return name.toLowerCase().endsWith('.pdf') || name.toLowerCase().endsWith('.txt')
+})
 const selectedText = ref('')
 const selectedStart = ref(0)
 const selectedEnd = ref(0)
@@ -268,9 +288,9 @@ const labelPosition = ref({ left: 720, top: 160 })
 const sourceTextEl = ref(null)
 const labelDragging = ref(false)
 const labelDragOffset = ref({ x: 0, y: 0 })
-const primaryTag = ref('GM')
-const secondaryTag = ref('GM-L')
-const relationForm = reactive({ type: 'S' })
+const primaryTag = ref('')
+const secondaryTag = ref('')
+const relationForm = reactive({ type: '' })
 const relationMembers = ref(['', ''])
 const activeRelationId = ref('')
 const editingRelationId = ref('')
@@ -344,7 +364,22 @@ const orderedRelationTypes = computed(() => {
 
 const supportsMultiMember = computed(() => ['J', 'I'].includes(relationForm.type))
 const relationTypeName = computed(() => orderedRelationTypes.value.find((item) => item.shortName === relationForm.type)?.name || '关系')
-const selectedTag = computed(() => (primaryTag.value === 'GM' ? secondaryTag.value : primaryTag.value))
+const selectedTag = computed(() => (secondaryTag.value ? secondaryTag.value : primaryTag.value))
+const secondaryTagsForCurrent = computed(() =>
+  (data.value?.config.secondaryTags || []).filter(t => t.parentTag === primaryTag.value)
+)
+
+watch(primaryTagOrder, (tags) => {
+  if (tags.length > 0 && !primaryTag.value) primaryTag.value = tags[0].shortName
+}, { immediate: true })
+
+watch(secondaryTagsForCurrent, (tags) => {
+  if (tags.length > 0 && !secondaryTag.value) secondaryTag.value = tags[0].shortName
+}, { immediate: true })
+
+watch(orderedRelationTypes, (types) => {
+  if (types.length > 0 && !types.find(t => t.shortName === relationForm.type)) relationForm.type = types[0].shortName
+}, { immediate: true })
 
 const labelPopupStyle = computed(() => ({
   left: `${labelPosition.value.left}px`,
@@ -453,7 +488,7 @@ function stopLabelDrag() {
 
 function choosePrimary(tag) {
   primaryTag.value = tag
-  if (tag === 'GM' && !secondaryTag.value) secondaryTag.value = 'GM-L'
+  if (secondaryTagsForCurrent.value.length > 0 && !secondaryTag.value) secondaryTag.value = secondaryTagsForCurrent.value[0].shortName
 }
 
 function cancelLabel() {
@@ -549,8 +584,9 @@ function addRelation() {
 }
 
 function editProposition(prop) {
-  primaryTag.value = prop.tag.startsWith('GM') ? 'GM' : prop.tag
-  secondaryTag.value = prop.tag.startsWith('GM') ? prop.tag : 'GM-L'
+  const hasDash = prop.tag.includes('-')
+  primaryTag.value = hasDash ? prop.tag.split('-')[0] : prop.tag
+  secondaryTag.value = hasDash ? prop.tag : ''
   selectedText.value = prop.text
   selectedStart.value = prop.startPos
   selectedEnd.value = prop.endPos
@@ -772,6 +808,23 @@ function removeInvalidRelations() {
 
 function overlapsExisting(start, end, ignoredPropId = '') {
   return propositions.value.some((p) => p.propId !== ignoredPropId && Math.max(start, p.startPos) < Math.min(end, p.endPos))
+}
+
+function openAttachment() {
+  const config = data.value?.config
+  if (!config?.id || !config?.attachmentName) return
+  const token = localStorage.getItem('jap_token')
+  previewUrl.value = `/api/configs/versions/${config.id}/attachment?token=${token}&t=${Date.now()}`
+  previewVisible.value = true
+}
+
+function downloadAttachment() {
+  const config = data.value?.config
+  if (!previewUrl.value || !config?.attachmentName) return
+  const a = document.createElement('a')
+  a.href = previewUrl.value
+  a.download = config.attachmentName
+  a.click()
 }
 
 onMounted(() => {

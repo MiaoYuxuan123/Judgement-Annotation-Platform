@@ -17,6 +17,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -73,6 +79,12 @@ public class ConfigService {
         GuideVersion version = guideVersionMapper.selectById((int) id);
         version.setVersionName(MapBodyUtils.text(body, "versionName", old.versionName));
         version.setDescription(MapBodyUtils.text(body, "description", old.description));
+        if (body.containsKey("attachmentName")) {
+            version.setAttachmentName(MapBodyUtils.text(body, "attachmentName", ""));
+            if (version.getAttachmentName().isEmpty()) {
+                deleteAttachmentFile((int) id);
+            }
+        }
         guideVersionMapper.update(version);
         labelL1Mapper.deleteByVersionId((int) id);
         labelL2Mapper.deleteByVersionId((int) id);
@@ -96,16 +108,46 @@ public class ConfigService {
         if (guideVersionMapper.deleteById((int) id) == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "指南版本不存在");
         }
+        deleteAttachmentFile((int) id);
     }
 
     public GuideConfig requireConfig(long id) {
         return guideConfigLoader.load((int) id);
     }
 
+    public void uploadAttachment(int versionId, MultipartFile file) throws IOException {
+        GuideVersion version = guideVersionMapper.selectById(versionId);
+        if (version == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "指南版本不存在");
+        }
+        Path dir = Paths.get("data", "guides", String.valueOf(versionId));
+        Files.createDirectories(dir);
+        Path target = dir.resolve("attachment").toAbsolutePath();
+        Files.copy(file.getInputStream(), target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        version.setAttachmentName(file.getOriginalFilename());
+        guideVersionMapper.update(version);
+    }
+
+    public java.io.File getAttachmentFile(int versionId) {
+        Path path = Paths.get("data", "guides", String.valueOf(versionId), "attachment").toAbsolutePath();
+        java.io.File file = path.toFile();
+        if (!file.exists()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "该版本未上传附件");
+        }
+        return file;
+    }
+
+    private void deleteAttachmentFile(int versionId) {
+        try {
+            Files.deleteIfExists(Paths.get("data", "guides", String.valueOf(versionId), "attachment").toAbsolutePath());
+        } catch (IOException ignored) {
+        }
+    }
+
     private GuideConfig loadBaseOrEmpty() {
         GuideVersion baseVersion = guideVersionMapper.selectById(1);
         if (baseVersion == null) {
-            return new GuideConfig(0, "", "", false, "", List.of(), List.of(), List.of());
+            return new GuideConfig(0, "", "", false, "", null, List.of(), List.of(), List.of());
         }
         return guideConfigLoader.load(1);
     }
