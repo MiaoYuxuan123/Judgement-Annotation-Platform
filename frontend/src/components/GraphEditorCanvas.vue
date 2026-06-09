@@ -44,7 +44,7 @@
         @nodes-change="onNodesChange"
         @edges-change="onEdgesChange"
       >
-        <Background :gap="16" pattern-color="#e8edf3" />
+        <Background :gap="16" pattern-color="#d0c9bc" />
         <Controls v-if="editable" :show-interactive="false" />
       </VueFlow>
       <div v-else class="graph-editor-empty">加载中…</div>
@@ -888,7 +888,7 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
   inset: 0;
   display: grid;
   place-items: center;
-  color: #94a3b8;
+  color: #a8a29e;
   font-size: 13px;
 }
 

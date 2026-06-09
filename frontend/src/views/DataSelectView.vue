@@ -377,6 +377,6 @@ onMounted(load)
 .task-export-hint {
   margin-left: 8px;
   font-size: 13px;
-  color: #6b7280;
+  color: #78716c;
 }
 </style>

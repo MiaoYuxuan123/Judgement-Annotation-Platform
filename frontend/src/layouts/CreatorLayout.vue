@@ -3,7 +3,6 @@
     <header class="task-shell-header">
       <div class="task-shell-header-left">
         <span class="task-shell-title">任务目录</span>
-        <span class="task-shell-perspective">（创建者视角）</span>
       </div>
       <div class="task-shell-header-right">
         <el-button text @click="openProfile">个人中心</el-button>
@@ -70,6 +69,6 @@ async function logout() {
 
 <style scoped>
 .creator-shell .task-shell-header {
-  background: #1e40af;
+  background: linear-gradient(135deg, #1a1817 0%, #2c1f1a 50%, #1a1817 100%);
 }
 </style>

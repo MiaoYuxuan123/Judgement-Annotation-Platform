@@ -1,6 +1,6 @@
 <template>
   <section class="panel">
-    <div class="toolbar"><h3>用户管理</h3><div style="display:flex;gap:8px"><el-button @click="open()">新增用户</el-button><el-button type="primary" @click="openBatch">批量新增</el-button></div></div>
+    <div class="toolbar"><h3>用户列表</h3><div style="display:flex;gap:8px"><el-button @click="open()">新增用户</el-button><el-button type="primary" @click="openBatch">批量新增</el-button></div></div>
     <el-table :data="users">
       <el-table-column prop="username" label="账号" />
       <el-table-column prop="realName" label="姓名" />

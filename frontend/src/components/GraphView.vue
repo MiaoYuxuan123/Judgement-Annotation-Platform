@@ -3,7 +3,7 @@
     <svg>
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#78716c" />
         </marker>
       </defs>
       <line
@@ -13,11 +13,11 @@
           :y1="rel.y1"
           :x2="rel.x2"
           :y2="rel.y2"
-          stroke="#64748b"
+          stroke="#78716c"
           stroke-width="2"
           marker-end="url(#arrow)"
       />
-      <text v-for="rel in renderedRelations" :key="`${rel.relId}-label`" :x="(rel.x1 + rel.x2) / 2" :y="(rel.y1 + rel.y2) / 2 - 6" fill="#334155" font-size="12">
+      <text v-for="rel in renderedRelations" :key="`${rel.relId}-label`" :x="(rel.x1 + rel.x2) / 2" :y="(rel.y1 + rel.y2) / 2 - 6" fill="#44403c" font-size="12">
         {{ rel.type }}
       </text>
     </svg>

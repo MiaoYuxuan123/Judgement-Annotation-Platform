@@ -19,7 +19,7 @@
         class="graph-canvas-flow"
         @nodes-initialized="onNodesInitialized"
       >
-        <Background :gap="16" pattern-color="#e8edf3" />
+        <Background :gap="16" pattern-color="#d0c9bc" />
       </VueFlow>
       <div v-else-if="layouting" class="graph-canvas-empty">布局计算中…</div>
       <div v-else class="graph-canvas-empty">暂无图示数据</div>
@@ -315,7 +315,7 @@ onBeforeUnmount(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #ede8df;
   border-radius: 8px;
   background: #fff;
   overflow: hidden;
@@ -323,7 +323,7 @@ onBeforeUnmount(() => {
 
 .graph-canvas:fullscreen {
   padding: 16px;
-  background: #f8fafc;
+  background: #faf7f2;
 }
 
 .graph-canvas-viewport-wrap {
@@ -349,7 +349,7 @@ onBeforeUnmount(() => {
   inset: 0;
   display: grid;
   place-items: center;
-  color: #94a3b8;
+  color: #a8a29e;
   font-size: 13px;
   background: #fff;
   z-index: 2;
@@ -364,7 +364,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 6px;
   padding: 6px;
-  border: 1px solid #dbe4f0;
+  border: 1px solid #d0c9bc;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
@@ -380,7 +380,7 @@ onBeforeUnmount(() => {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: #334155;
+  color: #44403c;
   font: inherit;
   font-size: 18px;
   font-weight: 700;
@@ -390,9 +390,9 @@ onBeforeUnmount(() => {
 }
 
 .graph-tool-btn:hover {
-  border-color: #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: #f0b0b5;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
 .graph-tool-text {
@@ -418,7 +418,7 @@ onBeforeUnmount(() => {
 }
 
 :deep(.vue-flow__edge-path) {
-  stroke: #111;
+  stroke: #1a1817;
 }
 
 </style>

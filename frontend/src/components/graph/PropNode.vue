@@ -49,11 +49,11 @@ const handles = [
   box-sizing: border-box;
   display: grid;
   place-items: center;
-  border: 1.2px solid #111;
+  border: 1.2px solid #1a1817;
   background: #fff;
   font-size: 13px;
   font-weight: 600;
-  color: #111;
+  color: #1a1817;
   font-family: Inter, 'Microsoft YaHei', sans-serif;
   pointer-events: none;
 }
@@ -73,10 +73,10 @@ const handles = [
 }
 
 .ag-prop-node--highlighted {
-  border-color: #2563eb;
+  border-color: #c41e3a;
   border-width: 2.4px;
-  color: #1d4ed8;
-  background: #eff6ff;
+  color: #991b1b;
+  background: #fef2f2;
   box-shadow: 0 0 0 5px rgba(37, 99, 235, .14);
 }
 
@@ -94,7 +94,7 @@ const handles = [
   min-width: 7px !important;
   min-height: 7px !important;
   opacity: 1 !important;
-  border: 1.5px solid #2563eb !important;
+  border: 1.5px solid #c41e3a !important;
   background: #fff !important;
   border-radius: 50%;
 }
@@ -104,8 +104,8 @@ const handles = [
   height: 9px !important;
   min-width: 9px !important;
   min-height: 9px !important;
-  border: 2px solid #16a34a !important;
-  background: #dcfce7 !important;
+  border: 2px solid #4a7c59 !important;
+  background: #edf7f0 !important;
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
 }
 </style>

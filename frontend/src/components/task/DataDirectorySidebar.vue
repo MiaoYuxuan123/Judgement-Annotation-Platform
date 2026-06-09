@@ -57,8 +57,8 @@ const items = computed(() =>
 <style scoped>
 .task-catalog-sidebar-all {
   font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  color: #44403c;
+  border-bottom: 1px solid #e0dbd2;
   margin-bottom: 4px;
 }
 </style>

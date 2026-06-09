@@ -683,14 +683,14 @@ onMounted(load)
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f4f7fb;
-  color: #0f172a;
+  background: #f6f2eb;
+  color: #1a1817;
 }
 
 .graph-editor-page.embedded {
   height: 100%;
   min-height: 0;
-  background: #f8fafc;
+  background: #faf7f2;
 }
 
 .graph-editor-page.embedded .graph-editor-topbar {
@@ -723,14 +723,14 @@ onMounted(load)
   gap: 12px;
   padding: 10px 16px;
   background: #fff;
-  border-bottom: 1px solid #dbe3ee;
+  border-bottom: 1px solid #d0c9bc;
 }
 
 .graph-editor-statusbar {
   border-bottom: none;
-  border-top: 1px solid #dbe3ee;
+  border-top: 1px solid #d0c9bc;
   font-size: 12px;
-  color: #64748b;
+  color: #78716c;
 }
 
 .graph-editor-statusbar span + span { margin-left: 16px; }
@@ -745,7 +745,7 @@ onMounted(load)
 .graph-editor-title { font-size: 16px; }
 
 .graph-editor-doc {
-  color: #64748b;
+  color: #78716c;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -766,15 +766,15 @@ onMounted(load)
 
 .graph-editor-left,
 .graph-editor-right {
-  background: #fafbfc;
-  border-right: 1px solid #dbe3ee;
+  background: #faf7f2;
+  border-right: 1px solid #d0c9bc;
   padding: 14px 12px;
   overflow: auto;
 }
 
 .graph-editor-right {
   border-right: none;
-  border-left: 1px solid #dbe3ee;
+  border-left: 1px solid #d0c9bc;
 }
 
 .graph-editor-main {
@@ -786,7 +786,7 @@ onMounted(load)
 .graph-editor-panel-title {
   font-size: 12px;
   font-weight: 700;
-  color: #475569;
+  color: #44403c;
   margin: 12px 0 8px;
 }
 
@@ -803,7 +803,7 @@ onMounted(load)
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #dbe3ee;
+  border: 1px solid #d0c9bc;
   background: #fff;
   border-radius: 8px;
   padding: 8px 10px;
@@ -819,9 +819,9 @@ onMounted(load)
 
 .graph-editor-tool.active,
 .graph-editor-rel-btn.active {
-  border-color: #2563eb;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: #c41e3a;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
 .graph-editor-tool-icon { width: 18px; }
@@ -831,14 +831,14 @@ onMounted(load)
   padding-left: 18px;
   font-size: 12px;
   line-height: 1.7;
-  color: #64748b;
+  color: #78716c;
 }
 
 .graph-editor-guide li + li { margin-top: 4px; }
 
 .graph-editor-prop-block { margin-bottom: 12px; }
 
-.graph-editor-prop-label { font-size: 12px; color: #64748b; }
+.graph-editor-prop-label { font-size: 12px; color: #78716c; }
 
 .graph-editor-prop-value {
   font-size: 15px;
@@ -848,7 +848,7 @@ onMounted(load)
 
 .graph-editor-prop-meta {
   font-size: 12px;
-  color: #64748b;
+  color: #78716c;
   margin-top: 4px;
 }
 
@@ -857,26 +857,26 @@ onMounted(load)
   width: 100%;
 }
 
-.graph-editor-dirty { color: #d97706; font-weight: 700; }
+.graph-editor-dirty { color: #b88a3e; font-weight: 700; }
 
 .graph-editor-loading {
   height: 100vh;
   display: grid;
   place-items: center;
-  color: #64748b;
+  color: #78716c;
 }
 
 .prop-picker-hint {
   margin: 0 0 12px;
   font-size: 13px;
-  color: #64748b;
+  color: #78716c;
   line-height: 1.6;
 }
 
 .prop-picker-empty {
   padding: 24px;
   text-align: center;
-  color: #94a3b8;
+  color: #a8a29e;
   font-size: 13px;
 }
 
@@ -886,12 +886,12 @@ onMounted(load)
   justify-content: space-between;
   margin-bottom: 10px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #ede8df;
 }
 
 .prop-picker-count {
   font-size: 12px;
-  color: #64748b;
+  color: #78716c;
 }
 
 .prop-picker-list {
@@ -904,7 +904,7 @@ onMounted(load)
 
 .prop-picker-item {
   display: block;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #ede8df;
   border-radius: 8px;
   padding: 8px 10px;
   cursor: pointer;
@@ -912,19 +912,19 @@ onMounted(load)
 }
 
 .prop-picker-item:hover:not(.is-on-canvas) {
-  border-color: #93c5fd;
+  border-color: #f0b0b5;
   background: #f8fbff;
 }
 
 .prop-picker-item.is-checked:not(.is-on-canvas) {
-  border-color: #2563eb;
-  background: #eff6ff;
+  border-color: #c41e3a;
+  background: #fef2f2;
 }
 
 .prop-picker-item.is-on-canvas {
   opacity: 0.55;
   cursor: not-allowed;
-  background: #f8fafc;
+  background: #faf7f2;
 }
 
 .prop-picker-item :deep(.el-checkbox) {
@@ -949,7 +949,7 @@ onMounted(load)
 
 .prop-picker-text {
   flex: 1;
-  color: #475569;
+  color: #44403c;
   font-size: 13px;
 }
 </style>

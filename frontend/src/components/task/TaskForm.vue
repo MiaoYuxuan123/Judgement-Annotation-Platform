@@ -194,7 +194,7 @@ function openConfigView() {
 
 .task-form-doc-list li {
   padding: 8px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f6f2eb;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -209,23 +209,23 @@ function openConfigView() {
 }
 
 .task-doc-source-tag {
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: #fef2f2;
+  color: #991b1b;
 }
 
 .task-doc-source-tag.role-annotate {
-  background: #ecfdf5;
-  color: #047857;
+  background: #edf7f0;
+  color: #4a7c59;
 }
 
 .task-doc-source-tag.role-arbitrate {
-  background: #fff7ed;
-  color: #c2410c;
+  background: #fef2f2;
+  color: #c41e3a;
 }
 
 .task-doc-pending-tag {
-  background: #fef3c7;
-  color: #b45309;
+  background: #fdf8ef;
+  color: #b88a3e;
 }
 
 .readonly-config-row {
@@ -235,7 +235,7 @@ function openConfigView() {
 }
 
 .muted {
-  color: #6b7280;
+  color: #78716c;
   margin: 0;
 }
 </style>

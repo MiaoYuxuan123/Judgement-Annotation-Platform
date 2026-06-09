@@ -3,7 +3,6 @@
     <header class="task-shell-header">
       <div class="task-shell-header-left">
         <span class="task-shell-title">任务目录</span>
-        <span class="task-shell-perspective">（参与者视角）</span>
       </div>
       <div class="task-shell-header-right">
         <el-button text @click="openProfile">个人中心</el-button>

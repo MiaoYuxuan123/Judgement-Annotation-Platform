@@ -348,18 +348,18 @@ onMounted(async () => {
 .existing-list .locked-label {
   margin-left: auto;
   font-size: 12px;
-  color: #9ca3af;
+  color: #a8a29e;
 }
 
 .hint {
-  color: #6b7280;
+  color: #78716c;
   margin: 0 0 12px;
 }
 
 .selected-panel {
   margin-top: 28px;
   padding-top: 20px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #e0dbd2;
 }
 
 .selected-panel h3 {
@@ -371,7 +371,7 @@ onMounted(async () => {
   margin: 0 0 16px;
   padding: 0;
   list-style: none;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e0dbd2;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -381,7 +381,7 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f6f2eb;
 }
 
 .task-doc-selected-list li:last-child {
@@ -392,8 +392,8 @@ onMounted(async () => {
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: #fef2f2;
+  color: #991b1b;
   flex-shrink: 0;
 }
 
@@ -408,12 +408,12 @@ onMounted(async () => {
   overflow: auto;
   white-space: pre-wrap;
   line-height: 1.7;
-  background: #f9fafb;
+  background: #faf7f2;
   padding: 12px;
   border-radius: 8px;
 }
 
 .muted {
-  color: #6b7280;
+  color: #78716c;
 }
 </style>

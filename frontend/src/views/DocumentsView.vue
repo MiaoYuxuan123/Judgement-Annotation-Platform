@@ -1,7 +1,7 @@
 <template>
   <section class="panel">
     <div class="toolbar">
-      <h3>文书总库</h3>
+      <h3>文书管理</h3>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <el-select v-model="filterDocId" placeholder="文书ID" clearable style="width: 140px">
           <el-option v-for="id in availableDocIds" :key="id" :label="id" :value="id" />
@@ -19,7 +19,7 @@
       @preview="openPreviewFromUpload" @remove="handleUploadRemove"
       style="margin-bottom: 16px">
       <template #default>
-        <div class="el-upload__text">拖拽或点击上传 PDF / Word / TXT / ZIP，解析后可编辑后入库</div>
+        <div class="el-upload__text">拖拽或点击上传 PDF / Word / TXT / ZIP</div>
       </template>
     </el-upload>
 
@@ -36,7 +36,7 @@
       </el-table-column>
     </el-table>
 
-    <p v-if="filteredDocuments.length === 0 && allDocuments.length > 0" style="text-align: center; color: #999; margin-top: 16px">无匹配结果，请调整筛选条件</p>
+    <p v-if="filteredDocuments.length === 0 && allDocuments.length > 0" style="text-align: center; color: #a8a29e; margin-top: 16px">无匹配结果，请调整筛选条件</p>
 
     <!-- 查看抽屉 -->
     <el-drawer v-model="drawer" title="文书详情" size="48%">

@@ -142,7 +142,7 @@
       <template v-if="isPreviewable">
         <iframe v-if="previewUrl" :key="previewUrl" :src="previewUrl" style="width:100%;height:100%;border:none" />
       </template>
-      <div v-else style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:16px">
+      <div v-else style="display:flex;align-items:center;justify-content:center;height:100%;color:#a8a29e;font-size:16px">
         该文件类型不支持在线预览，请下载后查看
       </div>
     </div>
@@ -463,6 +463,6 @@ onMounted(load)
   margin: 0 0 10px;
   font-size: 12px;
   line-height: 1.5;
-  color: #92400e;
+  color: #b88a3e;
 }
 </style>
