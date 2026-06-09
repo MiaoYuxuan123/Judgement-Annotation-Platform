@@ -8,7 +8,8 @@
       "Bash(curl -s -o /dev/null -w \"Backend:  HTTP %{http_code}\\\\n\" http://localhost:8080/api/auth/login)",
       "Bash(taskkill //F //IM node.exe)",
       "Bash(lsof -ti:5173)",
-      "Bash(lsof -ti:8080)"
+      "Bash(lsof -ti:8080)",
+      "Skill(superpowers:brainstorming)"
     ]
   }
 }

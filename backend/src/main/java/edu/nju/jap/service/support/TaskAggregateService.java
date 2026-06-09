@@ -12,6 +12,7 @@ import edu.nju.jap.model.entity.User;
 import edu.nju.jap.model.po.Task;
 import edu.nju.jap.model.po.TaskDocument;
 import edu.nju.jap.model.po.TaskMember;
+import edu.nju.jap.model.po.SysUser;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
@@ -90,5 +91,14 @@ public class TaskAggregateService {
 
     public List<TaskDocument> listTaskDocuments(int taskId) {
         return taskDocumentMapper.selectByTaskId(taskId);
+    }
+
+    public int countActiveAnnotators(TaskItem task) {
+        return (int) task.annotatorIds.stream()
+                .filter(id -> {
+                    SysUser u = sysUserMapper.selectById(id);
+                    return u != null && (u.getIsDeleted() == null || u.getIsDeleted() != 1);
+                })
+                .count();
     }
 }

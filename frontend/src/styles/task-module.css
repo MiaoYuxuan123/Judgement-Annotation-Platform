@@ -298,6 +298,11 @@
   color: #fff;
 }
 
+.task-action-btn.red {
+  background: var(--cinnabar);
+  color: #fff;
+}
+
 .task-action-btn:disabled,
 .task-action-btn.disabled {
   background: var(--border);

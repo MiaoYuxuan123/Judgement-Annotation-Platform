@@ -1,5 +1,6 @@
 package edu.nju.jap.config;
 
+import edu.nju.jap.mapper.SysUserMapper;
 import edu.nju.jap.model.entity.User;
 import edu.nju.jap.service.support.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,9 +13,11 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 public class SimpleAuthInterceptor implements HandlerInterceptor {
     private final JwtService jwtService;
+    private final SysUserMapper sysUserMapper;
 
-    public SimpleAuthInterceptor(JwtService jwtService) {
+    public SimpleAuthInterceptor(JwtService jwtService, SysUserMapper sysUserMapper) {
         this.jwtService = jwtService;
+        this.sysUserMapper = sysUserMapper;
     }
 
     @Override
@@ -32,6 +35,9 @@ public class SimpleAuthInterceptor implements HandlerInterceptor {
         User user = jwtService.resolveUser(authHeader);
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "未登录或令牌无效/已过期");
+        }
+        if (sysUserMapper.selectById(user.id) == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "该账号已被注销");
         }
         request.setAttribute("currentUser", user);
         return true;

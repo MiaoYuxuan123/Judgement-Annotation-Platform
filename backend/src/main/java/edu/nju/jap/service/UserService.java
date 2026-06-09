@@ -2,11 +2,13 @@ package edu.nju.jap.service;
 
 import edu.nju.jap.common.MapBodyUtils;
 import edu.nju.jap.mapper.SysUserMapper;
+import edu.nju.jap.mapper.TaskMapper;
 import edu.nju.jap.model.dto.response.UserVO;
 import edu.nju.jap.model.entity.User;
 import edu.nju.jap.model.po.SysUser;
 import edu.nju.jap.service.support.CurrentUserService;
 import edu.nju.jap.service.support.DomainConverter;
+import edu.nju.jap.service.support.TaskStageSyncService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,10 +21,15 @@ import java.util.Map;
 @Service
 public class UserService {
     private final SysUserMapper sysUserMapper;
+    private final TaskMapper taskMapper;
+    private final TaskStageSyncService taskStageSyncService;
     private final CurrentUserService currentUserService;
 
-    public UserService(SysUserMapper sysUserMapper, CurrentUserService currentUserService) {
+    public UserService(SysUserMapper sysUserMapper, TaskMapper taskMapper,
+                       TaskStageSyncService taskStageSyncService, CurrentUserService currentUserService) {
         this.sysUserMapper = sysUserMapper;
+        this.taskMapper = taskMapper;
+        this.taskStageSyncService = taskStageSyncService;
         this.currentUserService = currentUserService;
     }
 
@@ -49,6 +56,7 @@ public class UserService {
                 existing.setStatus(1);
                 existing.setIsDeleted(0);
                 sysUserMapper.update(existing);
+                syncUserTasks(existing.getId());
                 return existing.getId();
             }
             throw new ResponseStatusException(HttpStatus.CONFLICT, "账号已存在");
@@ -75,6 +83,13 @@ public class UserService {
         String statusText = MapBodyUtils.text(body, "status", old.getStatus() == 1 ? "在线" : "离线");
         old.setStatus("在线".equals(statusText) ? 1 : 0);
         sysUserMapper.update(old);
+    }
+
+    private void syncUserTasks(long userId) {
+        List<edu.nju.jap.model.po.Task> tasks = taskMapper.selectByUserId(userId);
+        for (edu.nju.jap.model.po.Task t : tasks) {
+            taskStageSyncService.syncTasksExcludingUser(t.getId(), userId);
+        }
     }
 
     public void delete(long id) {
@@ -116,6 +131,7 @@ public class UserService {
                     existing.setStatus(1);
                     existing.setIsDeleted(0);
                     sysUserMapper.update(existing);
+                    syncUserTasks(existing.getId());
                     results.add(Map.of("id", existing.getId(), "username", username, "realName", realName));
                 }
                 continue;

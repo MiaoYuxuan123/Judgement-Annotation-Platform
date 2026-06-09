@@ -1,6 +1,7 @@
 package edu.nju.jap.service.support;
 
 import edu.nju.jap.mapper.AnnotationMapper;
+import edu.nju.jap.mapper.SysUserMapper;
 import edu.nju.jap.mapper.TaskDocumentMapper;
 import edu.nju.jap.mapper.TaskMapper;
 import edu.nju.jap.model.entity.TaskItem;
@@ -22,13 +23,16 @@ public class TaskStageSyncService {
     private final AnnotationMapper annotationMapper;
     private final TaskDocumentMapper taskDocumentMapper;
     private final TaskMapper taskMapper;
+    private final SysUserMapper sysUserMapper;
     private final TaskAggregateService taskAggregateService;
 
     public TaskStageSyncService(AnnotationMapper annotationMapper, TaskDocumentMapper taskDocumentMapper,
-                                  TaskMapper taskMapper, TaskAggregateService taskAggregateService) {
+                                  TaskMapper taskMapper, SysUserMapper sysUserMapper,
+                                  TaskAggregateService taskAggregateService) {
         this.annotationMapper = annotationMapper;
         this.taskDocumentMapper = taskDocumentMapper;
         this.taskMapper = taskMapper;
+        this.sysUserMapper = sysUserMapper;
         this.taskAggregateService = taskAggregateService;
     }
 
@@ -37,7 +41,7 @@ public class TaskStageSyncService {
      */
     public void afterAnnotationSubmitted(int taskId) {
         TaskItem task = taskAggregateService.loadTaskItem(taskId);
-        int annotatorCount = task.annotatorIds.size();
+        int annotatorCount = taskAggregateService.countActiveAnnotators(task);
         if (annotatorCount <= 0) {
             return;
         }
@@ -47,6 +51,28 @@ public class TaskStageSyncService {
             if (STAGE_EXPORTABLE.equals(doc.getStatus()) || STAGE_ARBITRATION.equals(doc.getStatus())) {
                 continue;
             }
+            if (annotationMapper.countSubmittedByTaskDocument(taskId, doc.getId()) >= annotatorCount) {
+                taskDocumentMapper.updateStatus(doc.getId(), STAGE_ARBITRATION);
+            }
+        }
+        syncTaskStatus(taskId);
+    }
+
+    /** 账号恢复后同步任务状态：排除该用户，按其余活跃标注员判断 */ 
+    public void syncTasksExcludingUser(int taskId, long excludedUserId) {
+        TaskItem task = taskAggregateService.loadTaskItem(taskId);
+        int annotatorCount = (int) task.annotatorIds.stream()
+                .filter(id -> id != excludedUserId)
+                .filter(id -> {
+                    edu.nju.jap.model.po.SysUser u = sysUserMapper.selectById(id);
+                    return u != null && (u.getIsDeleted() == null || u.getIsDeleted() != 1);
+                })
+                .count();
+        if (annotatorCount <= 0) return;
+
+        List<TaskDocument> docs = taskDocumentMapper.selectByTaskId(taskId);
+        for (TaskDocument doc : docs) {
+            if (STAGE_EXPORTABLE.equals(doc.getStatus()) || STAGE_ARBITRATION.equals(doc.getStatus())) continue;
             if (annotationMapper.countSubmittedByTaskDocument(taskId, doc.getId()) >= annotatorCount) {
                 taskDocumentMapper.updateStatus(doc.getId(), STAGE_ARBITRATION);
             }
@@ -65,7 +91,7 @@ public class TaskStageSyncService {
      */
     public void afterAnnotationRejected(int taskId, int taskDocumentId) {
         TaskItem task = taskAggregateService.loadTaskItem(taskId);
-        int annotatorCount = task.annotatorIds.size();
+        int annotatorCount = taskAggregateService.countActiveAnnotators(task);
         if (annotatorCount <= 0) {
             return;
         }

@@ -81,9 +81,6 @@ export function resolveDocStage(reviewEntry, options = {}) {
   if (stored === '可导出' || isDocExportable(reviewEntry)) return '可导出'
 
   if (stored === '待裁定') {
-    if (viewerRole === 'annotator') {
-      return isAnnotatorSubmitted(reviewEntry, userId) ? '待裁定' : '标注中'
-    }
     return '待裁定'
   }
 
@@ -149,12 +146,14 @@ export function resolveAnnotatorTaskStage(taskDetail, review, userId) {
   if (!docs.length || userId == null) return '标注中'
 
   const reviewDocs = review?.documents || []
-  const allSubmitted = docs.every((doc) => {
+  const allDone = docs.every((doc) => {
     const entry = reviewDocs.find((d) => d.document.id === doc.id)
     return isAnnotatorSubmitted(entry, userId)
+      || normalizeDocStatus(doc.status) === '待裁定'
+      || normalizeDocStatus(doc.status) === '可导出'
   })
 
-  return allSubmitted ? '待裁定' : '标注中'
+  return allDone ? '待裁定' : '标注中'
 }
 
 function countAnnotatorSubmittedDocs(taskDetail, review, userId) {
@@ -523,18 +522,18 @@ export function participantAction(row, userId) {
 
 /** 创建者任务目录操作 */
 export function creatorActions(task) {
+  const base = []
   if (taskIsExportable(task)) {
-    return [
-      {
-        label: '查看结果/导出',
-        color: 'green',
-        route: `/tasks/${task.taskId}/data`
-      }
-    ]
+    base.push({
+      label: '查看结果/导出',
+      color: 'green',
+      route: `/tasks/${task.taskId}/data`
+    })
+  } else {
+    base.push({ label: '查看详情', color: 'green', route: `/tasks/${task.taskId}/data` })
   }
-  return [
-    { label: '查看详情', color: 'green', route: `/tasks/${task.taskId}/data` }
-  ]
+  base.push({ label: '删除任务', color: 'red', action: 'delete', taskId: task.taskId, taskName: task.taskName })
+  return base
 }
 
 /** @deprecated 使用 creatorActions */

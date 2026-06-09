@@ -190,12 +190,17 @@ public class TaskService {
         rejectImmutableFieldChanges(body, task);
 
         int taskId = task.getId();
+        List<Long> addAnnotatorIds = MapBodyUtils.longList(body.get("addAnnotatorIds"));
+        if (!addAnnotatorIds.isEmpty() && !"标注中".equals(task.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "任务已进入待裁定或可导出阶段，不允许新增标注员");
+        }
+
         java.util.Set<Long> existingAnnotators = taskMemberMapper.selectByTaskId(taskId).stream()
                 .filter(m -> "标注员".equals(m.getRoleInTask()))
                 .map(TaskMember::getUserId)
                 .collect(java.util.stream.Collectors.toSet());
 
-        for (Long uid : MapBodyUtils.longList(body.get("addAnnotatorIds"))) {
+        for (Long uid : addAnnotatorIds) {
             if (existingAnnotators.contains(uid)) {
                 continue;
             }
