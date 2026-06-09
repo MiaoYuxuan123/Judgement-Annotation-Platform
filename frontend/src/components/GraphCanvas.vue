@@ -1,16 +1,5 @@
 <template>
   <div class="graph-canvas" ref="rootRef">
-    <div class="graph-canvas-toolbar">
-      <el-button-group size="small">
-        <el-button @click="zoomBy(0.12)">放大</el-button>
-        <el-button @click="zoomBy(-0.12)">缩小</el-button>
-        <el-button @click="fitViewNow">适应</el-button>
-      </el-button-group>
-      <el-button size="small" type="primary" plain @click="toggleFullscreen">
-        <span class="fullscreen-icon">{{ isFullscreen ? '⤢' : '⛶' }}</span>
-        {{ isFullscreen ? '退出全屏' : '全屏' }}
-      </el-button>
-    </div>
     <div class="graph-canvas-viewport-wrap" ref="viewportRef">
       <VueFlow
         v-if="hasGraphInput && !layouting"
@@ -31,10 +20,17 @@
         @nodes-initialized="onNodesInitialized"
       >
         <Background :gap="16" pattern-color="#e8edf3" />
-        <Controls :show-interactive="false" />
       </VueFlow>
       <div v-else-if="layouting" class="graph-canvas-empty">布局计算中…</div>
       <div v-else class="graph-canvas-empty">暂无图示数据</div>
+      <div class="graph-side-toolbar" aria-label="图示工具栏">
+        <button type="button" class="graph-tool-btn" title="放大" @click="zoomBy(0.12)">＋</button>
+        <button type="button" class="graph-tool-btn" title="缩小" @click="zoomBy(-0.12)">－</button>
+        <button type="button" class="graph-tool-btn graph-tool-text" title="适应视图" @click="fitViewNow">适应</button>
+        <button type="button" class="graph-tool-btn graph-tool-text" :title="isFullscreen ? '退出全屏' : '全屏'" @click="toggleFullscreen">
+          {{ isFullscreen ? '退出' : '全屏' }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -43,10 +39,8 @@
 import { computed, markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
-import { Controls } from '@vue-flow/controls'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
-import '@vue-flow/controls/dist/style.css'
 
 import PropNode from './graph/PropNode.vue'
 import HubNode from './graph/HubNode.vue'
@@ -97,18 +91,21 @@ const hasGraphInput = computed(
 
 function applyHighlight(nextNodes, nextEdges) {
   const { relIds, propIds } = relationHighlightInfo(props.activeRelationId, props.activeRelationKey)
+  const nodeById = new Map(nextNodes.map((node) => [node.id, node]))
   nodes.value = nextNodes.map((node) => {
     const highlighted = relIds.has(node.data?.relKey) || propNodeMatches(node, propIds)
     return {
       ...node,
+      selected: highlighted,
       class: highlighted ? 'is-relation-highlighted' : undefined,
       data: { ...node.data, highlighted }
     }
   })
   edges.value = nextEdges.map((edge) => {
-    const highlighted = relIds.has(edge.data?.relKey)
+    const highlighted = edgeMatchesHighlight(edge, nodeById, relIds, propIds)
     return {
       ...edge,
+      selected: highlighted,
       class: highlighted ? 'is-relation-highlighted' : undefined,
       data: { ...edge.data, highlighted }
     }
@@ -191,11 +188,69 @@ function relationSemanticKey(relation, relationList = props.relations, visited =
 
 function propNodeMatches(node, propIds) {
   if (!propIds.size || node.type !== 'prop') return false
-  if (propIds.has(node.data?.stableId)) return true
-  return String(node.data?.label || '')
+  const memberIds = propMemberIds(node)
+  return memberIds.some((id) => propIds.has(id))
+}
+
+function propMemberIds(node) {
+  const ids = []
+  if (node.data?.stableId) ids.push(node.data.stableId)
+  if (Array.isArray(node.data?.identityMembers)) ids.push(...node.data.identityMembers)
+  ids.push(
+    ...String(node.data?.label || '')
     .split('/')
     .map((item) => item.trim())
-    .some((id) => propIds.has(id))
+      .filter(Boolean)
+  )
+  return [...new Set(ids)]
+}
+
+function edgeMatchesHighlight(edge, nodeById, relIds, propIds) {
+  if (relIds.has(edge.data?.relKey)) return true
+  const source = nodeById.get(edge.source)
+  const target = nodeById.get(edge.target)
+  if (!source || !target) return false
+
+  const sourceRelMatch = relIds.has(source.data?.relKey)
+  const targetRelMatch = relIds.has(target.data?.relKey)
+  const sourcePropMatch = propNodeMatches(source, propIds)
+  const targetPropMatch = propNodeMatches(target, propIds)
+
+  if (sourceRelMatch || targetRelMatch) return true
+  if (sourcePropMatch && targetPropMatch) return true
+
+  const activeDirectRels = [...relIds]
+    .map((id) => (props.relations || []).find((rel) => rel.relId === id))
+    .filter(Boolean)
+  return activeDirectRels.some((rel) => edgeMatchesRelationMembers(edge, source, target, rel))
+}
+
+function edgeMatchesRelationMembers(edge, source, target, relation) {
+  const members = relationMembers(relation).map(String)
+  if (!members.length) return false
+
+  const sourceIds = graphElementIds(source)
+  const targetIds = graphElementIds(target)
+  if (members.some((id) => sourceIds.has(id)) && members.some((id) => targetIds.has(id))) return true
+
+  const type = String(relation.type || '').toUpperCase()
+  if (['S', 'A', 'M'].includes(type) && members.length >= 2) {
+    return connectsMemberPair(sourceIds, targetIds, members[0], members[1])
+  }
+
+  return false
+}
+
+function graphElementIds(node) {
+  const ids = new Set()
+  if (!node) return ids
+  if (node.data?.relKey) ids.add(node.data.relKey)
+  if (node.type === 'prop') propMemberIds(node).forEach((id) => ids.add(id))
+  return ids
+}
+
+function connectsMemberPair(sourceIds, targetIds, a, b) {
+  return (sourceIds.has(a) && targetIds.has(b)) || (sourceIds.has(b) && targetIds.has(a))
 }
 
 function fitViewNow() {
@@ -271,22 +326,15 @@ onBeforeUnmount(() => {
   background: #f8fafc;
 }
 
-.graph-canvas-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #fff;
-  flex-shrink: 0;
-}
-
 .graph-canvas-viewport-wrap {
   flex: 1;
   min-height: 260px;
   position: relative;
   overflow: hidden;
+}
+
+.graph-canvas:fullscreen .graph-canvas-viewport-wrap {
+  min-height: calc(100vh - 32px);
 }
 
 .graph-canvas-flow {
@@ -307,8 +355,49 @@ onBeforeUnmount(() => {
   z-index: 2;
 }
 
-.fullscreen-icon {
-  margin-right: 4px;
+.graph-side-toolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.graph-tool-btn {
+  width: 42px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.graph-tool-btn:hover {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.graph-tool-text {
+  font-size: 12px;
+  font-weight: 700;
 }
 
 :deep(.vue-flow__node) {
@@ -332,7 +421,4 @@ onBeforeUnmount(() => {
   stroke: #111;
 }
 
-:deep(.vue-flow__controls) {
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
-}
 </style>

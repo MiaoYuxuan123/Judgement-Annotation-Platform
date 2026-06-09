@@ -844,22 +844,10 @@ body {
   min-height: 560px;
 }
 
-.graph-footer {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 14px;
-}
-
 .graph-toolbar-actions {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.fullscreen-btn {
-  border-color: #f0b94d;
-  color: #9a6400;
-  background: #fff8e8;
 }
 
 .floating-label-root {
@@ -1970,4 +1958,74 @@ body {
 .proposition-full-tooltip {
   max-width: 420px;
   line-height: 1.6;
+}
+
+.graph-editor-drawer {
+  min-width: 760px;
+  max-width: calc(100vw - 320px);
+  border-left: 1px solid #dbe3ee;
+  box-shadow: -16px 0 40px rgba(15, 23, 42, .16);
+}
+
+.graph-editor-drawer-overlay {
+  pointer-events: none;
+}
+
+.graph-editor-drawer-overlay .graph-editor-drawer {
+  pointer-events: auto;
+}
+
+.graph-editor-drawer .el-drawer__body {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Relation rows should read like formulas first; controls float in only on hover. */
+.relation-box .relation-row {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  padding: 9px 10px;
+  border-radius: 8px;
+}
+
+.relation-box .relation-row .item-main {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  line-height: 1.55;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.relation-box .relation-drag-handle {
+  position: absolute;
+  top: 10px;
+  left: 4px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.relation-box .relation-row:hover .relation-drag-handle {
+  opacity: .75;
+}
+
+.relation-box .relation-row .item-actions {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 22px;
+  background: linear-gradient(90deg, rgba(238, 246, 255, 0), #eef4ff 30%);
+  opacity: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.relation-box .relation-row:hover .item-actions {
+  opacity: 1;
+  pointer-events: auto;
 }

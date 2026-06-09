@@ -1,5 +1,5 @@
 <template>
-  <div v-if="loaded" class="graph-editor-page">
+  <div v-if="loaded" class="graph-editor-page" :class="{ embedded: props.embedded }">
     <header class="graph-editor-topbar">
       <div class="graph-editor-topbar-left">
         <el-button @click="goBack">返回</el-button>
@@ -50,7 +50,7 @@
         <ul class="graph-editor-guide">
           <li><strong>框选</strong>：框选工具下空白处拖拽框选；Shift+点击增减选中；拖动选中节点可一起移动</li>
           <li><strong>对齐</strong>：拖动节点时靠近其他节点会自动水平/竖直对齐</li>
-          <li><strong>滚轮</strong>：上下滚动平移画布（缩放用顶部「适应画布」旁控件）</li>
+          <li><strong>画布</strong>：滚轮缩放；按住空白处拖动画布</li>
           <li><strong>命题节点</strong>：从标注列表选择后添加</li>
           <li><strong>同一关系 I</strong>：框选多个命题节点后，在右侧点「设为同一关系」</li>
           <li><strong>关系节点</strong>：选 S/A/M/J 类型后点击画布</li>
@@ -276,6 +276,10 @@ import {
 const route = useRoute()
 const router = useRouter()
 const isArbitration = computed(() => isArbitrationMode(route.query))
+const props = defineProps({
+  embedded: { type: Boolean, default: false }
+})
+const emit = defineEmits(['close', 'saved'])
 
 const loaded = ref(false)
 const saving = ref(false)
@@ -578,6 +582,7 @@ async function saveLayout() {
     savedSnapshot.value = JSON.stringify(graphDocument.value)
     dirty.value = false
     ElMessage.success('图示已保存')
+    emit('saved', cloneDocument(graphDocument.value))
   } catch {
     ElMessage.error(isArbitration.value
       ? '保存失败，请确认仍有权访问该裁定任务'
@@ -631,10 +636,15 @@ async function goBack() {
       })
     } catch { return }
   }
+  if (props.embedded) {
+    emit('close')
+    return
+  }
   router.push(annotatePageRoute(route.params.taskId, route.params.dataId, route.query))
 }
 
 onBeforeRouteLeave(async (_to, _from, next) => {
+  if (props.embedded) { next(); return }
   if (!dirty.value) { next(); return }
   try {
     await ElMessageBox.confirm('图示尚未保存，确定离开？', '未保存的修改', {
@@ -675,6 +685,34 @@ onMounted(load)
   flex-direction: column;
   background: #f4f7fb;
   color: #0f172a;
+}
+
+.graph-editor-page.embedded {
+  height: 100%;
+  min-height: 0;
+  background: #f8fafc;
+}
+
+.graph-editor-page.embedded .graph-editor-topbar {
+  flex-wrap: wrap;
+  padding: 10px 12px;
+}
+
+.graph-editor-page.embedded .graph-editor-topbar-actions {
+  justify-content: flex-end;
+}
+
+.graph-editor-page.embedded .graph-editor-body {
+  grid-template-columns: 180px minmax(360px, 1fr) 220px;
+}
+
+.graph-editor-page.embedded .graph-editor-left,
+.graph-editor-page.embedded .graph-editor-right {
+  padding: 12px 10px;
+}
+
+.graph-editor-page.embedded .graph-editor-guide {
+  font-size: 11px;
 }
 
 .graph-editor-topbar,
