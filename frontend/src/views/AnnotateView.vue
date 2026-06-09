@@ -128,7 +128,7 @@
                 <span>{{ supportsMultiMember ? '支持多个命题/关系成员' : '请选择两个命题/关系成员' }}</span>
               </div>
             </div>
-            <div class="member-builder">
+            <div ref="memberBuilderEl" class="member-builder">
               <div v-for="(member, index) in relationMembers" :key="index" class="member-slot">
                 <span class="member-index">{{ index + 1 }}</span>
                 <el-select v-model="relationMembers[index]" placeholder="选择命题/关系" class="relation-select">
@@ -277,7 +277,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
@@ -317,6 +317,7 @@ const selectedEnd = ref(0)
 const editingPropositionId = ref('')
 const labelPosition = ref({ left: 720, top: 160 })
 const sourceTextEl = ref(null)
+const memberBuilderEl = ref(null)
 const labelDragging = ref(false)
 const labelDragOffset = ref({ x: 0, y: 0 })
 const primaryTag = ref('')
@@ -594,10 +595,19 @@ function resetRelationMembers(type = relationForm.type) {
   relationMembers.value = ['J', 'I'].includes(type) ? ['', ''] : ['', '']
 }
 
+function scrollMemberBuilder(position = 'top') {
+  nextTick(() => {
+    const el = memberBuilderEl.value
+    if (!el) return
+    el.scrollTop = position === 'bottom' ? el.scrollHeight : 0
+  })
+}
+
 function clearRelation(keepType = true) {
   editingRelationId.value = ''
   resetRelationMembers(keepType ? relationForm.type : 'S')
   if (!keepType) relationForm.type = 'S'
+  scrollMemberBuilder('top')
 }
 
 function addRelation() {
@@ -656,6 +666,7 @@ function editRelation(rel) {
   normalizeRelationMembers()
   editingRelationId.value = rel.relId
   activeRelationId.value = rel.relId
+  scrollMemberBuilder('top')
 }
 
 function deleteRelation(rel) {
@@ -730,6 +741,7 @@ function dropRelation(targetIndex) {
 function addMember() {
   if (!supportsMultiMember.value) return
   relationMembers.value.push('')
+  scrollMemberBuilder('bottom')
 }
 
 function removeMember(index) {
@@ -741,6 +753,7 @@ function setRelationType(type) {
   relationForm.type = type
   editingRelationId.value = ''
   resetRelationMembers(type)
+  scrollMemberBuilder('top')
 }
 
 function normalizeRelationMembers() {
