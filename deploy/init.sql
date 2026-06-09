@@ -1,5 +1,5 @@
 -- Production schema init (idempotent: safe to re-run, does not drop data)
--- Used by server ~/judgment-platform/init.sql on first MySQL container start.
+-- Copy to server ~/judgment-platform/init.sql on first MySQL container start.
 
 CREATE TABLE IF NOT EXISTS `sys_user` (
     `id` BIGINT UNSIGNED AUTO_INCREMENT COMMENT '用户唯一标识',
@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS `sys_user` (
     `can_create_task` TINYINT NOT NULL DEFAULT 0 COMMENT '1=可创建任务',
     `last_seen` DATETIME DEFAULT NULL COMMENT '最后活跃时间',
     `status` TINYINT NOT NULL DEFAULT 0 COMMENT '1=在线 0=离线',
+    `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '0=正常 1=已删除',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
@@ -19,6 +20,7 @@ CREATE TABLE IF NOT EXISTS `guide_version` (
     `version_name` VARCHAR(100) NOT NULL,
     `description` TEXT DEFAULT NULL,
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `attachment_name` VARCHAR(255) DEFAULT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指南版本';
 
@@ -26,8 +28,8 @@ CREATE TABLE IF NOT EXISTS `label_l1` (
     `id` INT UNSIGNED AUTO_INCREMENT,
     `guide_version_id` INT UNSIGNED NOT NULL,
     `name` VARCHAR(50) NOT NULL,
-    `abbr` VARCHAR(10) NOT NULL,
-    `description` VARCHAR(200) DEFAULT NULL,
+    `abbr` VARCHAR(30) NOT NULL,
+    `description` TEXT DEFAULT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_version_abbr` (`guide_version_id`, `abbr`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='一级标签';
@@ -37,8 +39,8 @@ CREATE TABLE IF NOT EXISTS `label_l2` (
     `guide_version_id` INT UNSIGNED NOT NULL,
     `parent_l1_id` INT UNSIGNED NOT NULL,
     `name` VARCHAR(50) NOT NULL,
-    `abbr` VARCHAR(20) NOT NULL,
-    `description` VARCHAR(200) DEFAULT NULL,
+    `abbr` VARCHAR(30) NOT NULL,
+    `description` TEXT DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY `idx_parent_l1` (`parent_l1_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='二级标签';
@@ -47,8 +49,8 @@ CREATE TABLE IF NOT EXISTS `relation_type` (
     `id` INT UNSIGNED AUTO_INCREMENT,
     `guide_version_id` INT UNSIGNED NOT NULL,
     `name` VARCHAR(50) NOT NULL,
-    `abbr` CHAR(1) NOT NULL,
-    `description` VARCHAR(200) DEFAULT NULL,
+    `abbr` VARCHAR(30) NOT NULL,
+    `description` TEXT DEFAULT NULL,
     `is_binary` TINYINT NOT NULL DEFAULT 1,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_version_relation_abbr` (`guide_version_id`, `abbr`)
@@ -68,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `task` (
     `id` INT AUTO_INCREMENT,
     `title` VARCHAR(100) NOT NULL,
     `description` TEXT DEFAULT NULL,
-    `status` ENUM('标注中', '待裁定', '可导出') NOT NULL DEFAULT '标注中',
+    `status` VARCHAR(20) NOT NULL DEFAULT '标注中' COMMENT '任务阶段：标注中/待裁定/可导出',
     `creator_id` BIGINT UNSIGNED NOT NULL,
     `guide_version_id` INT UNSIGNED DEFAULT NULL,
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -114,6 +116,7 @@ CREATE TABLE IF NOT EXISTS `annotation` (
     `guide_snapshot` JSON DEFAULT NULL,
     `submitted_at` DATETIME DEFAULT NULL,
     `reject_reason` VARCHAR(500) DEFAULT NULL COMMENT '裁定不予采纳理由',
+    `layout_json` JSON DEFAULT NULL COMMENT '论证图布局覆盖',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
