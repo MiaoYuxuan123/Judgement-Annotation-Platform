@@ -840,7 +840,7 @@ h1, h2, h3, h4, h5, h6 {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 18px;
+  padding: 16px;
   border: 1px solid var(--terracotta-border);
   border-radius: var(--radius-lg);
   background: var(--terracotta-light);
@@ -852,7 +852,7 @@ h1, h2, h3, h4, h5, h6 {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .relation-buttons .el-button {
@@ -891,25 +891,30 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .relation-input-card.modern-builder {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(190px, 260px) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 14px 18px;
+  grid-template-columns: minmax(132px, 168px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px 14px;
+  align-items: stretch;
+  padding: 12px 12px 62px;
   overflow: hidden;
 }
 
 .relation-builder-head {
   min-height: 0;
-  height: 100%;
-  padding: 18px;
+  height: auto;
+  padding: 14px 12px;
   border-radius: var(--radius-md);
   background: #fffaf7;
   border: 1px solid var(--terracotta-border);
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .relation-builder-head > div:last-child {
@@ -929,10 +934,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .relation-type-preview {
-  font-size: 24px;
+  font-size: 30px;
+  line-height: 1;
   font-weight: 800;
   color: var(--cinnabar);
-  text-align: center;
   font-family: var(--font-display);
 }
 
@@ -962,11 +967,17 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .relation-input-card.modern-builder .relation-actions {
-  grid-column: 2;
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
+  min-height: 40px;
+  padding: 0;
+  background: linear-gradient(90deg, rgba(254, 252, 250, 0), var(--surface) 18%);
+  z-index: 2;
 }
 
 .relation-footer {
@@ -1003,12 +1014,25 @@ h1, h2, h3, h4, h5, h6 {
 .member-builder {
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  max-height: none;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   align-content: start;
   gap: 10px;
   overflow-y: auto;
-  padding-right: 4px;
+  overscroll-behavior: contain;
+  padding: 0 6px 8px 0;
+}
+
+.relation-input-card.modern-builder .member-builder {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.relation-input-card.modern-builder .relation-builder-head {
+  grid-column: 1;
+  grid-row: 1;
 }
 
 .member-slot {

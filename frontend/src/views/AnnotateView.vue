@@ -20,7 +20,7 @@
       </div>
       <div>
         <el-button class="topbar-btn" @click="goBack">返回</el-button>
-        <el-button v-if="!isArbitration" class="topbar-btn" @click="submit(true)">暂存</el-button>
+        <el-button class="topbar-btn" @click="submit(true)">暂存</el-button>
         <el-button type="primary" class="submit-btn" @click="submit(false)">提交</el-button>
       </div>
     </section>
@@ -128,7 +128,7 @@
                 <span>{{ supportsMultiMember ? '支持多个命题/关系成员' : '请选择两个命题/关系成员' }}</span>
               </div>
             </div>
-            <div class="member-builder">
+            <div ref="memberBuilderEl" class="member-builder">
               <div v-for="(member, index) in relationMembers" :key="index" class="member-slot">
                 <span class="member-index">{{ index + 1 }}</span>
                 <el-select v-model="relationMembers[index]" placeholder="选择命题/关系" class="relation-select">
@@ -277,7 +277,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
@@ -285,7 +285,7 @@ import GraphCanvas from '../components/GraphCanvas.vue'
 import GraphEditorView from './GraphEditorView.vue'
 import { selectionSpanFromSourceElement } from '../utils/reviewHelpers'
 import { cloneLayout, EMPTY_LAYOUT, graphLayoutForSave } from '../utils/graphLayoutOverride'
-import { mergeDocumentWithAnnotation } from '../utils/graphDocument'
+import { mergeDocumentWithAnnotation, removeRelationsFromDocument } from '../utils/graphDocument'
 import { fetchAnnotationItem, isArbitrationMode } from '../utils/annotationRoute'
 
 const route = useRoute()
@@ -317,6 +317,7 @@ const selectedEnd = ref(0)
 const editingPropositionId = ref('')
 const labelPosition = ref({ left: 720, top: 160 })
 const sourceTextEl = ref(null)
+const memberBuilderEl = ref(null)
 const labelDragging = ref(false)
 const labelDragOffset = ref({ x: 0, y: 0 })
 const primaryTag = ref('')
@@ -594,10 +595,19 @@ function resetRelationMembers(type = relationForm.type) {
   relationMembers.value = ['J', 'I'].includes(type) ? ['', ''] : ['', '']
 }
 
+function scrollMemberBuilder(position = 'top') {
+  nextTick(() => {
+    const el = memberBuilderEl.value
+    if (!el) return
+    el.scrollTop = position === 'bottom' ? el.scrollHeight : 0
+  })
+}
+
 function clearRelation(keepType = true) {
   editingRelationId.value = ''
   resetRelationMembers(keepType ? relationForm.type : 'S')
   if (!keepType) relationForm.type = 'S'
+  scrollMemberBuilder('top')
 }
 
 function addRelation() {
@@ -656,12 +666,19 @@ function editRelation(rel) {
   normalizeRelationMembers()
   editingRelationId.value = rel.relId
   activeRelationId.value = rel.relId
+  scrollMemberBuilder('top')
 }
 
 function deleteRelation(rel) {
   snapshot()
+  const beforeRelIds = new Set(relations.value.map((item) => item.relId))
   relations.value = relations.value.filter((item) => item.relId !== rel.relId)
   removeInvalidRelations()
+  const afterRelIds = new Set(relations.value.map((item) => item.relId))
+  const removedRelIds = [...beforeRelIds].filter((id) => !afterRelIds.has(id))
+  if (graphLayout.value?.version === 2) {
+    graphLayout.value = removeRelationsFromDocument(graphLayout.value, removedRelIds)
+  }
   if (!manualRelationOrder.value) sortRelationsByMaxProp()
   renumberRelations()
   activeRelationId.value = ''
@@ -724,6 +741,7 @@ function dropRelation(targetIndex) {
 function addMember() {
   if (!supportsMultiMember.value) return
   relationMembers.value.push('')
+  scrollMemberBuilder('bottom')
 }
 
 function removeMember(index) {
@@ -735,6 +753,7 @@ function setRelationType(type) {
   relationForm.type = type
   editingRelationId.value = ''
   resetRelationMembers(type)
+  scrollMemberBuilder('top')
 }
 
 function normalizeRelationMembers() {
@@ -762,6 +781,10 @@ async function generateGraph() {
 }
 
 function openGraphEditor() {
+  if (hasUnsavedChanges()) {
+    ElMessage.warning('当前标注内容尚未暂存，请先点击“暂存”后再编辑图示')
+    return
+  }
   graphEditorDrawer.value = true
 }
 
@@ -797,9 +820,11 @@ async function submit(isDraft) {
       graphLayout: graphLayoutForSave(graphLayout.value)
     })
     markSaved()
-    ElMessage.success('已保存裁定草稿，请在裁定界面确认')
-    const returnTo = route.query.returnTo || `/review/${taskId}?docId=${dataId}&select=final`
-    router.push(returnTo)
+    ElMessage.success(isDraft ? '裁定草稿已暂存' : '已保存裁定草稿，请在裁定界面确认')
+    if (!isDraft) {
+      const returnTo = route.query.returnTo || `/review/${taskId}?docId=${dataId}&select=final`
+      router.push(returnTo)
+    }
     return
   }
 

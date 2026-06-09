@@ -50,7 +50,7 @@
         <ul class="graph-editor-guide">
           <li><strong>框选</strong>：框选工具下空白处拖拽框选；Shift+点击增减选中；拖动选中节点可一起移动</li>
           <li><strong>对齐</strong>：拖动节点时靠近其他节点会自动水平/竖直对齐</li>
-          <li><strong>画布</strong>：滚轮缩放；按住空白处拖动画布</li>
+          <li><strong>拖拽画布</strong>：切换到拖拽画布工具后，按住空白处平移画布；滚轮缩放</li>
           <li><strong>命题节点</strong>：从标注列表选择后添加</li>
           <li><strong>同一关系 I</strong>：框选多个命题节点后，在右侧点「设为同一关系」</li>
           <li><strong>关系节点</strong>：选 S/A/M/J 类型后点击画布</li>
