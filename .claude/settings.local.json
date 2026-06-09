@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -v http://localhost:8080/api/auth/login)",
+      "Bash(npx vite *)",
+      "Bash(pkill -f \"vite\")",
+      "Bash(curl -s -o /dev/null -w \"Frontend: HTTP %{http_code}\\\\n\" http://localhost:5173)",
+      "Bash(curl -s -o /dev/null -w \"Backend:  HTTP %{http_code}\\\\n\" http://localhost:8080/api/auth/login)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(lsof -ti:5173)",
+      "Bash(lsof -ti:8080)"
+    ]
+  }
+}

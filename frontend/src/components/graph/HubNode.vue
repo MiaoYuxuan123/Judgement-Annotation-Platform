@@ -70,7 +70,7 @@ function onHandleClick(handleId) {
 }
 
 .ag-hub--s {
-  background: #111;
+  background: #1a1817;
   border: none;
 }
 
@@ -78,28 +78,28 @@ function onHandleClick(handleId) {
 .ag-hub--m,
 .ag-hub--j {
   background: #fff;
-  border: 1.8px solid #111;
+  border: 1.8px solid #1a1817;
 }
 
 .ag-hub-plus {
   font-size: 14px;
   font-weight: 700;
   line-height: 1;
-  color: #111;
+  color: #1a1817;
   user-select: none;
   pointer-events: none;
 }
 
 .ag-hub--highlighted {
-  border-color: #2563eb;
+  border-color: #c41e3a;
   box-shadow: 0 0 0 5px rgba(37, 99, 235, .16);
 }
 
 .ag-hub--s.ag-hub--highlighted {
-  background: #2563eb;
+  background: #c41e3a;
 }
 
 .ag-hub--highlighted .ag-hub-plus {
-  color: #2563eb;
+  color: #c41e3a;
 }
 </style>

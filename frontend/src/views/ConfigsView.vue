@@ -9,7 +9,7 @@
       </div>
     </div>
 
-    <div v-if="!currentConfig" style="text-align: center; padding: 40px; color: #999">
+    <div v-if="!currentConfig" style="text-align: center; padding: 40px; color: #a8a29e">
       请选择或创建指南版本
     </div>
 
@@ -19,7 +19,7 @@
         <div class="config-table-header">
           <h4>指南附件</h4>
           <div style="display:flex;gap:8px;align-items:center">
-            <span v-if="currentConfig.attachmentName" style="color:#666;font-size:13px">{{ currentConfig.attachmentName }}</span>
+            <span v-if="currentConfig.attachmentName" style="color:#78716c;font-size:13px">{{ currentConfig.attachmentName }}</span>
             <el-button v-if="currentConfig.attachmentName" size="small" @click="viewAttachment">查看</el-button>
             <el-upload :show-file-list="false" :http-request="uploadAttachment" accept=".pdf,.docx,.txt">
               <el-button size="small" type="primary">{{ currentConfig.attachmentName ? '重新上传' : '上传附件' }}</el-button>
@@ -156,7 +156,7 @@
         <template v-if="isPreviewable">
           <iframe v-if="previewUrl" :key="previewUrl" :src="previewUrl" style="width:100%;height:100%;border:none" />
         </template>
-        <div v-else style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:16px">
+        <div v-else style="display:flex;align-items:center;justify-content:center;height:100%;color:#a8a29e;font-size:16px">
           该文件类型不支持在线预览，请下载后查看
         </div>
       </div>

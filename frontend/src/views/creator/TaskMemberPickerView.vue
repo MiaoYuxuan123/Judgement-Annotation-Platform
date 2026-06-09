@@ -213,7 +213,7 @@ onMounted(async () => {
 }
 
 .hint {
-  color: #6b7280;
+  color: #78716c;
   margin: 0 0 16px;
 }
 
@@ -233,7 +233,7 @@ onMounted(async () => {
   margin: 0;
   padding: 0;
   list-style: none;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e0dbd2;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -243,7 +243,7 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f6f2eb;
 }
 
 .member-list li:last-child {
@@ -258,19 +258,19 @@ onMounted(async () => {
 }
 
 .role-tag.annotate {
-  background: #ecfdf5;
-  color: #047857;
+  background: #edf7f0;
+  color: #4a7c59;
 }
 
 .role-tag.arbitrate {
-  background: #fff7ed;
-  color: #c2410c;
+  background: #fef2f2;
+  color: #c41e3a;
 }
 
 .locked-label {
   margin-left: auto;
   font-size: 12px;
-  color: #9ca3af;
+  color: #a8a29e;
 }
 
 .selected-actions {
@@ -281,7 +281,7 @@ onMounted(async () => {
 }
 
 .muted {
-  color: #6b7280;
+  color: #78716c;
   margin: 0 0 8px;
 }
 </style>

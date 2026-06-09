@@ -100,6 +100,6 @@ onMounted(async () => {
 }
 
 .muted {
-  color: #6b7280;
+  color: #78716c;
 }
 </style>
