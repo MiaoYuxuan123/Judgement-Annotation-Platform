@@ -20,7 +20,7 @@
       </div>
       <div>
         <el-button class="topbar-btn" @click="goBack">返回</el-button>
-        <el-button v-if="!isArbitration" class="topbar-btn" @click="submit(true)">暂存</el-button>
+        <el-button class="topbar-btn" @click="submit(true)">暂存</el-button>
         <el-button type="primary" class="submit-btn" @click="submit(false)">提交</el-button>
       </div>
     </section>
@@ -285,7 +285,7 @@ import GraphCanvas from '../components/GraphCanvas.vue'
 import GraphEditorView from './GraphEditorView.vue'
 import { selectionSpanFromSourceElement } from '../utils/reviewHelpers'
 import { cloneLayout, EMPTY_LAYOUT, graphLayoutForSave } from '../utils/graphLayoutOverride'
-import { mergeDocumentWithAnnotation } from '../utils/graphDocument'
+import { mergeDocumentWithAnnotation, removeRelationsFromDocument } from '../utils/graphDocument'
 import { fetchAnnotationItem, isArbitrationMode } from '../utils/annotationRoute'
 
 const route = useRoute()
@@ -660,8 +660,14 @@ function editRelation(rel) {
 
 function deleteRelation(rel) {
   snapshot()
+  const beforeRelIds = new Set(relations.value.map((item) => item.relId))
   relations.value = relations.value.filter((item) => item.relId !== rel.relId)
   removeInvalidRelations()
+  const afterRelIds = new Set(relations.value.map((item) => item.relId))
+  const removedRelIds = [...beforeRelIds].filter((id) => !afterRelIds.has(id))
+  if (graphLayout.value?.version === 2) {
+    graphLayout.value = removeRelationsFromDocument(graphLayout.value, removedRelIds)
+  }
   if (!manualRelationOrder.value) sortRelationsByMaxProp()
   renumberRelations()
   activeRelationId.value = ''
@@ -762,6 +768,10 @@ async function generateGraph() {
 }
 
 function openGraphEditor() {
+  if (hasUnsavedChanges()) {
+    ElMessage.warning('当前标注内容尚未暂存，请先点击“暂存”后再编辑图示')
+    return
+  }
   graphEditorDrawer.value = true
 }
 
@@ -797,9 +807,11 @@ async function submit(isDraft) {
       graphLayout: graphLayoutForSave(graphLayout.value)
     })
     markSaved()
-    ElMessage.success('已保存裁定草稿，请在裁定界面确认')
-    const returnTo = route.query.returnTo || `/review/${taskId}?docId=${dataId}&select=final`
-    router.push(returnTo)
+    ElMessage.success(isDraft ? '裁定草稿已暂存' : '已保存裁定草稿，请在裁定界面确认')
+    if (!isDraft) {
+      const returnTo = route.query.returnTo || `/review/${taskId}?docId=${dataId}&select=final`
+      router.push(returnTo)
+    }
     return
   }
 

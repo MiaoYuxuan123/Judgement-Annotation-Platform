@@ -781,7 +781,6 @@ export async function mergeDocumentWithAnnotation(existingDoc, propositions, rel
   if (existingDoc?.version !== 2 || !existingDoc?.nodes?.length) return base
 
   const validPropIds = new Set((propositions || []).map((p) => p.propId))
-  const validRelIds = new Set((relations || []).map((r) => r.relId))
   const baseNodeIds = new Set(base.nodes.map((node) => node.id))
   const baseEdgeIds = new Set(base.edges.map((edge) => edge.id))
   const existingNodeById = new Map((existingDoc.nodes || []).map((node) => [node.id, node]))
@@ -812,10 +811,7 @@ export async function mergeDocumentWithAnnotation(existingDoc, propositions, rel
     if (node.type === 'prop') {
       const members = getPropMemberIds(node)
       if (members.length > 1 && members.every((id) => validPropIds.has(id))) nodes.push(node)
-      return
     }
-    const relKey = node.data?.relKey
-    if (relKey && validRelIds.has(relKey)) nodes.push(node)
   })
 
   const nodeIds = new Set(nodes.map((node) => node.id))
@@ -841,12 +837,37 @@ export async function mergeDocumentWithAnnotation(existingDoc, propositions, rel
   ;(existingDoc.edges || []).forEach((edge) => {
     if (baseEdgeIds.has(edge.id)) return
     if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) return
-    if (edge.data?.relKey && !validRelIds.has(edge.data.relKey)) return
+    if (edge.data?.relKey) return
+    const source = nodes.find((node) => node.id === edge.source)
+    const target = nodes.find((node) => node.id === edge.target)
+    if (isHubNodeType(source?.type) || isHubNodeType(target?.type)) return
     edges.push(edge)
   })
 
   return {
     version: 2,
+    nodes,
+    edges: rebuildEdgePaths(nodes, edges)
+  }
+}
+
+export function removeRelationsFromDocument(doc, relationIds = []) {
+  if (doc?.version !== 2 || !relationIds?.length) return doc
+  const relSet = new Set(relationIds.map(String))
+  const removedNodeIds = new Set(
+    (doc.nodes || [])
+      .filter((node) => node.data?.relKey && relSet.has(String(node.data.relKey)))
+      .map((node) => node.id)
+  )
+  const nodes = (doc.nodes || []).filter((node) => !removedNodeIds.has(node.id))
+  const nodeIds = new Set(nodes.map((node) => node.id))
+  const edges = (doc.edges || []).filter((edge) => {
+    if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) return false
+    if (edge.data?.relKey && relSet.has(String(edge.data.relKey))) return false
+    return true
+  })
+  return {
+    ...doc,
     nodes,
     edges: rebuildEdgePaths(nodes, edges)
   }

@@ -255,16 +255,32 @@ function mergeDuplicatePropNodes(nodes, edges) {
   const removed = new Set()
   const nodeById = new Map(nextNodes.map((node) => [node.id, node]))
 
+  const jMemberNodeIds = new Set()
+  nextEdges.forEach((edge) => {
+    const source = nodeById.get(edge.source)
+    const target = nodeById.get(edge.target)
+    if (!source || !target || edge.data?.directed) return
+    if (source.type === 'hub-j' && target.type === 'prop') jMemberNodeIds.add(target.id)
+    if (target.type === 'hub-j' && source.type === 'prop') jMemberNodeIds.add(source.id)
+  })
+
+  const propGroups = new Map()
   nextNodes.forEach((node) => {
     if (node.type !== 'prop' || !node.data?.stableId) return
     const stableId = node.data.stableId
-    if (!canonicalByStableId.has(stableId)) {
-      canonicalByStableId.set(stableId, node.id)
-      canonicalRects.set(node.id, nodeRect(node))
-      return
-    }
-    duplicateToCanonical.set(node.id, canonicalByStableId.get(stableId))
-    removed.add(node.id)
+    if (!propGroups.has(stableId)) propGroups.set(stableId, [])
+    propGroups.get(stableId).push(node)
+  })
+
+  propGroups.forEach((group, stableId) => {
+    const canonical = group.find((node) => jMemberNodeIds.has(node.id)) || group[0]
+    canonicalByStableId.set(stableId, canonical.id)
+    canonicalRects.set(canonical.id, nodeRect(canonical))
+    group.forEach((node) => {
+      if (node.id === canonical.id) return
+      duplicateToCanonical.set(node.id, canonical.id)
+      removed.add(node.id)
+    })
   })
 
   if (!duplicateToCanonical.size) return { nodes: nextNodes, edges: nextEdges }
@@ -348,6 +364,95 @@ function mergeDuplicatePropNodes(nodes, edges) {
   return {
     nodes: nextNodes.filter((node) => !removed.has(node.id)),
     edges: reroutedEdges
+  }
+}
+
+function dedupeLayoutEdges(edges) {
+  const seen = new Set()
+  return edges.filter((edge) => {
+    const key = [
+      edge.source,
+      edge.target,
+      edge.data?.relKey || '',
+      edge.data?.directed ? '1' : '0'
+    ].join('|')
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function rerouteLayoutEdge(edge, nodeById) {
+  const source = nodeById.get(edge.source)
+  const target = nodeById.get(edge.target)
+  if (!source || !target) return edge
+  const sourcePoint = pointOnRectToward(nodeRect(source), nodeCenter(target))
+  const targetPoint = pointOnRectToward(nodeRect(target), nodeCenter(source))
+  const points = orthogonal(sourcePoint, targetPoint)
+  return {
+    ...edge,
+    data: {
+      ...edge.data,
+      points,
+      path: pointsToSvgPath(points)
+    }
+  }
+}
+
+function mergeDuplicateRelationHubs(nodes, edges) {
+  const nextNodes = nodes.map((node) => ({
+    ...node,
+    position: { ...node.position },
+    data: { ...node.data }
+  }))
+  const hubGroups = new Map()
+
+  nextNodes.forEach((node) => {
+    const relKey = node.data?.relKey
+    if (!relKey || !String(node.type || '').startsWith('hub-')) return
+    if (!hubGroups.has(relKey)) hubGroups.set(relKey, [])
+    hubGroups.get(relKey).push(node)
+  })
+
+  const duplicateToCanonical = new Map()
+  const removed = new Set()
+  hubGroups.forEach((group) => {
+    if (group.length < 2) return
+    const canonical = group[0]
+    group.slice(1).forEach((node) => {
+      duplicateToCanonical.set(node.id, canonical.id)
+      removed.add(node.id)
+    })
+  })
+
+  if (!duplicateToCanonical.size) return { nodes: nextNodes, edges }
+
+  const keptNodes = nextNodes.filter((node) => !removed.has(node.id))
+  const nodeIds = new Set(keptNodes.map((node) => node.id))
+  const nodeById = new Map(keptNodes.map((node) => [node.id, node]))
+  const remappedEdges = edges
+    .map((edge) => ({
+      ...edge,
+      source: duplicateToCanonical.get(edge.source) || edge.source,
+      target: duplicateToCanonical.get(edge.target) || edge.target,
+      data: {
+        ...edge.data,
+        points: [...(edge.data?.points || [])]
+      }
+    }))
+    .filter((edge) => edge.source !== edge.target)
+    .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+
+  const dedupedEdges = dedupeLayoutEdges(remappedEdges)
+    .map((edge) => (
+      duplicateToCanonical.has(edge.source) || duplicateToCanonical.has(edge.target)
+        ? rerouteLayoutEdge(edge, nodeById)
+        : edge
+    ))
+
+  return {
+    nodes: keptNodes,
+    edges: dedupedEdges
   }
 }
 
@@ -637,7 +742,8 @@ function buildManualGraph(propositions = [], relations = []) {
 
   const merged = mergeUnits(units)
   const deduped = mergeDuplicatePropNodes(merged.nodes, merged.edges)
-  const optimizedOnce = optimizeDirectedHubs(deduped.nodes, deduped.edges)
+  const dedupedRelations = mergeDuplicateRelationHubs(deduped.nodes, deduped.edges)
+  const optimizedOnce = optimizeDirectedHubs(dedupedRelations.nodes, dedupedRelations.edges)
   const optimized = optimizeDirectedHubs(optimizedOnce.nodes, optimizedOnce.edges)
   const branched = optimizeSharedSourceBranches(optimized.nodes, optimized.edges)
   const combined = optimizeAnchoredCombinationHubs(branched.nodes, branched.edges)
@@ -777,6 +883,7 @@ function optimizeAnchoredCombinationHubs(nodes, edges) {
         (edge.source === hub.id || edge.target === hub.id)
       ))
       if (memberEdges.length < 2) return
+      if (memberEdges.length > 2) return
 
       const members = memberEdges
         .map((edge) => nodeById.get(edge.source === hub.id ? edge.target : edge.source))
