@@ -54,7 +54,7 @@ public class ReviewService {
         User user = currentUserService.requireCurrent(request);
         boolean canSeeAll = canSeeAllReviewResults(task, user);
         int tid = (int) taskId;
-        int annotatorCount = task.annotatorIds.size();
+        int annotatorCount = taskAggregateService.countActiveAnnotators(task);
         List<Map<String, Object>> documents = taskAggregateService.listTaskDocuments(tid).stream().map(td -> {
             long dataId = taskDocumentResolver.apiDataId(td);
             List<AnnotationResult> results = task.annotatorIds.stream()
@@ -184,7 +184,7 @@ public class ReviewService {
 
     private void requireAllAnnotatorsSubmitted(int taskId, TaskDocument td) {
         TaskItem task = taskAggregateService.loadTaskItem(taskId);
-        int annotatorCount = task.annotatorIds.size();
+        int annotatorCount = taskAggregateService.countActiveAnnotators(task);
         if (annotatorCount <= 0) {
             return;
         }

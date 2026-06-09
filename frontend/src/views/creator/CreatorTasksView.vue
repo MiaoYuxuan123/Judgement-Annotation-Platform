@@ -104,14 +104,6 @@
                         修改配置
                       </el-button>
                       <el-button @click="cancelDetail(row.taskId)">取消</el-button>
-                      <el-button
-                        type="danger"
-                        plain
-                        :loading="deletingTaskId === row.taskId"
-                        @click="removeTask(row.taskId, row.taskName)"
-                      >
-                        删除任务
-                      </el-button>
                     </div>
                   </div>
                 </td>
@@ -194,6 +186,10 @@ function actionsFor(row) {
 }
 
 function goAction(action) {
+  if (action?.action === 'delete') {
+    removeTask(action.taskId, action.taskName)
+    return
+  }
   if (action?.route) router.push(action.route)
 }
 
