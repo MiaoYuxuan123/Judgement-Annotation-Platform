@@ -1,10 +1,15 @@
-/* 任务创建者 / 参与者独立框架 */
+/* ==========================================================================
+   Task Module — Judicial Archive Design System
+   Task creator / participant shell, catalog sidebar, task table, detail panel.
+   ========================================================================== */
+
+/* ── 1. TASK SHELL ── */
 .task-shell {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #eef1f5;
-  color: #1f2937;
+  background: var(--parchment);
+  color: var(--ink-900);
 }
 
 .task-shell-header {
@@ -13,9 +18,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #1d4ed8;
+  background: linear-gradient(135deg, #1a1817 0%, #2c1f1a 50%, #1a1817 100%);
   color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(26, 24, 23, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .task-shell-header-left {
@@ -27,11 +34,13 @@
 .task-shell-title {
   font-size: 18px;
   font-weight: 700;
+  font-family: var(--font-display);
+  letter-spacing: 0.03em;
 }
 
 .task-shell-perspective {
   font-size: 14px;
-  opacity: 0.92;
+  opacity: 0.85;
 }
 
 .task-shell-header-right {
@@ -51,7 +60,7 @@
   overflow: auto;
 }
 
-/* 任务目录页布局：左侧目录固定，右侧内容独立滚动 */
+/* ── 2. TASK CATALOG PAGE ── */
 .task-shell-body:has(.task-catalog-page) {
   overflow: hidden;
 }
@@ -64,8 +73,8 @@
 .task-catalog-sidebar {
   width: 220px;
   flex-shrink: 0;
-  background: #fff;
-  border-right: 1px solid #d1d5db;
+  background: var(--surface);
+  border-right: 1px solid var(--border-light);
   padding: 16px 14px;
   display: flex;
   flex-direction: column;
@@ -76,7 +85,9 @@
 .task-catalog-sidebar-title {
   font-size: 14px;
   font-weight: 700;
+  font-family: var(--font-display);
   margin-bottom: 10px;
+  color: var(--ink-900);
 }
 
 .task-catalog-sidebar-search {
@@ -94,39 +105,41 @@
   padding: 10px 12px;
   margin-bottom: 6px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
 }
 
 .task-catalog-sidebar-item:hover {
-  background: #f3f4f6;
+  background: var(--parchment-warm);
 }
 
 .task-catalog-sidebar-item.active {
-  background: #eff6ff;
-  border-color: #3b82f6;
+  background: var(--cinnabar-light);
+  border-color: var(--cinnabar);
 }
 
 .task-catalog-sidebar-item-id {
   display: block;
   font-size: 13px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink-900);
+  font-family: var(--font-display);
 }
 
 .task-catalog-sidebar-item-name {
   display: block;
   margin-top: 4px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--ink-500);
   line-height: 1.4;
 }
 
 .task-catalog-sidebar-hint {
   margin: 10px 0 0;
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--ink-300);
   text-align: center;
 }
 
@@ -138,12 +151,14 @@
   overflow-y: auto;
 }
 
+/* ── 3. TASK FILTER BAR ── */
 .task-filter-bar {
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
   padding: 14px 16px;
   margin-bottom: 14px;
+  box-shadow: var(--shadow-xs);
 }
 
 .task-filter-row {
@@ -160,7 +175,7 @@
 .task-filter-label {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: var(--ink-700);
   white-space: nowrap;
 }
 
@@ -168,11 +183,13 @@
   flex: 1;
 }
 
+/* ── 4. TASK TABLE ── */
 .task-table-wrap {
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
   overflow: hidden;
+  box-shadow: var(--shadow-xs);
 }
 
 .task-table {
@@ -182,29 +199,32 @@
 }
 
 .task-table th {
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--parchment-warm);
+  border-bottom: 1px solid var(--border);
   padding: 12px 14px;
   text-align: left;
   font-weight: 600;
-  color: #374151;
+  color: var(--ink-700);
   white-space: nowrap;
+  font-size: 13px;
 }
 
 .task-table td {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-light);
   padding: 14px;
   vertical-align: middle;
+  color: var(--ink-900);
 }
 
 .task-table tbody tr.task-row:hover {
-  background: #fafafa;
+  background: var(--parchment-warm);
 }
 
 .task-table tbody tr.task-row.highlight {
-  background: #fffbeb;
+  background: var(--gold-light);
 }
 
+/* ── 5. TASK ROLE & STATUS TAGS ── */
 .task-role-tag,
 .task-status-tag {
   display: inline-block;
@@ -213,11 +233,12 @@
   font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
+  letter-spacing: 0.02em;
 }
 
-.task-role-tag.role-annotate { background: #dbeafe; color: #1d4ed8; }
-.task-role-tag.role-arbitrate { background: #ede9fe; color: #6d28d9; }
-.task-role-tag.role-creator { background: #fef3c7; color: #b45309; }
+.task-role-tag.role-annotate { background: var(--scholar-blue-light); color: var(--scholar-blue); }
+.task-role-tag.role-arbitrate { background: #f3e8ff; color: #7c3aed; }
+.task-role-tag.role-creator { background: var(--gold-light); color: var(--gold); }
 
 .task-role-tags {
   display: inline-flex;
@@ -225,24 +246,25 @@
   gap: 6px;
 }
 
-.task-status-tag.status-progress { background: #ffedd5; color: #c2410c; }
-.task-status-tag.status-done { background: #dcfce7; color: #15803d; }
-.task-status-tag.status-wait { background: #f3f4f6; color: #6b7280; }
+.task-status-tag.status-progress { background: #fff7ed; color: #c2410c; }
+.task-status-tag.status-done { background: var(--jade-light); color: var(--jade); }
+.task-status-tag.status-wait { background: var(--parchment); color: var(--ink-500); }
 
 .task-info-text {
   font-size: 13px;
-  color: #374151;
+  color: var(--ink-700);
 }
 
 .task-info-text.warn {
-  color: #dc2626;
+  color: var(--cinnabar);
   font-weight: 600;
 }
 
 .task-info-text.muted {
-  color: #9ca3af;
+  color: var(--ink-300);
 }
 
+/* ── 6. TASK ACTION BUTTONS ── */
 .task-action-cell {
   display: flex;
   flex-wrap: wrap;
@@ -259,70 +281,71 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.task-action-btn:hover {
+  opacity: 0.88;
 }
 
 .task-action-btn.orange {
-  background: #f97316;
-  color: #fff;
-}
-
-.task-action-btn.orange:hover {
   background: #ea580c;
+  color: #fff;
 }
 
 .task-action-btn.green {
-  background: #22c55e;
+  background: var(--jade);
   color: #fff;
-}
-
-.task-action-btn.green:hover {
-  background: #16a34a;
 }
 
 .task-action-btn:disabled,
 .task-action-btn.disabled {
-  background: #e5e7eb;
-  color: #9ca3af;
+  background: var(--border);
+  color: var(--ink-300);
   cursor: not-allowed;
 }
 
+/* ── 7. TASK DETAIL TOGGLE & PANEL ── */
 .task-detail-toggle {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 5px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface);
   font-size: 13px;
-  color: #374151;
+  color: var(--ink-700);
   cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
 .task-detail-toggle:hover {
-  background: #f9fafb;
+  background: var(--parchment-warm);
 }
 
 .task-detail-toggle.open {
-  background: #f3f4f6;
+  background: var(--parchment);
 }
 
 .task-detail-row td {
   padding: 0 !important;
-  background: #f8fafc;
-  border-bottom: 1px solid #d1d5db;
+  background: var(--parchment-warm);
+  border-bottom: 1px solid var(--border);
 }
 
 .task-detail-panel {
   padding: 18px 20px 20px;
-  border-top: 2px solid #3b82f6;
+  border-top: 2px solid var(--cinnabar);
 }
 
 .task-detail-panel-title {
   font-size: 15px;
   font-weight: 700;
+  font-family: var(--font-display);
   margin-bottom: 16px;
-  color: #111827;
+  color: var(--ink-900);
+  letter-spacing: 0.02em;
 }
 
 .task-detail-form {
@@ -336,20 +359,20 @@
 .task-detail-form label {
   font-size: 13px;
   font-weight: 600;
-  color: #4b5563;
+  color: var(--ink-500);
   padding-top: 8px;
 }
 
 .task-detail-form .field-value {
   font-size: 14px;
-  color: #111827;
+  color: var(--ink-900);
 }
 
 .task-detail-stage {
   display: inline-block;
   padding: 6px 12px;
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--jade-light);
+  color: var(--jade);
   border-radius: 4px;
   font-size: 13px;
   font-weight: 600;
@@ -361,21 +384,22 @@
   gap: 10px;
 }
 
+/* ── 8. TASK NOTE BOX ── */
 .task-note-box {
   margin-top: 16px;
   padding: 14px 16px;
-  border: 1px solid #86efac;
-  background: #f0fdf4;
-  border-radius: 6px;
+  border: 1px solid var(--jade);
+  background: var(--jade-light);
+  border-radius: var(--radius-sm);
   font-size: 13px;
-  color: #166534;
+  color: var(--jade);
   line-height: 1.7;
 }
 
 .task-note-box.creator {
-  border-color: #fcd34d;
-  background: #fffbeb;
-  color: #92400e;
+  border-color: var(--gold-border);
+  background: var(--gold-light);
+  color: var(--gold);
 }
 
 .task-note-box strong {
@@ -383,8 +407,19 @@
   margin-bottom: 6px;
 }
 
+/* ── 9. EMPTY STATE ── */
 .task-empty {
   padding: 48px;
   text-align: center;
-  color: #9ca3af;
+  color: var(--ink-300);
+  font-size: 14px;
+}
+
+/* ── 10. CREATOR / PARTICIPANT SPECIFIC ── */
+.creator-shell .task-shell-header {
+  background: linear-gradient(135deg, #1a1817 0%, #2c1f1a 50%, #1a1817 100%);
+}
+
+.participant-shell .task-shell-header {
+  background: linear-gradient(135deg, #1a1817 0%, #29241f 50%, #1a1817 100%);
 }

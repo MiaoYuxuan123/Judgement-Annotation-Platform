@@ -356,10 +356,10 @@ onMounted(load)
 .review-sidebar-count {
   font-size: 11px;
   font-weight: 400;
-  color: #94a3b8;
+  color: #a8a29e;
 }
 
 .review-sidebar-item.active .review-sidebar-count {
-  color: #60a5fa;
+  color: #e3828a;
 }
 </style>

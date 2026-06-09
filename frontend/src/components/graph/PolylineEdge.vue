@@ -170,7 +170,7 @@ const targetPoint = computed(() => {
 
 const isSelected = computed(() => props.selected || props.data?.selected)
 
-const edgeColor = computed(() => (isSelected.value || props.data?.highlighted ? '#2563eb' : '#111'))
+const edgeColor = computed(() => (isSelected.value || props.data?.highlighted ? '#c41e3a' : '#1a1817'))
 const edgeWidth = computed(() => (isSelected.value || props.data?.highlighted ? 2.6 : 1.6))
 
 const segmentMidpoints = computed(() => calcSegmentMidpoints(props.data.points || []))
@@ -358,47 +358,47 @@ onBeforeUnmount(unbindDragListeners)
 
 .ag-edge-endpoint-dot {
   fill: #fff;
-  stroke: #2563eb;
+  stroke: #c41e3a;
   stroke-width: 2;
 }
 
 .ag-edge-endpoint-dot--target {
-  fill: #eff6ff;
+  fill: #fef2f2;
 }
 
 .ag-edge-endpoint-group.is-active .ag-edge-endpoint-dot {
-  fill: #2563eb;
+  fill: #c41e3a;
   stroke: #fff;
   stroke-width: 2;
 }
 
 .ag-edge-endpoint-group:hover .ag-edge-endpoint-dot {
-  fill: #dbeafe;
-  stroke: #1d4ed8;
+  fill: #fef2f2;
+  stroke: #991b1b;
 }
 
 .ag-edge-segment-dot {
   fill: #fff;
-  stroke: #60a5fa;
+  stroke: #e3828a;
   stroke-width: 1.5;
 }
 
 .ag-edge-handle-group:hover .ag-edge-segment-dot {
-  fill: #dbeafe;
-  stroke: #2563eb;
+  fill: #fef2f2;
+  stroke: #c41e3a;
   stroke-width: 2;
 }
 
 .ag-edge-bend-dot {
-  fill: #2563eb;
+  fill: #c41e3a;
   stroke: #fff;
   stroke-width: 1.5;
 }
 
 .ag-edge-handle-group:hover .ag-edge-bend-dot,
 .ag-edge-handle-group.is-hover .ag-edge-bend-dot {
-  fill: #1d4ed8;
-  stroke: #2563eb;
+  fill: #991b1b;
+  stroke: #c41e3a;
   stroke-width: 2;
 }
 </style>

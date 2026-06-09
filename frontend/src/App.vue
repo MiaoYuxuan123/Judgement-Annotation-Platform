@@ -8,7 +8,7 @@
   </ParticipantLayout>
   <el-container v-else class="shell" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <el-aside :width="sidebarCollapsed ? '72px' : '248px'" class="sidebar">
-      <div class="brand">
+      <div class="brand" :class="{ 'brand-compact': sidebarCollapsed }">
         <div class="brand-mark">JAP</div>
         <div v-if="!sidebarCollapsed">
           <strong>裁判文书标注平台</strong>

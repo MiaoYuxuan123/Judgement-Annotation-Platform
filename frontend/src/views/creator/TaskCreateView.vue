@@ -163,7 +163,7 @@ onMounted(async () => {
   margin: 0;
   padding: 0;
   list-style: none;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e0dbd2;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -173,7 +173,7 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f6f2eb;
 }
 
 .task-doc-selected-list li:last-child {
@@ -184,8 +184,8 @@ onMounted(async () => {
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: #fef2f2;
+  color: #991b1b;
   flex-shrink: 0;
 }
 
@@ -197,7 +197,7 @@ onMounted(async () => {
 }
 
 .muted {
-  color: #6b7280;
+  color: #78716c;
   margin: 0;
 }
 </style>
