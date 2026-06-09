@@ -769,6 +769,89 @@ export async function importFromAnnotation(propositions, relations) {
   }
 }
 
+/**
+ * 将手工编辑后的 v2 画布与最新标注数据同步：
+ * - 当前命题/关系重新生成一份自动图，确保新增关系一定出现；
+ * - 已存在的节点保留手动位置、尺寸和编辑器里的节点数据；
+ * - 已存在的边保留手动连接点、折点和箭头设置；
+ * - 已从标注中删除的命题/关系不再保留，避免旧图示覆盖新数据。
+ */
+export async function mergeDocumentWithAnnotation(existingDoc, propositions, relations) {
+  const base = await importFromAnnotation(propositions, relations)
+  if (existingDoc?.version !== 2 || !existingDoc?.nodes?.length) return base
+
+  const validPropIds = new Set((propositions || []).map((p) => p.propId))
+  const validRelIds = new Set((relations || []).map((r) => r.relId))
+  const baseNodeIds = new Set(base.nodes.map((node) => node.id))
+  const baseEdgeIds = new Set(base.edges.map((edge) => edge.id))
+  const existingNodeById = new Map((existingDoc.nodes || []).map((node) => [node.id, node]))
+  const existingEdgeById = new Map((existingDoc.edges || []).map((edge) => [edge.id, edge]))
+
+  const nodes = base.nodes.map((node) => {
+    const existing = existingNodeById.get(node.id)
+    if (!existing) return node
+    return {
+      ...node,
+      position: { ...(existing.position || node.position) },
+      style: { ...(node.style || {}), ...(existing.style || {}) },
+      data: {
+        ...node.data,
+        ...existing.data,
+        stableId: node.data?.stableId,
+        tag: node.data?.tag,
+        text: node.data?.text,
+        relKey: node.data?.relKey,
+        relType: node.data?.relType,
+        hubKind: node.data?.hubKind
+      }
+    }
+  })
+
+  ;(existingDoc.nodes || []).forEach((node) => {
+    if (baseNodeIds.has(node.id)) return
+    if (node.type === 'prop') {
+      const members = getPropMemberIds(node)
+      if (members.length > 1 && members.every((id) => validPropIds.has(id))) nodes.push(node)
+      return
+    }
+    const relKey = node.data?.relKey
+    if (relKey && validRelIds.has(relKey)) nodes.push(node)
+  })
+
+  const nodeIds = new Set(nodes.map((node) => node.id))
+  const edges = base.edges.map((edge) => {
+    const existing = existingEdgeById.get(edge.id)
+    if (!existing) return edge
+    return {
+      ...edge,
+      source: nodeIds.has(existing.source) ? existing.source : edge.source,
+      target: nodeIds.has(existing.target) ? existing.target : edge.target,
+      sourceHandle: existing.sourceHandle || edge.sourceHandle,
+      targetHandle: existing.targetHandle || edge.targetHandle,
+      data: {
+        ...edge.data,
+        ...existing.data,
+        relKey: edge.data?.relKey,
+        directed: existing.data?.directed ?? edge.data?.directed ?? false,
+        waypoints: existing.data?.waypoints || []
+      }
+    }
+  })
+
+  ;(existingDoc.edges || []).forEach((edge) => {
+    if (baseEdgeIds.has(edge.id)) return
+    if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) return
+    if (edge.data?.relKey && !validRelIds.has(edge.data.relKey)) return
+    edges.push(edge)
+  })
+
+  return {
+    version: 2,
+    nodes,
+    edges: rebuildEdgePaths(nodes, edges)
+  }
+}
+
 /** v1 layoutOverride 迁移到 v2 */
 export async function migrateLayoutToDocument(graphLayout, propositions, relations) {
   if (graphLayout?.version === 2 && graphLayout.nodes?.length) {

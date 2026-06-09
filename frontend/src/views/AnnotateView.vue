@@ -174,9 +174,6 @@
           :active-relation-key="activeRelationKey"
           :layout-override="graphLayout"
         />
-        <div class="graph-footer">
-          <el-button class="fullscreen-btn" :disabled="!graphGenerated" @click="fullscreen = true">↗ 全屏预览</el-button>
-        </div>
       </section>
     </div>
 
@@ -246,17 +243,6 @@
       -->
     </div>
 
-    <el-dialog v-model="fullscreen" title="论证图示全屏预览" fullscreen>
-      <GraphCanvas
-        v-if="graphGenerated"
-        :propositions="graphPropositions"
-        :relations="graphRelations"
-        :active-relation-id="activeRelationId"
-        :active-relation-key="activeRelationKey"
-        :layout-override="graphLayout"
-      />
-      <el-empty v-else description="请先在关系生成区点击“生成图示”" />
-    </el-dialog>
     <el-dialog v-model="previewVisible" title="指南附件预览" width="80%" :close-on-click-modal="false">
       <div style="height:70vh">
         <template v-if="isPreviewable">
@@ -271,6 +257,22 @@
         <el-button type="primary" @click="downloadAttachment">下载</el-button>
       </template>
     </el-dialog>
+    <el-drawer
+      v-model="graphEditorDrawer"
+      direction="rtl"
+      size="calc(100vw - 340px)"
+      :with-header="false"
+      :modal="false"
+      modal-class="graph-editor-drawer-overlay"
+      :destroy-on-close="true"
+      class="graph-editor-drawer"
+    >
+      <GraphEditorView
+        embedded
+        @close="graphEditorDrawer = false"
+        @saved="handleGraphEditorSaved"
+      />
+    </el-drawer>
   </div>
 </template>
 
@@ -280,9 +282,11 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
 import GraphCanvas from '../components/GraphCanvas.vue'
+import GraphEditorView from './GraphEditorView.vue'
 import { selectionSpanFromSourceElement } from '../utils/reviewHelpers'
 import { cloneLayout, EMPTY_LAYOUT, graphLayoutForSave } from '../utils/graphLayoutOverride'
-import { fetchAnnotationItem, graphEditorRoute, isArbitrationMode } from '../utils/annotationRoute'
+import { mergeDocumentWithAnnotation } from '../utils/graphDocument'
+import { fetchAnnotationItem, isArbitrationMode } from '../utils/annotationRoute'
 
 const route = useRoute()
 const router = useRouter()
@@ -298,10 +302,10 @@ const graphRelations = ref([])
 const graphGenerated = ref(false)
 const graphDirty = ref(false)
 const graphLayout = ref(EMPTY_LAYOUT())
+const graphEditorDrawer = ref(false)
 const history = ref([])
 const redoStack = ref([])
 const labelDialog = ref(false)
-const fullscreen = ref(false)
 const previewVisible = ref(false), previewUrl = ref('')
 const isPreviewable = computed(() => {
   const name = data.value?.config?.attachmentName || ''
@@ -391,10 +395,13 @@ const orderedRelationTypes = computed(() => {
 
 const supportsMultiMember = computed(() => ['J', 'I'].includes(relationForm.type))
 const relationTypeName = computed(() => orderedRelationTypes.value.find((item) => item.shortName === relationForm.type)?.name || '关系')
-const selectedTag = computed(() => (secondaryTag.value ? secondaryTag.value : primaryTag.value))
 const secondaryTagsForCurrent = computed(() =>
   (data.value?.config.secondaryTags || []).filter(t => t.parentTag === primaryTag.value)
 )
+const selectedTag = computed(() => {
+  const validSecondary = secondaryTagsForCurrent.value.some((tag) => tag.shortName === secondaryTag.value)
+  return validSecondary ? secondaryTag.value : primaryTag.value
+})
 const activeRelationKey = computed(() => {
   const rel = relations.value.find((item) => item.relId === activeRelationId.value)
   return relationSemanticKey(rel, relations.value)
@@ -405,7 +412,13 @@ watch(primaryTagOrder, (tags) => {
 }, { immediate: true })
 
 watch(secondaryTagsForCurrent, (tags) => {
-  if (tags.length > 0 && !secondaryTag.value) secondaryTag.value = tags[0].shortName
+  if (!tags.length) {
+    secondaryTag.value = ''
+    return
+  }
+  if (!tags.some((tag) => tag.shortName === secondaryTag.value)) {
+    secondaryTag.value = tags[0].shortName
+  }
 }, { immediate: true })
 
 watch(orderedRelationTypes, (types) => {
@@ -519,7 +532,8 @@ function stopLabelDrag() {
 
 function choosePrimary(tag) {
   primaryTag.value = tag
-  if (secondaryTagsForCurrent.value.length > 0 && !secondaryTag.value) secondaryTag.value = secondaryTagsForCurrent.value[0].shortName
+  const nextSecondaryTags = (data.value?.config.secondaryTags || []).filter((item) => item.parentTag === tag)
+  secondaryTag.value = nextSecondaryTags[0]?.shortName || ''
 }
 
 function cancelLabel() {
@@ -732,16 +746,31 @@ function normalizeRelationMembers() {
   relationMembers.value = [kept[0] || '', kept[1] || '']
 }
 
-function generateGraph() {
+async function generateGraph() {
   graphPropositions.value = propositions.value.map((item) => ({ ...item }))
   graphRelations.value = relations.value.map((item) => ({ ...item }))
+  if (graphLayout.value?.version === 2 && graphLayout.value.nodes?.length) {
+    graphLayout.value = await mergeDocumentWithAnnotation(
+      graphLayout.value,
+      graphPropositions.value,
+      graphRelations.value
+    )
+  }
   graphGenerated.value = true
   graphDirty.value = false
   ElMessage.success('图示已生成/刷新')
 }
 
 function openGraphEditor() {
-  router.push(graphEditorRoute(route.params.taskId, route.params.dataId, route.query))
+  graphEditorDrawer.value = true
+}
+
+function handleGraphEditorSaved(nextLayout) {
+  graphLayout.value = nextLayout ? cloneLayout(nextLayout) : EMPTY_LAYOUT()
+  graphPropositions.value = propositions.value.map((item) => ({ ...item }))
+  graphRelations.value = relations.value.map((item) => ({ ...item }))
+  graphGenerated.value = true
+  graphDirty.value = false
 }
 
 function hydrateGraphPreview() {
