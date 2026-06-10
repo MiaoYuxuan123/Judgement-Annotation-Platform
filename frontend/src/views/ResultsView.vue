@@ -44,7 +44,7 @@
           <h3>命题列表</h3>
           <el-table :data="activeData.propositions" size="small" stripe empty-text="暂无命题">
             <el-table-column label="序号" width="72" align="center">
-              <template #default="{ row }">{{ circledNo(row.sequenceNo) }}</template>
+              <template #default="{ row }">{{ circledNo(row) }}</template>
             </el-table-column>
             <el-table-column prop="text" label="命题内容" min-width="120" show-overflow-tooltip />
             <el-table-column prop="tag" label="类型" width="72" align="center" />

@@ -1,8 +1,11 @@
 /**
- * 将数字序号统一转换为 P1, P2 格式
+ * 将要素显示编号统一取出。旧数据没有 propId 时回退为 P 序号。
  */
-export function formatPropLabel(sequenceNo) {
-    return `P${sequenceNo}`
+export function formatPropLabel(propOrSequenceNo) {
+    if (propOrSequenceNo && typeof propOrSequenceNo === 'object') {
+        return propOrSequenceNo.propId || `P${propOrSequenceNo.sequenceNo || ''}`
+    }
+    return `P${propOrSequenceNo}`
 }
 
 /**
@@ -20,8 +23,8 @@ export function formatRelationFormula(rel, propositions, index) {
     const source = map.get(rel.source)
     const target = map.get(rel.target)
 
-    const left = source ? formatPropLabel(source.sequenceNo) : (rel.source || 'P?')
-    const right = target ? formatPropLabel(target.sequenceNo) : (rel.target || 'P?')
+    const left = source ? formatPropLabel(source) : (rel.source || 'E?')
+    const right = target ? formatPropLabel(target) : (rel.target || 'E?')
 
     let rNumber = 1
     if (index !== undefined && index !== null) {
@@ -148,7 +151,7 @@ export function buildAnnotatedParts(content, propositions) {
             type: 'prop',
             text: content.slice(start, end),
             sequenceNo: p.sequenceNo,
-            label: formatPropLabel(p.sequenceNo),
+            label: formatPropLabel(p),
             tag: p.tag || 'SF'
         })
 
@@ -165,6 +168,6 @@ export function buildAnnotatedParts(content, propositions) {
     return parts
 }
 
-export function circledNo(sequenceNo) {
-    return formatPropLabel(sequenceNo)
+export function circledNo(propOrSequenceNo) {
+    return formatPropLabel(propOrSequenceNo)
 }
