@@ -52,8 +52,8 @@ const pathD = computed(() => {
 })
 
 const edgeColor = computed(() => {
-  if (props.data?.selected) return '#c41e3a'
-  if (props.data?.highlighted) return '#c41e3a'
+  if (props.data?.selected) return '#facc15'
+  if (props.data?.highlighted) return '#facc15'
   return '#1a1817'
 })
 const edgeWidth = computed(() => (props.data?.highlighted || props.data?.selected ? 2.4 : 1.2))
@@ -119,7 +119,7 @@ onBeforeUnmount(stopDrag)
 <style scoped>
 .ag-edge-waypoint {
   fill: #fff;
-  stroke: #c41e3a;
+  stroke: #facc15;
   stroke-width: 1.5;
   cursor: move;
 }
@@ -127,6 +127,6 @@ onBeforeUnmount(stopDrag)
 
 <style>
 .ag-edge--selected {
-  filter: drop-shadow(0 0 2px rgba(37, 99, 235, 0.35));
+  filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.65));
 }
 </style>

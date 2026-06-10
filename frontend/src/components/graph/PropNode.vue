@@ -73,11 +73,11 @@ const handles = [
 }
 
 .ag-prop-node--highlighted {
-  border-color: #c41e3a;
+  border-color: #facc15;
   border-width: 2.4px;
-  color: #991b1b;
-  background: #fef2f2;
-  box-shadow: 0 0 0 5px rgba(37, 99, 235, .14);
+  color: #713f12;
+  background: #fffbeb;
+  box-shadow: 0 0 0 5px rgba(250, 204, 21, .26);
 }
 
 .ag-prop-label {

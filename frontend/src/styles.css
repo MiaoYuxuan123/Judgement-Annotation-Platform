@@ -400,6 +400,21 @@ h1, h2, h3, h4, h5, h6 {
     radial-gradient(ellipse at 50% 50%, rgba(44, 62, 107, 0.12) 0%, transparent 70%),
     /* Side glow from the card */
     radial-gradient(ellipse at 95% 50%, rgba(254, 252, 250, 0.03) 0%, transparent 40%);
+  background-size:
+    120px 100%,
+    100% 50px,
+    120% 120%,
+    120% 120%,
+    130% 130%,
+    100% 100%;
+  background-position:
+    0 0,
+    0 0,
+    22% 34%,
+    72% 55%,
+    50% 50%,
+    95% 50%;
+  will-change: background-position;
 }
 
 .login-hero::before {
@@ -412,6 +427,8 @@ h1, h2, h3, h4, h5, h6 {
   background-size: 256px 256px;
   pointer-events: none;
   z-index: 0;
+  opacity: 0.95;
+  animation: paperGrainDrift 18s linear infinite;
 }
 
 .login-hero::after {
@@ -422,10 +439,13 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   font-size: 500px;
   font-weight: 900;
-  color: rgba(255, 255, 255, 0.012);
+  color: rgba(255, 255, 255, 0.032);
+  text-shadow: 0 0 48px rgba(184, 138, 62, 0.08);
   pointer-events: none;
   line-height: 1;
   z-index: 0;
+  transform-origin: 55% 60%;
+  animation: lawGlyphBreathe 12s var(--ease-in-out) infinite;
 }
 
 .login-hero > * {
@@ -548,7 +568,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ── 9. ANNOTATION WORKBENCH ── */
 .annotate-page {
-  min-height: calc(100vh - 112px);
+  min-height: 100vh;
   background: transparent;
 }
 
@@ -561,17 +581,21 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ── 9a. ANNOTATION TOPBAR — ink-stone header ── */
 .annotate-topbar {
-  min-height: 56px;
+  min-height: 64px;
   margin-bottom: 14px;
-  padding: 0 20px;
+  padding: 0 24px;
   color: #fff;
   background: linear-gradient(135deg, #1a1817 0%, #2c1f1a 50%, #1a1817 100%);
   border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   box-shadow: var(--shadow-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 18px;
+  position: sticky;
+  top: 0;
+  z-index: 80;
 }
 
 .annotate-topbar > div {
@@ -579,6 +603,11 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
+}
+
+.annotate-topbar-main {
+  min-width: 0;
+  flex: 1;
 }
 
 .annotate-logo {
@@ -593,11 +622,47 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 13px;
   font-weight: 900;
   box-shadow: 0 2px 6px rgba(196, 30, 58, 0.3);
+  flex-shrink: 0;
+}
+
+.annotate-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
 }
 
 .annotate-doc-title {
   color: rgba(255, 255, 255, 0.75);
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(34vw, 520px);
+}
+
+.annotate-topbar-actions {
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+
+.annotate-user-action {
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+
+.annotate-user-action:hover {
+  color: #fff !important;
+}
+
+.annotate-user-name {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .topbar-btn {
@@ -605,6 +670,12 @@ h1, h2, h3, h4, h5, h6 {
   color: #fff;
   border-color: rgba(255, 255, 255, 0.5);
   background: transparent;
+}
+
+.topbar-btn.ghost:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .submit-btn {
@@ -619,8 +690,9 @@ h1, h2, h3, h4, h5, h6 {
   display: grid;
   grid-template-columns: minmax(260px, 300px) minmax(520px, 1fr) minmax(320px, 380px);
   gap: 14px;
-  height: calc(100vh - 190px);
+  height: calc(100vh - 78px);
   min-height: 640px;
+  padding: 0 4px 4px;
 }
 
 .annotate-card {
@@ -1856,6 +1928,127 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
 }
 
+/* ── 15a. GUIDE PREVIEW DIALOG ── */
+.guide-dialog-body {
+  max-height: 68vh;
+  overflow: auto;
+  padding: 2px 4px 8px 0;
+}
+
+.guide-summary {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid var(--gold-border);
+  border-radius: var(--radius-md);
+  background: var(--gold-light);
+}
+
+.guide-summary span {
+  display: block;
+  color: var(--ink-500);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.guide-summary strong {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--ink-900);
+}
+
+.guide-summary p {
+  margin: 0;
+  color: var(--ink-700);
+  line-height: 1.7;
+}
+
+.guide-section {
+  margin-top: 18px;
+}
+
+.guide-section h4 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--ink-900);
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.guide-card {
+  min-height: 110px;
+  padding: 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.guide-card.compact {
+  min-height: 96px;
+}
+
+.guide-card strong {
+  display: inline-flex;
+  min-width: 48px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  color: #fff;
+  background: var(--cinnabar);
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.guide-card span {
+  display: block;
+  color: var(--ink-900);
+  font-weight: 700;
+}
+
+.guide-card p {
+  margin: 6px 0 0;
+  color: var(--ink-500);
+  line-height: 1.55;
+  font-size: 13px;
+}
+
+.relation-guide-card strong {
+  background: var(--scholar-blue);
+}
+
+.guide-subgroup-list {
+  display: grid;
+  gap: 14px;
+}
+
+.guide-subgroup {
+  padding: 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--parchment-warm);
+}
+
+.guide-subgroup-title {
+  margin-bottom: 10px;
+  color: var(--ink-500);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
 /* ── 16. DOCUMENT & WORK PANELS ── */
 .work-panel {
   min-height: 0;
@@ -1949,6 +2142,47 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+@keyframes loginHeroDrift {
+  0% {
+    background-position:
+      0 0,
+      0 0,
+      22% 34%,
+      72% 55%,
+      50% 50%,
+      95% 50%;
+  }
+  100% {
+    background-position:
+      28px 0,
+      0 18px,
+      18% 38%,
+      76% 52%,
+      48% 54%,
+      94% 50%;
+  }
+}
+
+@keyframes paperGrainDrift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 72px 48px;
+  }
+}
+
+@keyframes lawGlyphBreathe {
+  0%, 100% {
+    opacity: 0.9;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(-8px, -6px, 0) scale(1.018);
+  }
+}
+
 .metric:nth-child(1) { animation: fadeInUp var(--duration-slow) var(--ease-out) 0s both; }
 .metric:nth-child(2) { animation: fadeInUp var(--duration-slow) var(--ease-out) 0.06s both; }
 .metric:nth-child(3) { animation: fadeInUp var(--duration-slow) var(--ease-out) 0.12s both; }
@@ -1986,12 +2220,22 @@ h1, h2, h3, h4, h5, h6 {
   animation: fadeInUp var(--duration-slow) var(--ease-out) 0.14s both;
 }
 
-.login-hero {
-  animation: fadeIn var(--duration-slow) var(--ease-out) 0s both;
+.login-page .login-hero {
+  animation:
+    fadeIn var(--duration-slow) var(--ease-out) 0s both,
+    loginHeroDrift 22s var(--ease-in-out) 0.2s infinite alternate;
 }
 
 .login-card {
   animation: fadeInUp var(--duration-slow) var(--ease-out) 0.15s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-page .login-hero,
+  .login-hero::before,
+  .login-hero::after {
+    animation: none;
+  }
 }
 
 /* ── 20. RESPONSIVE ── */

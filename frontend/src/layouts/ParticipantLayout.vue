@@ -1,6 +1,6 @@
 <template>
   <div class="task-shell participant-shell">
-    <header class="task-shell-header">
+    <header v-if="!isAnnotatePage" class="task-shell-header">
       <div class="task-shell-header-left">
         <span class="task-shell-title">任务目录</span>
       </div>
@@ -29,17 +29,19 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import client from '../api/client'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const profileVisible = ref(false)
 const profileSaving = ref(false)
 const profileForm = reactive({ realName: '', password: '' })
+const isAnnotatePage = computed(() => route.path.startsWith('/annotate/'))
 
 function openProfile() {
   profileForm.realName = auth.user?.realName || ''
