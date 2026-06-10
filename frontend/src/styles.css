@@ -360,6 +360,17 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
 }
 
+.task-shell-body:has(.review-page),
+.task-shell-body:has(.results-page) {
+  overflow: hidden;
+}
+
+.task-shell-body > .review-page,
+.task-shell-body > .results-page {
+  height: 100%;
+  max-height: 100%;
+}
+
 /* ── 5. LOGIN PAGE ── */
 .login-page {
   min-height: 100vh;
@@ -1468,8 +1479,9 @@ h1, h2, h3, h4, h5, h6 {
 .results-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 112px);
-  max-height: calc(100vh - 112px);
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
   overflow: hidden;
   background: var(--parchment-warm);
 }
@@ -1577,13 +1589,26 @@ h1, h2, h3, h4, h5, h6 {
 .review-main {
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(360px, 1fr) minmax(260px, auto);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 0.95fr);
   gap: 14px;
   overflow: hidden;
 }
 
 .review-main.graph-collapsed {
-  grid-template-rows: 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  align-content: stretch;
+  overflow: hidden;
+}
+
+.review-main.graph-collapsed .review-text-block {
+  height: 100%;
+  min-height: 0;
+}
+
+.review-main.graph-collapsed .review-original {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 
 .review-text-head {
@@ -1630,7 +1655,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .review-graph-block .graph-canvas {
   flex: 1;
-  min-height: 240px;
+  min-height: 0;
   height: 100%;
 }
 
