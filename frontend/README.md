@@ -45,7 +45,7 @@ http://129.28.41.192:8086/login
 
 ## 查看数据库
 ```angular2html
-sudo docker exec -it judgment-mysql mysql -uroot -p
+sudo docker exec -it judgment-mysql mysql -uroot -proot_20260601_nju
 
 ```
 

@@ -144,6 +144,7 @@ async function runLayout() {
 
 function relationHighlightInfo(activeId, activeKey) {
   const byId = new Map((props.relations || []).map((rel) => [rel.relId, rel]))
+  const propositionIds = new Set((props.propositions || []).map((prop) => prop.propId))
   const matchedId = activeKey
     ? (props.relations || []).find((rel) => relationSemanticKey(rel, props.relations) === activeKey)?.relId
     : ''
@@ -159,7 +160,7 @@ function relationHighlightInfo(activeId, activeKey) {
     const members = rel.members?.length ? rel.members : [rel.source, rel.target].filter(Boolean)
     members.forEach((member) => {
       const value = String(member)
-      if (value.startsWith('P')) propIds.add(value)
+      if (propositionIds.has(value)) propIds.add(value)
       if (value.startsWith('R')) visit(value)
     })
   }
@@ -174,9 +175,10 @@ function relationMembers(relation) {
 function relationSemanticKey(relation, relationList = props.relations, visited = new Set()) {
   if (!relation || visited.has(relation.relId)) return ''
   visited.add(relation.relId)
+  const propositionIds = new Set((props.propositions || []).map((prop) => prop.propId))
   const members = relationMembers(relation).map((id) => {
     const value = String(id || '')
-    if (value.startsWith('P')) return value
+    if (propositionIds.has(value)) return value
     if (value.startsWith('R')) {
       const child = relationList.find((item) => item.relId === value)
       return child ? relationSemanticKey(child, relationList, new Set(visited)) : value

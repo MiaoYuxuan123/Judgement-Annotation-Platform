@@ -35,20 +35,27 @@
     <div class="annotation-workbench">
       <aside class="annotate-card list-card work-panel">
         <div class="section-title">
-          <h3>命题列表</h3>
+          <h3>要素列表</h3>
           <el-tag size="small">{{ propositions.length }}</el-tag>
         </div>
         <div class="list-box proposition-box proposition-table-list">
           <div v-if="propositions.length" class="proposition-table-head">
             <span>序号</span>
-            <span>命题内容</span>
-            <span>类型</span>
+            <span>要素内容</span>
           </div>
           <div
-              v-for="p in propositions"
+              v-for="(p, index) in propositions"
               :key="p.propId"
-              class="plain-list-item annot-list-item proposition-table-row"
+              class="plain-list-item annot-list-item proposition-table-row draggable-element-row"
+              :class="{ 'is-unlabeled': !p.tag }"
+              draggable="true"
+              @dragstart="startElementDrag(index)"
+              @dragover.prevent
+              @drop.prevent="dropElement(index)"
+              @dragend="draggedElementIndex = -1"
+              @click="focusProposition(p)"
           >
+            <span class="relation-drag-handle" title="拖动调整顺序">⋮⋮</span>
             <span class="prop-col prop-seq">{{ p.propId }}</span>
             <el-tooltip
                 :content="p.text"
@@ -59,13 +66,12 @@
             >
               <span class="prop-col prop-text">{{ p.text }}</span>
             </el-tooltip>
-            <span class="prop-col prop-tag">{{ p.tag }}</span>
             <span class="item-actions proposition-row-actions">
-              <el-button link type="primary" @click="editProposition(p)">修改</el-button>
-              <el-button link type="danger" @click="deleteProposition(p)">删除</el-button>
+              <el-button link type="primary" @click.stop="editProposition(p)">标注</el-button>
+              <el-button link type="danger" @click.stop="deleteProposition(p)">删除</el-button>
             </span>
           </div>
-          <el-empty v-if="!propositions.length" description="暂无命题" :image-size="72" />
+          <el-empty v-if="!propositions.length" description="暂无要素" :image-size="72" />
         </div>
 
         <div class="section-title">
@@ -132,13 +138,13 @@
               <div class="relation-type-preview">{{ relationForm.type }}</div>
               <div>
                 <strong>{{ relationTypeName }}</strong>
-                <span>{{ supportsMultiMember ? '支持多个命题/关系成员' : '请选择两个命题/关系成员' }}</span>
+                <span>{{ supportsMultiMember ? '支持多个要素/关系成员' : '请选择两个要素/关系成员' }}</span>
               </div>
             </div>
             <div ref="memberBuilderEl" class="member-builder">
               <div v-for="(member, index) in relationMembers" :key="index" class="member-slot">
                 <span class="member-index">{{ index + 1 }}</span>
-                <el-select v-model="relationMembers[index]" placeholder="选择命题/关系" class="relation-select">
+                <el-select v-model="relationMembers[index]" placeholder="选择要素/关系" class="relation-select">
                   <el-option v-for="item in relationOptions" :key="item.value" :label="item.label" :value="item.value" />
                 </el-select>
                 <el-button v-if="supportsMultiMember && relationMembers.length > 2" text type="danger" @click="removeMember(index)">删除</el-button>
@@ -170,7 +176,7 @@
           </div>
         </div>
         <div v-if="!graphGenerated" class="graph-placeholder">
-          <strong>完成命题与关系标注后生成图示</strong>
+          <strong>完成要素与关系标注后生成图示</strong>
           <span>右下角“生成图示”按钮会刷新这里的节点和关系。</span>
         </div>
         <GraphCanvas
@@ -187,7 +193,7 @@
     <div v-if="labelDialog" class="floating-label-root" :style="labelPopupStyle">
       <div class="tag-popover draggable-tag-popover">
         <div class="tag-popover-head draggable-tag-head" @mousedown="startLabelDrag">
-          <strong>选择命题标签</strong>
+          <strong>选择要素标签</strong>
           <span>{{ selectedText }}</span>
         </div>
         <div class="tag-group-title">一级标签</div>
@@ -395,7 +401,9 @@ const relationMembers = ref(['', ''])
 const activeRelationId = ref('')
 const editingRelationId = ref('')
 const draggedRelationIndex = ref(-1)
+const draggedElementIndex = ref(-1)
 const manualRelationOrder = ref(false)
+const manualElementOrder = ref(false)
 const savedSnapshot = ref('')
 const skipLeaveGuard = ref(false)
 
@@ -451,6 +459,19 @@ const relationOptions = computed(() => [
   ...propositions.value.map((p) => ({ label: `${p.propId} ${p.text.slice(0, 12)}`, value: p.propId })),
   ...relations.value.map((r) => ({ label: `${r.relId} ${formula(r)}`, value: r.relId }))
 ])
+
+const availableElementTags = computed(() => {
+  const tags = []
+  const seen = new Set()
+  const add = (tag) => {
+    if (!tag?.shortName || seen.has(tag.shortName)) return
+    seen.add(tag.shortName)
+    tags.push(tag)
+  }
+  ;(data.value?.config?.primaryTags || []).forEach(add)
+  ;(data.value?.config?.secondaryTags || []).forEach(add)
+  return tags
+})
 
 const primaryTagOrder = computed(() => {
   const order = ['GM', 'SM', 'SF', 'GF']
@@ -534,7 +555,8 @@ const markedHtml = computed(() => {
         html += escapeHtml(text.slice(cursor, p.startPos))
         const markClass = p.kind === 'pending' ? 'annotation-mark pending' : 'annotation-mark'
         const textClass = p.kind === 'pending' ? 'annotation-text pending' : 'annotation-text'
-        html += `<mark class="${markClass}">${escapeHtml(p.propId)}</mark><span class="${textClass}">${escapeHtml(text.slice(p.startPos, p.endPos))}</span>`
+        const propId = escapeHtml(p.propId)
+        html += `<mark class="${markClass}" data-prop-id="${propId}">${propId}</mark><span class="${textClass}" data-prop-id="${propId}">${escapeHtml(text.slice(p.startPos, p.endPos))}</span>`
         cursor = p.endPos
       })
   html += escapeHtml(text.slice(cursor))
@@ -580,15 +602,12 @@ function handleSelection(event) {
   selectedStart.value = span.start
   selectedEnd.value = span.end
   if (overlapsExisting(selectedStart.value, selectedEnd.value, editingPropositionId.value)) {
-    ElMessage.warning('该文本已被标注或与已有命题重叠，请选择其他文本')
+    ElMessage.warning('该文本已被框定或与已有要素重叠，请选择其他文本')
     window.getSelection()?.removeAllRanges()
     return
   }
-  labelPosition.value = {
-    left: Math.min(window.innerWidth - 260, Math.max(160, rect.right + 8)),
-    top: Math.min(window.innerHeight - 260, Math.max(82, rect.top - 8))
-  }
-  labelDialog.value = true
+  void rect
+  addElementFromSelection()
 }
 
 function startLabelDrag(event) {
@@ -639,41 +658,83 @@ function confirmLabel() {
     return
   }
   if (overlapsExisting(selectedStart.value, selectedEnd.value, editingPropositionId.value)) {
-    ElMessage.warning('该文本与已有命题重叠，请重新选择')
+    ElMessage.warning('该文本与已有要素重叠，请重新选择')
     return
   }
   snapshot()
+  const existingElement = propositions.value.find((item) => item.propId === editingPropositionId.value)
   const prop = {
-    propId: editingPropositionId.value || nextPropositionId(),
+    elementId: existingElement?.elementId || nextElementId(),
+    propId: editingPropositionId.value || nextElementId(),
     sequenceNo: propositions.value.length + 1,
     startPos: selectedStart.value,
     endPos: selectedEnd.value,
     text: selectedText.value,
-    tag: selectedTag.value || 'SF'
+    tag: selectedTag.value || ''
   }
   const existingIndex = propositions.value.findIndex((item) => item.propId === editingPropositionId.value)
   if (existingIndex >= 0) propositions.value[existingIndex] = prop
   else propositions.value.push(prop)
-  reorder()
+  renumberElements({ sortByText: !manualElementOrder.value })
   graphDirty.value = true
   cancelLabel()
 }
 
 function reorder() {
+  renumberElements({ sortByText: !manualElementOrder.value })
+}
+
+function addElementFromSelection() {
+  if (!selectedText.value) return
+  snapshot()
+  propositions.value.push({
+    elementId: nextElementId(),
+    propId: nextElementId(),
+    sequenceNo: propositions.value.length + 1,
+    startPos: selectedStart.value,
+    endPos: selectedEnd.value,
+    text: selectedText.value,
+    tag: ''
+  })
+  renumberElements({ sortByText: !manualElementOrder.value })
+  graphDirty.value = true
+  selectedText.value = ''
+  selectedStart.value = 0
+  selectedEnd.value = 0
+  window.getSelection()?.removeAllRanges()
+}
+
+function renumberElements({ sortByText = false } = {}) {
   const oldToNew = new Map()
-  propositions.value.sort((a, b) => a.startPos - b.startPos)
+  if (sortByText) propositions.value.sort((a, b) => a.startPos - b.startPos)
+  const tagCounters = new Map()
   propositions.value = propositions.value.map((p, i) => {
-    const nextId = `P${i + 1}`
+    const prefix = elementPrefix(p)
+    const nextNo = (tagCounters.get(prefix) || 0) + 1
+    tagCounters.set(prefix, nextNo)
+    const nextId = `${prefix}${nextNo}`
     oldToNew.set(p.propId, nextId)
-    return { ...p, propId: nextId, sequenceNo: i + 1 }
+    return {
+      ...p,
+      elementId: p.elementId || `E${i + 1}`,
+      propId: nextId,
+      sequenceNo: i + 1,
+      sortOrder: i + 1
+    }
   })
   remapRelationMembers(oldToNew)
   if (!manualRelationOrder.value) sortRelationsByMaxProp()
   renumberRelations()
 }
 
-function nextPropositionId() {
-  return `P${propositions.value.length + 1}`
+function elementPrefix(prop) {
+  return String(prop?.tag || 'E').trim() || 'E'
+}
+
+function nextElementId() {
+  const nums = propositions.value
+    .map((p) => Number(String(p.elementId || '').replace(/^E/, '')) || 0)
+  return `E${(nums.length ? Math.max(...nums) : 0) + 1}`
 }
 
 function resetRelationMembers(type = relationForm.type) {
@@ -698,7 +759,7 @@ function clearRelation(keepType = true) {
 function addRelation() {
   const members = relationMembers.value.filter(Boolean)
   if (members.length < 2 || new Set(members).size !== members.length) {
-    ElMessage.warning('请选择至少两个不同的命题或关系')
+    ElMessage.warning('请选择至少两个不同的要素或关系')
     return
   }
   if (!supportsMultiMember.value && members.length !== 2) {
@@ -724,9 +785,10 @@ function addRelation() {
 }
 
 function editProposition(prop) {
-  const hasDash = prop.tag.includes('-')
-  primaryTag.value = hasDash ? prop.tag.split('-')[0] : prop.tag
-  secondaryTag.value = hasDash ? prop.tag : ''
+  const tag = prop.tag || primaryTagOrder.value[0]?.shortName || ''
+  const secondary = (data.value?.config?.secondaryTags || []).find((item) => item.shortName === tag)
+  primaryTag.value = secondary?.parentTag || tag
+  secondaryTag.value = secondary ? tag : ''
   selectedText.value = prop.text
   selectedStart.value = prop.startPos
   selectedEnd.value = prop.endPos
@@ -741,7 +803,32 @@ function deleteProposition(prop) {
   relations.value = relations.value.filter((rel) => !relationMemberIds(rel).includes(prop.propId))
   removeInvalidRelations()
   if (editingPropositionId.value === prop.propId) cancelLabel()
-  reorder()
+  renumberElements()
+  graphDirty.value = true
+}
+
+function focusProposition(prop) {
+  const container = sourceTextEl.value
+  if (!container || !prop?.propId) return
+  const selector = `[data-prop-id="${CSS.escape(prop.propId)}"]`
+  const target = container.querySelector(`${selector}.annotation-text`) || container.querySelector(selector)
+  if (!target) return
+  container.querySelectorAll('.annotation-text.locating, .annotation-mark.locating').forEach((el) => {
+    el.classList.remove('locating')
+  })
+  container.querySelectorAll(selector).forEach((el) => el.classList.add('locating'))
+  target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+  window.setTimeout(() => {
+    container.querySelectorAll(selector).forEach((el) => el.classList.remove('locating'))
+  }, 1600)
+}
+
+function updatePropositionTag(prop, tag) {
+  snapshot()
+  const item = propositions.value.find((p) => p.elementId === prop.elementId || p.propId === prop.propId)
+  if (!item) return
+  item.tag = tag
+  renumberElements()
   graphDirty.value = true
 }
 
@@ -796,7 +883,8 @@ function maxPropNoInRelation(relation, visited = new Set()) {
   visited.add(relation.relId)
   return relationMemberIds(relation).reduce((maxNo, id) => {
     const value = String(id || '')
-    if (value.startsWith('P')) return Math.max(maxNo, Number(value.slice(1)) || 0)
+    const prop = propositions.value.find((item) => item.propId === value)
+    if (prop) return Math.max(maxNo, prop.sequenceNo || 0)
     if (value.startsWith('R')) {
       const nested = relations.value.find((item) => item.relId === value)
       return Math.max(maxNo, maxPropNoInRelation(nested, visited))
@@ -820,6 +908,24 @@ function dropRelation(targetIndex) {
   relations.value = next
   manualRelationOrder.value = true
   renumberRelations()
+  graphDirty.value = true
+}
+
+function startElementDrag(index) {
+  draggedElementIndex.value = index
+}
+
+function dropElement(targetIndex) {
+  const sourceIndex = draggedElementIndex.value
+  draggedElementIndex.value = -1
+  if (sourceIndex < 0 || sourceIndex === targetIndex) return
+  snapshot()
+  const next = [...propositions.value]
+  const [moving] = next.splice(sourceIndex, 1)
+  next.splice(targetIndex, 0, moving)
+  propositions.value = next
+  manualElementOrder.value = true
+  renumberElements()
   graphDirty.value = true
 }
 
@@ -931,20 +1037,31 @@ async function load() {
   const dataId = route.params.dataId
   data.value = await fetchAnnotationItem(client, taskId, dataId, route.query)
   rejectAlertVisible.value = true
-  propositions.value = [...(data.value.annotation.propositions || [])]
+  propositions.value = normalizeElements(data.value.annotation.propositions || [])
   relations.value = [...(data.value.annotation.relations || [])]
   graphLayout.value = data.value.annotation.graphLayout
     ? cloneLayout(data.value.annotation.graphLayout)
     : EMPTY_LAYOUT()
   manualRelationOrder.value = false
+  manualElementOrder.value = false
   sortRelationsByMaxProp()
-  renumberRelations()
+  renumberElements({ sortByText: true })
   graphPropositions.value = []
   graphRelations.value = []
   graphGenerated.value = false
   graphDirty.value = propositions.value.length > 0 || relations.value.length > 0
   hydrateGraphPreview()
   markSaved()
+}
+
+function normalizeElements(items) {
+  return [...items].map((item, index) => ({
+    ...item,
+    elementId: item.elementId || `E${index + 1}`,
+    tag: item.tag || '',
+    sequenceNo: item.sequenceNo || index + 1,
+    sortOrder: item.sortOrder || item.sequenceNo || index + 1
+  }))
 }
 
 function escapeHtml(value) {
@@ -957,7 +1074,7 @@ function formula(relation) {
 }
 
 function displayRelationMember(id) {
-  if (String(id).startsWith('P')) return id
+  if (propositions.value.some((item) => item.propId === id)) return id
   const rel = relations.value.find((item) => item.relId === id)
   return rel ? formula(rel) : id
 }
@@ -971,7 +1088,7 @@ function relationSemanticKey(relation, relationList = relations.value, visited =
   visited.add(relation.relId)
   const members = relationMemberIds(relation).map((id) => {
     const value = String(id || '')
-    if (value.startsWith('P')) return value
+    if (propositions.value.some((item) => item.propId === value)) return value
     if (value.startsWith('R')) {
       const child = relationList.find((item) => item.relId === value)
       return child ? relationSemanticKey(child, relationList, new Set(visited)) : value

@@ -92,11 +92,12 @@ function createIdentityGroups(propositions, relations) {
   return uf
 }
 
-function collectVisiblePropIds(relations) {
+function collectVisiblePropIds(propositions, relations) {
   const visible = new Set()
+  const propSet = new Set((propositions || []).map((p) => p.propId))
   const relMap = new Map(relations.map((rel, index) => [relationKey(rel, index), rel]))
   const visit = (memberId, seen = new Set()) => {
-    if (String(memberId).startsWith('P')) {
+    if (propSet.has(memberId)) {
       visible.add(memberId)
       return
     }
@@ -110,15 +111,16 @@ function collectVisiblePropIds(relations) {
   return visible
 }
 
-function filterGraphRelations(relations) {
+function filterGraphRelations(propositions, relations) {
+  const propSet = new Set((propositions || []).map((p) => p.propId))
   const relIdSet = new Set(relations.map((rel, index) => relationKey(rel, index)))
   return relations.filter((rel) => {
     const type = relationType(rel)
     const members = relationMembers(rel)
-    if (type === 'I') return members.filter((id) => String(id).startsWith('P')).length >= 2
+    if (type === 'I') return members.filter((id) => propSet.has(id)).length >= 2
     if (type === 'J') return members.length >= 2
     if (['S', 'A', 'M'].includes(type)) return members.length >= 2
-    return members.some((id) => relIdSet.has(id) || String(id).startsWith('P'))
+    return members.some((id) => relIdSet.has(id) || propSet.has(id))
   })
 }
 
@@ -472,8 +474,8 @@ function boundsFromNodes(nodes) {
 }
 
 function buildManualGraph(propositions = [], relations = []) {
-  const rels = filterGraphRelations(relations || [])
-  const visiblePropIds = collectVisiblePropIds(rels)
+  const rels = filterGraphRelations(propositions || [], relations || [])
+  const visiblePropIds = collectVisiblePropIds(propositions || [], rels)
   const visibleProps = (propositions || []).filter((p) => visiblePropIds.has(p.propId))
   if (!visibleProps.length && !rels.length) {
     return { nodes: [], edges: [], bounds: { width: 400, height: 220 } }
@@ -539,7 +541,7 @@ function buildManualGraph(propositions = [], relations = []) {
   }
 
   function memberUnit(memberId, stack) {
-    if (String(memberId).startsWith('P')) {
+    if (ctx.propMap.has(memberId)) {
       if (!ctx.propMap.has(memberId)) return null
       return makePropUnit(memberId)
     }
@@ -702,7 +704,7 @@ function buildManualGraph(propositions = [], relations = []) {
     nextStack.add(key)
     const type = relationType(rel)
     if (type === 'I') {
-      const propId = relationMembers(rel).find((id) => String(id).startsWith('P'))
+      const propId = relationMembers(rel).find((id) => ctx.propMap.has(id))
       return propId ? makePropUnit(propId) : null
     }
     if (type === 'J') return makeJUnit(key, rel, nextStack)
@@ -732,7 +734,7 @@ function buildManualGraph(propositions = [], relations = []) {
   const onlyIdentity = rels.filter((rel) => relationType(rel) === 'I')
   if (!units.length && onlyIdentity.length) {
     onlyIdentity.forEach((rel) => {
-      const propId = relationMembers(rel).find((id) => String(id).startsWith('P'))
+      const propId = relationMembers(rel).find((id) => ctx.propMap.has(id))
       if (!propId) return
       const unit = makePropUnit(propId)
       units.push(translateUnit(unit, GAP.padding, y))
