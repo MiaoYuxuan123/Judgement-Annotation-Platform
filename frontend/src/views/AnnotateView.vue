@@ -12,15 +12,22 @@
     />
 
     <section class="annotate-topbar modern">
-      <div>
+      <div class="annotate-topbar-main">
         <span class="annotate-logo">JAP</span>
-        <strong>标注工作台</strong>
-        <span class="annotate-doc-title">{{ data.document.title }}</span>
-        <el-button v-if="data.config?.attachmentName" size="small" type="warning" @click="openAttachment">查看当前指南</el-button>
+        <div class="annotate-title-group">
+          <strong>标注工作台</strong>
+          <span class="annotate-doc-title">{{ data.document.title }}</span>
+        </div>
+        <el-button v-if="data.config" size="small" type="warning" @click="openGuide">查看当前指南</el-button>
       </div>
-      <div>
-        <el-button class="topbar-btn" @click="goBack">返回</el-button>
-        <el-button class="topbar-btn" @click="submit(true)">暂存</el-button>
+      <div class="annotate-topbar-actions">
+        <el-button text class="annotate-user-action" @click="openProfile">个人中心</el-button>
+        <el-tag effect="dark" size="small" type="info">{{ roleLabel }}</el-tag>
+        <span class="annotate-user-name">{{ auth.user?.realName }}</span>
+        <el-button text class="annotate-user-action" @click="logout">退出</el-button>
+        <span class="topbar-divider"></span>
+        <el-button class="topbar-btn ghost" @click="goBack">返回</el-button>
+        <el-button class="topbar-btn ghost" @click="submit(true)">暂存</el-button>
         <el-button type="primary" class="submit-btn" @click="submit(false)">提交</el-button>
       </div>
     </section>
@@ -243,18 +250,74 @@
       -->
     </div>
 
-    <el-dialog v-model="previewVisible" title="指南附件预览" width="80%" :close-on-click-modal="false">
-      <div style="height:70vh">
-        <template v-if="isPreviewable">
-          <iframe v-if="previewUrl" :key="previewUrl" :src="previewUrl" style="width:100%;height:100%;border:none" />
-        </template>
-        <div v-else style="display:flex;align-items:center;justify-content:center;height:100%;color:#a8a29e;font-size:16px">
-          该文件类型不支持在线预览，请下载后查看
+    <el-dialog v-model="previewVisible" title="当前标注指南" width="70%" :close-on-click-modal="true">
+      <div class="guide-dialog-body">
+        <div class="guide-summary">
+          <div>
+            <span>指南版本</span>
+            <strong>{{ data.config?.versionName || '当前版本' }}</strong>
+          </div>
+          <p>{{ data.config?.description || '当前任务绑定的标签与关系说明。' }}</p>
         </div>
+
+        <section class="guide-section">
+          <h4>一级标签</h4>
+          <div class="guide-grid">
+            <article v-for="tag in guidePrimaryTags" :key="tag.shortName" class="guide-card">
+              <strong>{{ tag.shortName }}</strong>
+              <span>{{ tag.name }}</span>
+              <p>{{ tag.description || '暂无说明' }}</p>
+            </article>
+          </div>
+          <el-empty v-if="!guidePrimaryTags.length" description="暂无一级标签" :image-size="64" />
+        </section>
+
+        <section class="guide-section">
+          <h4>二级标签</h4>
+          <div v-if="guideSecondaryGroups.length" class="guide-subgroup-list">
+            <div v-for="group in guideSecondaryGroups" :key="group.parent" class="guide-subgroup">
+              <div class="guide-subgroup-title">{{ group.parent }}</div>
+              <div class="guide-grid">
+                <article v-for="tag in group.items" :key="tag.shortName" class="guide-card compact">
+                  <strong>{{ tag.shortName }}</strong>
+                  <span>{{ tag.name }}</span>
+                  <p>{{ tag.description || '暂无说明' }}</p>
+                </article>
+              </div>
+            </div>
+          </div>
+          <el-empty v-else description="暂无二级标签" :image-size="64" />
+        </section>
+
+        <section class="guide-section">
+          <h4>关系类型</h4>
+          <div class="guide-grid">
+            <article v-for="rel in guideRelationTypes" :key="rel.shortName" class="guide-card relation-guide-card">
+              <strong>{{ rel.shortName }}</strong>
+              <span>{{ rel.name }}</span>
+              <p>{{ rel.description || '暂无说明' }}</p>
+            </article>
+          </div>
+          <el-empty v-if="!guideRelationTypes.length" description="暂无关系说明" :image-size="64" />
+        </section>
       </div>
       <template #footer>
         <el-button @click="previewVisible=false">关闭</el-button>
-        <el-button type="primary" @click="downloadAttachment">下载</el-button>
+        <el-button v-if="data.config?.attachmentName" @click="downloadAttachment">下载附件</el-button>
+        <el-button v-if="data.config?.attachmentName && isPreviewable" type="primary" @click="openAttachmentPreview">
+          新窗口预览附件
+        </el-button>
+      </template>
+    </el-dialog>
+    <el-dialog v-model="profileVisible" title="个人中心" width="460px">
+      <el-form label-position="top">
+        <el-form-item label="账号"><el-input :model-value="auth.user?.username" disabled /></el-form-item>
+        <el-form-item label="姓名"><el-input v-model="profileForm.realName" /></el-form-item>
+        <el-form-item label="密码"><el-input v-model="profileForm.password" placeholder="留空则不修改" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="profileVisible = false">取消</el-button>
+        <el-button type="primary" :loading="profileSaving" @click="saveProfile">保存</el-button>
       </template>
     </el-dialog>
     <el-drawer
@@ -281,6 +344,7 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
+import { useAuthStore } from '../stores/auth'
 import GraphCanvas from '../components/GraphCanvas.vue'
 import GraphEditorView from './GraphEditorView.vue'
 import { selectionSpanFromSourceElement } from '../utils/reviewHelpers'
@@ -290,6 +354,7 @@ import { fetchAnnotationItem, isArbitrationMode } from '../utils/annotationRoute
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const isArbitration = computed(() => isArbitrationMode(route.query))
 const rejectReason = computed(() => data.value?.annotation?.rejectReason || '')
 const rejectAlertVisible = ref(true)
@@ -307,6 +372,9 @@ const history = ref([])
 const redoStack = ref([])
 const labelDialog = ref(false)
 const previewVisible = ref(false), previewUrl = ref('')
+const profileVisible = ref(false)
+const profileSaving = ref(false)
+const profileForm = reactive({ realName: '', password: '' })
 const isPreviewable = computed(() => {
   const name = data.value?.config?.attachmentName || ''
   return name.toLowerCase().endsWith('.pdf') || name.toLowerCase().endsWith('.txt')
@@ -406,6 +474,23 @@ const selectedTag = computed(() => {
 const activeRelationKey = computed(() => {
   const rel = relations.value.find((item) => item.relId === activeRelationId.value)
   return relationSemanticKey(rel, relations.value)
+})
+const roleLabel = computed(() => {
+  if (auth.user?.role === 'admin') return '超级管理员'
+  if (auth.user?.canCreateTask) return '任务创建者'
+  return '任务参与者'
+})
+const guidePrimaryTags = computed(() => data.value?.config?.primaryTags || [])
+const guideSecondaryTags = computed(() => data.value?.config?.secondaryTags || [])
+const guideRelationTypes = computed(() => data.value?.config?.relationTypes || [])
+const guideSecondaryGroups = computed(() => {
+  const groups = new Map()
+  guideSecondaryTags.value.forEach((tag) => {
+    const parent = tag.parentTag || '其他'
+    if (!groups.has(parent)) groups.set(parent, [])
+    groups.get(parent).push(tag)
+  })
+  return [...groups.entries()].map(([parent, items]) => ({ parent, items }))
 })
 
 watch(primaryTagOrder, (tags) => {
@@ -923,19 +1008,65 @@ function overlapsExisting(start, end, ignoredPropId = '') {
   return propositions.value.some((p) => p.propId !== ignoredPropId && Math.max(start, p.startPos) < Math.min(end, p.endPos))
 }
 
-function openAttachment() {
+function openProfile() {
+  profileForm.realName = auth.user?.realName || ''
+  profileForm.password = ''
+  profileVisible.value = true
+}
+
+async function saveProfile() {
+  profileSaving.value = true
+  try {
+    await client.put(`/users/${auth.user.id}`, {
+      realName: profileForm.realName,
+      password: profileForm.password || undefined
+    })
+    auth.user.realName = profileForm.realName
+    ElMessage.success('个人信息已更新')
+    profileVisible.value = false
+  } catch (e) {
+    ElMessage.error('修改失败')
+  } finally {
+    profileSaving.value = false
+  }
+}
+
+async function logout() {
+  await auth.logout()
+  skipLeaveGuard.value = true
+  router.push('/login')
+}
+
+function attachmentUrl() {
   const config = data.value?.config
-  if (!config?.id || !config?.attachmentName) return
+  if (!config?.id || !config?.attachmentName) return ''
   const token = localStorage.getItem('jap_token')
-  previewUrl.value = `/api/configs/versions/${config.id}/attachment?token=${token}&t=${Date.now()}`
+  return `/api/configs/versions/${config.id}/attachment?token=${token}&t=${Date.now()}`
+}
+
+function openGuide() {
+  previewUrl.value = attachmentUrl()
   previewVisible.value = true
+}
+
+function openAttachmentPreview() {
+  const url = attachmentUrl()
+  if (!url) {
+    ElMessage.warning('该版本未上传附件')
+    return
+  }
+  window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 function downloadAttachment() {
   const config = data.value?.config
-  if (!previewUrl.value || !config?.attachmentName) return
+  const url = attachmentUrl()
+  if (!url || !config?.attachmentName) {
+    ElMessage.warning('该版本未上传附件')
+    return
+  }
   const a = document.createElement('a')
-  a.href = previewUrl.value
+  a.href = url
   a.download = config.attachmentName
   a.click()
 }

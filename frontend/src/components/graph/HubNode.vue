@@ -91,15 +91,15 @@ function onHandleClick(handleId) {
 }
 
 .ag-hub--highlighted {
-  border-color: #c41e3a;
-  box-shadow: 0 0 0 5px rgba(37, 99, 235, .16);
+  border-color: #facc15;
+  box-shadow: 0 0 0 5px rgba(250, 204, 21, .28);
 }
 
 .ag-hub--s.ag-hub--highlighted {
-  background: #c41e3a;
+  background: #facc15;
 }
 
 .ag-hub--highlighted .ag-hub-plus {
-  color: #c41e3a;
+  color: #a16207;
 }
 </style>
