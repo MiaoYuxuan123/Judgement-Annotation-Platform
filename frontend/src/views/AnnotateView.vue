@@ -256,65 +256,21 @@
       -->
     </div>
 
-    <el-dialog v-model="previewVisible" title="当前标注指南" width="70%" :close-on-click-modal="true">
-      <div class="guide-dialog-body">
-        <div class="guide-summary">
-          <div>
-            <span>指南版本</span>
-            <strong>{{ data.config?.versionName || '当前版本' }}</strong>
-          </div>
-          <p>{{ data.config?.description || '当前任务绑定的标签与关系说明。' }}</p>
+    <el-dialog v-model="previewVisible" title="指南附件预览" width="82%" :close-on-click-modal="true">
+      <div class="guide-attachment-preview">
+        <template v-if="isPreviewable">
+          <iframe v-if="previewUrl" :key="previewUrl" :src="previewUrl"></iframe>
+        </template>
+        <div v-else class="guide-attachment-fallback">
+          该文件类型不支持在线预览，请下载后查看。
         </div>
-
-        <section class="guide-section">
-          <h4>一级标签</h4>
-          <div class="guide-grid">
-            <article v-for="tag in guidePrimaryTags" :key="tag.shortName" class="guide-card">
-              <strong>{{ tag.shortName }}</strong>
-              <span>{{ tag.name }}</span>
-              <p>{{ tag.description || '暂无说明' }}</p>
-            </article>
-          </div>
-          <el-empty v-if="!guidePrimaryTags.length" description="暂无一级标签" :image-size="64" />
-        </section>
-
-        <section class="guide-section">
-          <h4>二级标签</h4>
-          <div v-if="guideSecondaryGroups.length" class="guide-subgroup-list">
-            <div v-for="group in guideSecondaryGroups" :key="group.parent" class="guide-subgroup">
-              <div class="guide-subgroup-title">{{ group.parent }}</div>
-              <div class="guide-grid">
-                <article v-for="tag in group.items" :key="tag.shortName" class="guide-card compact">
-                  <strong>{{ tag.shortName }}</strong>
-                  <span>{{ tag.name }}</span>
-                  <p>{{ tag.description || '暂无说明' }}</p>
-                </article>
-              </div>
-            </div>
-          </div>
-          <el-empty v-else description="暂无二级标签" :image-size="64" />
-        </section>
-
-        <section class="guide-section">
-          <h4>关系类型</h4>
-          <div class="guide-grid">
-            <article v-for="rel in guideRelationTypes" :key="rel.shortName" class="guide-card relation-guide-card">
-              <strong>{{ rel.shortName }}</strong>
-              <span>{{ rel.name }}</span>
-              <p>{{ rel.description || '暂无说明' }}</p>
-            </article>
-          </div>
-          <el-empty v-if="!guideRelationTypes.length" description="暂无关系说明" :image-size="64" />
-        </section>
       </div>
       <template #footer>
-        <el-button @click="previewVisible=false">关闭</el-button>
-        <el-button v-if="data.config?.attachmentName" @click="downloadAttachment">下载附件</el-button>
-        <el-button v-if="data.config?.attachmentName && isPreviewable" type="primary" @click="openAttachmentPreview">
-          新窗口预览附件
-        </el-button>
+        <el-button @click="previewVisible = false">关闭</el-button>
+        <el-button @click="downloadAttachment">下载附件</el-button>
       </template>
     </el-dialog>
+
     <el-dialog v-model="profileVisible" title="个人中心" width="460px">
       <el-form label-position="top">
         <el-form-item label="账号"><el-input :model-value="auth.user?.username" disabled /></el-form-item>
@@ -377,7 +333,8 @@ const graphEditorDrawer = ref(false)
 const history = ref([])
 const redoStack = ref([])
 const labelDialog = ref(false)
-const previewVisible = ref(false), previewUrl = ref('')
+const previewVisible = ref(false)
+const previewUrl = ref('')
 const profileVisible = ref(false)
 const profileSaving = ref(false)
 const profileForm = reactive({ realName: '', password: '' })
@@ -500,18 +457,6 @@ const roleLabel = computed(() => {
   if (auth.user?.role === 'admin') return '超级管理员'
   if (auth.user?.canCreateTask) return '任务创建者'
   return '任务参与者'
-})
-const guidePrimaryTags = computed(() => data.value?.config?.primaryTags || [])
-const guideSecondaryTags = computed(() => data.value?.config?.secondaryTags || [])
-const guideRelationTypes = computed(() => data.value?.config?.relationTypes || [])
-const guideSecondaryGroups = computed(() => {
-  const groups = new Map()
-  guideSecondaryTags.value.forEach((tag) => {
-    const parent = tag.parentTag || '其他'
-    if (!groups.has(parent)) groups.set(parent, [])
-    groups.get(parent).push(tag)
-  })
-  return [...groups.entries()].map(([parent, items]) => ({ parent, items }))
 })
 
 watch(primaryTagOrder, (tags) => {
@@ -1162,17 +1107,13 @@ function attachmentUrl() {
 }
 
 function openGuide() {
-  previewUrl.value = attachmentUrl()
-  previewVisible.value = true
-}
-
-function openAttachmentPreview() {
   const url = attachmentUrl()
   if (!url) {
     ElMessage.warning('该版本未上传附件')
     return
   }
-  window.open(url, '_blank', 'noopener,noreferrer')
+  previewUrl.value = url
+  previewVisible.value = true
 }
 
 function downloadAttachment() {
