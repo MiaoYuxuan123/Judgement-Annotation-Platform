@@ -13,27 +13,35 @@
         <p class="muted">创建日期：{{ config.createdAt || '—' }}</p>
       </div>
 
-      <div class="config-table-section">
-        <h4>一级标签</h4>
-        <el-table :data="config.primaryTags" size="small">
-          <el-table-column prop="shortName" label="简称" width="90" />
-          <el-table-column prop="name" label="标签名称" min-width="160" />
-          <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-        </el-table>
+      <div class="config-category">
+        <div class="config-category-header">
+          <h3>要素类型配置</h3>
+        </div>
+
+        <div class="config-table-section">
+          <h4>一级标签</h4>
+          <el-table :data="config.primaryTags" size="small">
+            <el-table-column prop="shortName" label="简称" width="90" />
+            <el-table-column prop="name" label="标签名称" min-width="160" />
+            <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+          </el-table>
+        </div>
+
+        <div class="config-table-section">
+          <h4>二级标签</h4>
+          <el-table :data="config.secondaryTags" size="small">
+            <el-table-column prop="shortName" label="简称" width="90" />
+            <el-table-column prop="name" label="标签名称" min-width="160" />
+            <el-table-column prop="parentTag" label="所属一级" width="120" />
+            <el-table-column prop="description" label="描述" min-width="180" show-overflow-tooltip />
+          </el-table>
+        </div>
       </div>
 
-      <div class="config-table-section">
-        <h4>二级标签</h4>
-        <el-table :data="config.secondaryTags" size="small">
-          <el-table-column prop="shortName" label="简称" width="90" />
-          <el-table-column prop="name" label="标签名称" min-width="160" />
-          <el-table-column prop="parentTag" label="所属一级" width="120" />
-          <el-table-column prop="description" label="描述" min-width="180" show-overflow-tooltip />
-        </el-table>
-      </div>
-
-      <div class="config-table-section">
-        <h4>关系类型</h4>
+      <div class="config-category">
+        <div class="config-category-header">
+          <h3>关系类型</h3>
+        </div>
         <el-table :data="config.relationTypes" size="small">
           <el-table-column prop="shortName" label="简称" width="90" />
           <el-table-column prop="name" label="关系名称" min-width="160" />
@@ -91,12 +99,36 @@ onMounted(async () => {
   margin: 0 0 8px;
 }
 
-.config-table-section {
+.config-category {
   margin-top: 24px;
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+}
+.config-category-header {
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.config-category-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #1f2937;
+}
+
+.config-table-section {
+  margin-top: 20px;
+}
+.config-table-section:first-of-type {
+  margin-top: 0;
 }
 
 .config-table-section h4 {
   margin: 0 0 12px;
+  font-size: 14px;
+  color: #374151;
 }
 
 .muted {

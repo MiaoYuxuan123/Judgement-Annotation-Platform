@@ -28,53 +28,58 @@
           </div>
         </div>
       </div>
-      <!-- 一级标签配置 -->
-      <div class="config-table-section">
-        <div class="config-table-header">
-          <h4>一级标签配置</h4>
-          <el-button size="small" type="primary" @click="openTagDialog('primary')">+ 新增标签</el-button>
+      <!-- 要素类型配置 -->
+      <div class="config-category">
+        <div class="config-category-header">
+          <h3>要素类型配置</h3>
         </div>
-        <el-table :data="currentConfig.primaryTags" size="small">
-          <el-table-column prop="shortName" label="简称" width="90" />
-          <el-table-column prop="name" label="标签名称" min-width="160" />
-          <el-table-column prop="description" label="描述" min-width="180" show-overflow-tooltip />
-          <el-table-column label="操作" width="140">
-            <template #default="{ row, $index }">
-              <el-button link type="primary" @click="openTagDialog('primary', row, $index)">编辑</el-button>
-              <el-button link type="danger" @click="removeTag('primary', $index)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
 
-      <!-- GM二级标签配置 -->
-      <div class="config-table-section">
-        <div class="config-table-header">
-          <h4>二级标签配置</h4>
-          <el-button size="small" type="primary" @click="openTagDialog('secondary')">+ 新增标签</el-button>
+        <div class="config-table-section">
+          <div class="config-table-header">
+            <h4>一级标签配置</h4>
+            <el-button size="small" type="primary" @click="openTagDialog('primary')">+ 新增标签</el-button>
+          </div>
+          <el-table :data="currentConfig.primaryTags" size="small">
+            <el-table-column prop="shortName" label="简称" width="90" />
+            <el-table-column prop="name" label="标签名称" min-width="160" />
+            <el-table-column prop="description" label="描述" min-width="180" show-overflow-tooltip />
+            <el-table-column label="操作" width="140">
+              <template #default="{ row, $index }">
+                <el-button link type="primary" @click="openTagDialog('primary', row, $index)">编辑</el-button>
+                <el-button link type="danger" @click="removeTag('primary', $index)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
         </div>
-        <el-table :data="currentConfig.secondaryTags" size="small">
-          <el-table-column prop="shortName" label="简称" width="90" />
-          <el-table-column prop="name" label="标签名称" min-width="160" />
-          <el-table-column prop="parentTag" label="所属一级标签" width="120">
-            <template #default="{ row }">
-              <el-tag size="small" type="warning">{{ row.parentTag }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="description" label="描述" min-width="160" show-overflow-tooltip />
-          <el-table-column label="操作" width="140">
-            <template #default="{ row, $index }">
-              <el-button link type="primary" @click="openTagDialog('secondary', row, $index)">编辑</el-button>
-              <el-button link type="danger" @click="removeTag('secondary', $index)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+
+        <div class="config-table-section">
+          <div class="config-table-header">
+            <h4>二级标签配置</h4>
+            <el-button size="small" type="primary" @click="openTagDialog('secondary')">+ 新增标签</el-button>
+          </div>
+          <el-table :data="currentConfig.secondaryTags" size="small">
+            <el-table-column prop="shortName" label="简称" width="90" />
+            <el-table-column prop="name" label="标签名称" min-width="160" />
+            <el-table-column prop="parentTag" label="所属一级标签" width="120">
+              <template #default="{ row }">
+                <el-tag size="small" type="warning">{{ row.parentTag }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="description" label="描述" min-width="160" show-overflow-tooltip />
+            <el-table-column label="操作" width="140">
+              <template #default="{ row, $index }">
+                <el-button link type="primary" @click="openTagDialog('secondary', row, $index)">编辑</el-button>
+                <el-button link type="danger" @click="removeTag('secondary', $index)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </div>
 
       <!-- 关系类型配置 -->
-      <div class="config-table-section">
-        <div class="config-table-header">
-          <h4>关系类型配置</h4>
+      <div class="config-category">
+        <div class="config-category-header">
+          <h3>关系类型配置</h3>
           <el-button size="small" type="primary" @click="openTagDialog('relation')">+ 新增关系</el-button>
         </div>
         <el-table :data="currentConfig.relationTypes" size="small">
@@ -390,8 +395,31 @@ onMounted(load)
 </script>
 
 <style scoped>
-.config-table-section {
+.config-category {
   margin-bottom: 24px;
+  padding: 16px 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+}
+.config-category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.config-category-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #1f2937;
+}
+.config-table-section {
+  margin-bottom: 20px;
+}
+.config-table-section:last-child {
+  margin-bottom: 0;
 }
 .config-table-header {
   display: flex;
@@ -401,5 +429,7 @@ onMounted(load)
 }
 .config-table-header h4 {
   margin: 0;
+  font-size: 14px;
+  color: #374151;
 }
 </style>
