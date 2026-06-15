@@ -57,8 +57,10 @@ public class DatabaseInitializer implements ApplicationRunner {
                     "ALTER TABLE `sys_user` ADD COLUMN `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '0=正常 1=已删除'");
             addColumnIfMissing(connection, "guide_version", "attachment_name",
                     "ALTER TABLE `guide_version` ADD COLUMN `attachment_name` VARCHAR(255) DEFAULT NULL");
+            addColumnIfMissing(connection, "annotation", "layout_json",
+                    "ALTER TABLE `annotation` ADD COLUMN `layout_json` JSON DEFAULT NULL COMMENT '论证图布局覆盖' AFTER `updated_at`");
             addColumnIfMissing(connection, "annotation", "reject_reason",
-                    "ALTER TABLE `annotation` ADD COLUMN `reject_reason` VARCHAR(500) DEFAULT NULL COMMENT '裁定不予采纳理由'");
+                    "ALTER TABLE `annotation` ADD COLUMN `reject_reason` VARCHAR(500) DEFAULT NULL COMMENT '裁定不予采纳理由' AFTER `layout_json`");
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to patch database schema", ex);
         }
