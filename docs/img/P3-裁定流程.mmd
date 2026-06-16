@@ -1,0 +1,20 @@
+sequenceDiagram
+    actor Reviewer as 裁定者
+    participant API as REST API
+    participant DB as 数据库
+
+    Reviewer->>API: GET /api/reviews/{taskId}
+    API->>DB: 查询所有标注员提交的标注结果
+    DB-->>API: 标注结果列表
+    API-->>Reviewer: {annotatorResults: [...]}
+
+    alt 全部采纳某标注员
+        Reviewer->>API: POST /api/reviews/adopt<br/>{taskId, dataId, annotatorId}
+        API-->>Reviewer: {code:200, message:"裁定完成"}
+    else 手动裁定
+        Reviewer->>API: POST /api/reviews/manual<br/>{taskId, dataId, propositions, relations}
+        API-->>Reviewer: {code:200, message:"裁定草稿已保存"}
+    else 退回修改
+        Reviewer->>API: POST /api/reviews/reject<br/>{taskId, dataId, userId, reason}
+        API-->>Reviewer: {code:200, message:"已退回标注员重新标注"}
+    end

@@ -1,0 +1,61 @@
+graph LR
+    subgraph 认证
+        A1[POST /auth/login]
+        A2[POST /auth/logout]
+    end
+
+    subgraph 用户管理
+        U1[GET /users/me]
+        U2[GET /users]
+        U3[POST /users]
+        U4[POST /users/batch]
+        U5[PUT /users/:id]
+        U6[DELETE /users/:id]
+    end
+
+    subgraph 文书总库
+        D1[GET /documents]
+        D2[GET /documents/:id]
+        D3[POST /documents]
+        D4[POST /documents/upload]
+        D5[DELETE /documents/:id]
+    end
+
+    subgraph 配置中心
+        C1[GET /configs/versions]
+        C2[GET /configs/versions/active]
+        C3[GET /configs/versions/:id]
+        C4[POST /configs/versions]
+        C5[PUT /configs/versions/:id]
+        C6[DELETE /configs/versions/:id]
+        C7[POST GET /configs/versions/:id/attachment]
+    end
+
+    subgraph 任务管理
+        T1[GET /tasks]
+        T2[GET /tasks/my]
+        T3[POST /tasks]
+        T4[GET /tasks/:id]
+        T5[PUT /tasks/:id/stage]
+        T6[PUT /tasks/:id/config]
+        T7[DELETE /tasks/:id]
+        T8[POST /tasks/documents/upload]
+        T9[GET /tasks/:id/items]
+        T10[GET /tasks/:id/items/:dataId]
+        T11[GET /tasks/:id/results]
+        T12[GET /tasks/:id/export]
+    end
+
+    subgraph 标注工作台
+        N1[POST /annotations/submit]
+        N2[POST /annotations/layout]
+    end
+
+    subgraph 裁定工作台
+        R1[GET /reviews/:taskId]
+        R2[POST /reviews/adopt]
+        R3[POST /reviews/manual]
+        R4[POST /reviews/confirm]
+        R5[POST /reviews/cancel-pending]
+        R6[POST /reviews/reject]
+    end

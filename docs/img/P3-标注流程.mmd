@@ -1,0 +1,19 @@
+sequenceDiagram
+    actor Annotator as 标注员
+    participant API as REST API
+    participant DB as 数据库
+
+    Annotator->>API: GET /api/tasks/{taskId}/items
+    API->>DB: 查询任务文书列表
+    DB-->>API: 文书列表
+    API-->>Annotator: {data: [{dataId, status}]}
+
+    Annotator->>API: GET /api/tasks/{taskId}/items/{dataId}
+    API->>DB: 查询文书内容 + 已有标注
+    DB-->>API: 内容 + 命题 + 关系
+    API-->>Annotator: {content, propositions, relations}
+
+    Annotator->>API: POST /api/annotations/submit<br/>{taskId, dataId, propositions, relations, isDraft}
+    API->>DB: 保存命题、关系、标注快照
+    DB-->>API: 保存成功
+    API-->>Annotator: {code:200, message:"提交成功"}
