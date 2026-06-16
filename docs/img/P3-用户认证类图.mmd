@@ -1,0 +1,51 @@
+classDiagram
+    class AuthController {
+    }
+    class UserController {
+    }
+    class AuthService {
+        +login()
+        +logout()
+    }
+    class UserService {
+        +list()
+        +create()
+        +update()
+        +delete()
+    }
+    class SysUserMapper {
+        <<interface>>
+    }
+    class JwtService {
+        +issueToken()
+        +resolveUser()
+    }
+    class DomainConverter {
+        <<utility>>
+        +toUser()
+        +toSysUser()
+    }
+    class SysUser {
+        -id: Long
+        -username: String
+        -passwordHash: String
+        -realName: String
+        -role: String
+        -canCreateTask: Integer
+        -status: Integer
+        -isDeleted: Integer
+    }
+    class SimpleAuthInterceptor {
+        +preHandle()
+    }
+
+    AuthController --> AuthService
+    UserController --> UserService
+    AuthService --> SysUserMapper
+    AuthService --> JwtService
+    AuthService --> DomainConverter
+    UserService --> SysUserMapper
+    UserService --> DomainConverter
+    SysUserMapper --> SysUser
+    SimpleAuthInterceptor --> JwtService
+    SimpleAuthInterceptor --> SysUserMapper

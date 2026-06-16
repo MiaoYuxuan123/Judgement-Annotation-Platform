@@ -1,0 +1,10 @@
+stateDiagram-v2
+    [*] --> 标注中: 创建任务/添加文书
+    标注中 --> 待裁定: 全员提交标注\nTaskStageSyncService.afterAnnotationSubmitted()
+    待裁定 --> 可导出: 裁定确认\nTaskStageSyncService.afterArbitrationConfirmed()
+    可导出 --> [*]
+
+    note right of 标注中
+        task.status / task_document.status
+        每条文书独立判断
+    end note

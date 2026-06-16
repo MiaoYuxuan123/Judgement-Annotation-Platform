@@ -1,0 +1,76 @@
+classDiagram
+    class TaskController {
+    }
+    class TaskService {
+        +list()
+        +myTasks()
+        +create()
+        +update()
+        +addMembers()
+        +addDocuments()
+        +getAnnotation()
+    }
+    class TaskAggregateService {
+        +loadTaskItem()
+        +toSummary()
+        +listTaskDocuments()
+    }
+    class TaskDocumentFactory {
+        +buildForCreate()
+    }
+    class TaskDocumentResolver {
+        +requireTaskDocument()
+        +apiDataId()
+        +toDocumentItem()
+    }
+    class TaskDocumentStorage {
+        +saveText()
+    }
+    class TaskMapper {
+        <<interface>>
+    }
+    class TaskMemberMapper {
+        <<interface>>
+    }
+    class TaskDocumentMapper {
+        <<interface>>
+    }
+    class GlobalDocumentMapper {
+        <<interface>>
+    }
+    class Task {
+        -id: Integer
+        -title: String
+        -status: String
+        -creatorId: Long
+    }
+    class TaskMember {
+        -taskId: Integer
+        -userId: Long
+        -roleInTask: String
+    }
+    class TaskDocument {
+        -taskId: Integer
+        -sourceType: String
+        -globalDocId: Long
+        -fileName: String
+    }
+    class GlobalDocument {
+        -id: Long
+        -title: String
+        -extractedText: String
+    }
+
+    TaskController --> TaskService
+    TaskService --> TaskAggregateService
+    TaskService --> TaskDocumentFactory
+    TaskService --> TaskDocumentResolver
+    TaskDocumentFactory --> GlobalDocumentMapper
+    TaskDocumentFactory --> TaskDocumentStorage
+    TaskService --> TaskMapper
+    TaskService --> TaskMemberMapper
+    TaskService --> TaskDocumentMapper
+    TaskMapper --> Task
+    TaskMemberMapper --> TaskMember
+    TaskDocumentMapper --> TaskDocument
+    TaskDocument --> GlobalDocument : references

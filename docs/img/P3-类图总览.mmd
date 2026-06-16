@@ -1,0 +1,96 @@
+flowchart TB
+    subgraph Controller["表现层 Controller"]
+        AuthController
+        UserController
+        TaskController
+        AnnotationController
+        ReviewController
+        DocumentController
+        ConfigController
+    end
+
+    subgraph Service["业务服务层 Service"]
+        AuthService
+        UserService
+        TaskService
+        AnnotationService
+        ReviewService
+        DocumentService
+        ConfigService
+        TaskDocumentUploadService
+    end
+
+    subgraph Support["支撑服务层 support"]
+        AnnotationPersistenceService
+        TaskAggregateService
+        TaskStageSyncService
+        TaskDocumentResolver
+        TaskDocumentFactory
+        TaskDocumentStorage
+        DomainConverter
+        GuideConfigLoader
+        GraphLayoutJsonCodec
+        JwtService
+        CurrentUserService
+    end
+
+    subgraph Mapper["数据访问层 Mapper"]
+        SysUserMapper
+        TaskMapper
+        TaskMemberMapper
+        TaskDocumentMapper
+        GlobalDocumentMapper
+        AnnotationMapper
+        PropositionMapper
+        RelationMapper
+        RelationMemberMapper
+        ArbitrationSnapshotMapper
+        GuideVersionMapper
+        LabelL1Mapper
+        LabelL2Mapper
+        RelationTypeMapper
+    end
+
+    subgraph PO["持久化对象 PO"]
+        SysUser
+        Task
+        TaskMember
+        TaskDocument
+        GlobalDocument
+        AnnotationPo
+        PropositionPo
+        RelationPo
+        RelationMember
+        ArbitrationSnapshot
+        GuideVersion
+        LabelL1
+        LabelL2
+        RelationType
+    end
+
+    subgraph Entity["领域实体 / DTO"]
+        User
+        TaskItem
+        DocumentItem
+        Proposition
+        Relation
+        AnnotationResult
+        ArbitrationResult
+        GuideConfig
+        LabelDef
+    end
+
+    subgraph CrossCutting["横切关注点"]
+        SimpleAuthInterceptor
+        GlobalExceptionHandler
+        DocumentTextExtractor
+        OnlineStatusScheduler
+    end
+
+    Controller --> Service
+    Service --> Support
+    Service --> Mapper
+    Mapper --> PO
+    Support --> Mapper
+    Service -.-> Entity
+    Support -.-> Entity

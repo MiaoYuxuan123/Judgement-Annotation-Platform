@@ -1,0 +1,76 @@
+classDiagram
+    class AnnotationController {
+    }
+    class AnnotationService {
+        +submit()
+        +saveLayout()
+    }
+    class AnnotationPersistenceService {
+        +saveAnnotation()
+        +saveArbitration()
+        +loadAnnotation()
+        +loadArbitration()
+    }
+    class TaskStageSyncService {
+        +afterAnnotationSubmitted()
+        +afterArbitrationConfirmed()
+    }
+    class GraphLayoutJsonCodec {
+        +toJson()
+        +fromJson()
+    }
+    class AnnotationMapper {
+        <<interface>>
+    }
+    class PropositionMapper {
+        <<interface>>
+    }
+    class RelationMapper {
+        <<interface>>
+    }
+    class RelationMemberMapper {
+        <<interface>>
+    }
+    class AnnotationPo {
+        -taskId: Long
+        -documentId: Long
+        -userId: Long
+        -recordType: String
+        -guideSnapshot: JSON
+        -layoutJson: JSON
+    }
+    class PropositionPo {
+        -annotationId: Long
+        -displayId: String
+        -startPos: Integer
+        -endPos: Integer
+        -labelPath: String
+    }
+    class RelationPo {
+        -annotationId: Long
+        -displayId: String
+        -relationType: String
+    }
+    class RelationMember {
+        -relationId: Long
+        -memberType: String
+        -propositionId: Long
+        -childRelationId: Long
+    }
+
+    AnnotationController --> AnnotationService
+    AnnotationService --> AnnotationPersistenceService
+    AnnotationService --> TaskStageSyncService
+    AnnotationPersistenceService --> AnnotationMapper
+    AnnotationPersistenceService --> PropositionMapper
+    AnnotationPersistenceService --> RelationMapper
+    AnnotationPersistenceService --> RelationMemberMapper
+    AnnotationPersistenceService --> GraphLayoutJsonCodec
+    AnnotationMapper --> AnnotationPo
+    PropositionMapper --> PropositionPo
+    RelationMapper --> RelationPo
+    RelationMemberMapper --> RelationMember
+    AnnotationPo "1" --> "*" PropositionPo : contains
+    AnnotationPo "1" --> "*" RelationPo : contains
+    RelationPo "1" --> "*" RelationMember : has
+    PropositionPo "1" --> "*" RelationMember : member P

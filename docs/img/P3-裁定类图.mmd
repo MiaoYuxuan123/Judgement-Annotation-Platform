@@ -1,0 +1,50 @@
+classDiagram
+    class ReviewController {
+    }
+    class ReviewService {
+        +review()
+        +submit()
+        +adopt()
+        +reject()
+    }
+    class AnnotationPersistenceService {
+        +saveArbitration()
+        +loadArbitration()
+        +rejectAnnotation()
+    }
+    class TaskService {
+        +requireTask()
+        +toSummary()
+    }
+    class TaskStageSyncService {
+        +afterArbitrationConfirmed()
+    }
+    class ArbitrationSnapshotMapper {
+        <<interface>>
+    }
+    class ArbitrationSnapshot {
+        -taskId: Integer
+        -taskDocumentId: Integer
+        -arbitratorId: Long
+        -adoptedFrom: String
+        -finalResult: Integer
+        -arbitratedAt: DateTime
+    }
+    class AnnotationPo {
+        -recordType: ARBITRATION
+    }
+    class PropositionPo {
+    }
+    class RelationPo {
+    }
+
+    ReviewController --> ReviewService
+    ReviewService --> AnnotationPersistenceService
+    ReviewService --> TaskService
+    ReviewService --> TaskStageSyncService
+    ReviewService --> ArbitrationSnapshotMapper
+    ArbitrationSnapshotMapper --> ArbitrationSnapshot
+    AnnotationPersistenceService --> AnnotationPo
+    AnnotationPo --> PropositionPo
+    AnnotationPo --> RelationPo
+    ArbitrationSnapshot ..> AnnotationPo : metadata for

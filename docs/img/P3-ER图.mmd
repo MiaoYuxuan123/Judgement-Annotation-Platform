@@ -1,0 +1,23 @@
+erDiagram
+    sys_user ||--o{ task : creates
+    sys_user ||--o{ task_member : joins
+    task ||--o{ task_member : has
+    task ||--o{ task_document : contains
+    task }o--|| guide_version : uses
+    global_document ||--o{ task_document : referenced_by
+    task ||--o{ annotation : produces
+    task_document ||--o{ annotation : produces
+    sys_user ||--o{ annotation : submits
+    guide_version ||--o{ annotation : snapshots
+    annotation ||--o{ proposition : contains
+    annotation ||--o{ argument_relation : contains
+    argument_relation ||--o{ relation_member : has
+    proposition ||--o{ relation_member : member_of
+    argument_relation ||--o{ relation_member : nested_in
+    task ||--o{ arbitration_snapshot : arbitrates
+    task_document ||--|| arbitration_snapshot : finalizes
+    sys_user ||--o{ arbitration_snapshot : arbitrates_by
+    guide_version ||--o{ label_l1 : defines
+    guide_version ||--o{ label_l2 : defines
+    label_l1 ||--o{ label_l2 : contains
+    guide_version ||--o{ relation_type : defines

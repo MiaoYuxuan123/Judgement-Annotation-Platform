@@ -1,0 +1,62 @@
+classDiagram
+    class ConfigController {
+    }
+    class ConfigService {
+        +listVersions()
+        +createVersion()
+        +getConfig()
+    }
+    class GuideConfigLoader {
+        +load()
+    }
+    class GuideVersionMapper {
+        <<interface>>
+    }
+    class LabelL1Mapper {
+        <<interface>>
+    }
+    class LabelL2Mapper {
+        <<interface>>
+    }
+    class RelationTypeMapper {
+        <<interface>>
+    }
+    class GuideVersion {
+        -versionName: String
+        -description: String
+    }
+    class LabelL1 {
+        -guideVersionId: Integer
+        -name: String
+        -abbr: String
+    }
+    class LabelL2 {
+        -guideVersionId: Integer
+        -parentL1Id: Integer
+        -name: String
+    }
+    class RelationType {
+        -guideVersionId: Integer
+        -name: String
+        -isBinary: Boolean
+    }
+    class GuideConfig {
+        +labels: List
+        +relations: List
+    }
+
+    ConfigController --> ConfigService
+    ConfigService --> GuideVersionMapper
+    ConfigService --> LabelL1Mapper
+    ConfigService --> LabelL2Mapper
+    ConfigService --> RelationTypeMapper
+    ConfigService --> GuideConfigLoader
+    GuideVersionMapper --> GuideVersion
+    LabelL1Mapper --> LabelL1
+    LabelL2Mapper --> LabelL2
+    RelationTypeMapper --> RelationType
+    GuideVersion "1" --> "*" LabelL1
+    GuideVersion "1" --> "*" LabelL2
+    GuideVersion "1" --> "*" RelationType
+    LabelL1 "1" --> "*" LabelL2
+    GuideConfig ..> GuideVersion : aggregates

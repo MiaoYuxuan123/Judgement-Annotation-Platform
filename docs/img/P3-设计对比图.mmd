@@ -1,0 +1,22 @@
+flowchart LR
+    subgraph AI["AI 初稿设计"]
+        A1["18 张表"]
+        A2["JSON 标注快照"]
+        A3["后端导出模块"]
+        A4["状态/模板/观察者模式"]
+        A5["TaskAssignment 按文书分配"]
+    end
+
+    subgraph Actual["实际实现"]
+        B1["14 张表"]
+        B2["规范化 proposition/relation 表"]
+        B3["前端 ZIP 导出"]
+        B4["Factory + Converter 实用模式"]
+        B5["task_member 任务级分配"]
+    end
+
+    A1 -.->|精简| B1
+    A2 -.->|重构| B2
+    A3 -.->|取消| B3
+    A4 -.->|简化| B4
+    A5 -.->|调整| B5
