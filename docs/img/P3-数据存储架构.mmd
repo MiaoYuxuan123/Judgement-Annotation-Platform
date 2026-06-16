@@ -1,0 +1,55 @@
+graph TB
+    subgraph 配置层["配置层（版本化管理）"]
+        GV[guide_version<br/>指南版本]
+        L1[label_l1<br/>一级标签]
+        L2[label_l2<br/>二级标签]
+        RT[relation_type<br/>关系类型]
+    end
+
+    subgraph 资源层["资源层"]
+        SU[sys_user<br/>用户]
+        GD[global_document<br/>全局文书库]
+    end
+
+    subgraph 任务层["任务层"]
+        T[task<br/>任务]
+        TM[task_member<br/>任务成员]
+        TD[task_document<br/>任务文书]
+    end
+
+    subgraph 标注层["标注层"]
+        AN[annotation<br/>标注结果]
+        P[proposition<br/>命题]
+        AR[argument_relation<br/>关系]
+        RM[relation_member<br/>关系成员]
+    end
+
+    subgraph 裁定层["裁定层"]
+        AS[arbitration_snapshot<br/>裁定快照]
+    end
+
+    GV --> L1
+    GV --> L2
+    GV --> RT
+    GV --> T
+
+    SU --> T
+    SU --> TM
+    SU --> AN
+
+    GD --> TD
+
+    T --> TM
+    T --> TD
+    T --> AN
+    T --> AS
+
+    TD --> AN
+    TD --> AS
+
+    AN --> P
+    AN --> AR
+
+    AR --> RM
+    P --> RM
+    AR --> RM
