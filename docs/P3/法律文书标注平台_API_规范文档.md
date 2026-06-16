@@ -910,7 +910,7 @@ GET /api/configs/versions/{id}/attachment
 - P5 我的任务
 - P6 任务详情
 
-## 任务状态流转
+## 任务阶段流转
 
 ![任务阶段流转](../img/P3-任务阶段流转.png)
 
