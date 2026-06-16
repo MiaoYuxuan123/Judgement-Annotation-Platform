@@ -1,10 +1,10 @@
 # 法律文书标注平台 API 规范文档
 
-------
+---
 
 # 1. 文档说明
 
-本文档基于《法律文书标注平台》系统需求与界面设计进行 RESTful API 设计，用于规范前后端的数据交互方式。
+本文档基于《法律文书标注平台》系统实际后端实现进行 RESTful API 设计，用于规范前后端的数据交互方式。
 
 系统主要包含以下模块：
 
@@ -16,7 +16,13 @@
 - 裁定工作台
 - 结果查看与导出
 
-------
+## 系统模块架构
+
+![系统模块架构](../img/P3-系统模块架构.png)
+
+> Mermaid 源文件：[P3-系统模块架构.mmd](../img/P3-系统模块架构.mmd)
+
+---
 
 # 2. API 设计规范
 
@@ -38,7 +44,7 @@
 /api/documents
 ```
 
-------
+---
 
 ## 2.2 数据格式
 
@@ -54,7 +60,7 @@ Content-Type: application/json
 Content-Type: multipart/form-data
 ```
 
-------
+---
 
 ## 2.3 身份认证
 
@@ -64,7 +70,13 @@ Content-Type: multipart/form-data
 Authorization: Bearer {token}
 ```
 
-------
+认证流程：
+
+![认证流程](../img/P3-认证流程.png)
+
+> Mermaid 源文件：[P3-认证流程.mmd](../img/P3-认证流程.mmd)
+
+---
 
 ## 2.4 通用响应格式
 
@@ -88,7 +100,7 @@ Authorization: Bearer {token}
 }
 ```
 
-------
+---
 
 ## 2.5 统一错误码定义
 
@@ -102,7 +114,7 @@ Authorization: Bearer {token}
 | 409    | 数据冲突            |
 | 500    | 服务器内部错误      |
 
-------
+---
 
 # 3. 用户与权限模块 API
 
@@ -110,7 +122,7 @@ Authorization: Bearer {token}
 
 - P3 用户管理
 
-------
+---
 
 ## 3.1 用户登录
 
@@ -159,7 +171,11 @@ POST
     "user": {
       "id": 1,
       "username": "admin",
-      "role": "admin"
+      "realName": "管理员",
+      "role": "admin",
+      "canCreateTask": true,
+      "status": "在线",
+      "lastSeen": "2026-05-04T10:30:00"
     }
   }
 }
@@ -175,17 +191,39 @@ POST
 }
 ```
 
-### 错误码定义
+---
 
-| 错误码 | 说明       |
-| ------ | ---------- |
-| 400    | 参数为空   |
-| 401    | 登录失败   |
-| 500    | 服务器异常 |
+## 3.2 用户登出
 
-------
+### 接口说明
 
-## 3.2 获取当前用户信息
+当前用户退出登录，Token 失效。
+
+### URL
+
+```http
+POST /api/auth/logout
+```
+
+### 请求头
+
+```http
+Authorization: Bearer {token}
+```
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "已退出",
+  "data": null
+}
+```
+
+---
+
+## 3.3 获取当前用户信息
 
 ### 接口说明
 
@@ -212,31 +250,58 @@ Authorization: Bearer {token}
   "data": {
     "id": 1,
     "username": "admin",
-    "role": "admin"
+    "realName": "管理员",
+    "role": "admin",
+    "canCreateTask": true,
+    "status": "在线",
+    "lastSeen": "2026-05-04T10:30:00"
   }
 }
 ```
 
-### 失败响应
+---
+
+## 3.4 获取用户列表
+
+### 接口说明
+
+获取所有用户列表（管理员权限）。
+
+### URL
+
+```http
+GET /api/users
+```
+
+### 请求头
+
+```http
+Authorization: Bearer {token}
+```
+
+### 成功响应
 
 ```json
 {
-  "code": 401,
-  "message": "Token 无效",
-  "data": null
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "username": "admin",
+      "realName": "管理员",
+      "role": "admin",
+      "canCreateTask": true,
+      "status": "在线",
+      "lastSeen": "2026-05-04T10:30:00"
+    }
+  ]
 }
 ```
 
-### 错误码定义
+---
 
-| 错误码 | 说明       |
-| ------ | ---------- |
-| 401    | Token 无效 |
-| 500    | 服务器异常 |
-
-------
-
-## 3.3 新增用户
+## 3.5 新增用户
 
 ### 接口说明
 
@@ -265,7 +330,7 @@ POST
 | username      | string  | 是   | 登录账号                         |
 | realName      | string  | 是   | 用户姓名                         |
 | password      | string  | 是   | 用户密码                         |
-| role          | string  | 是   | admin/creator/annotator/reviewer |
+| role          | string  | 是   | admin / creator / user           |
 | canCreateTask | boolean | 是   | 是否允许创建任务                 |
 
 ### 请求示例
@@ -275,7 +340,7 @@ POST
   "username": "user01",
   "realName": "张三",
   "password": "123456",
-  "role": "annotator",
+  "role": "user",
   "canCreateTask": false
 }
 ```
@@ -302,18 +367,65 @@ POST
 }
 ```
 
-### 错误码定义
+---
 
-| 错误码 | 说明     |
-| ------ | -------- |
-| 400    | 参数缺失 |
-| 403    | 权限不足 |
-| 409    | 用户重复 |
-| 500    | 创建失败 |
+## 3.6 批量创建用户
 
-------
+### 接口说明
 
-## 3.4 编辑用户
+批量导入用户。
+
+### URL
+
+```http
+POST /api/users/batch
+```
+
+### 请求参数
+
+| 参数名 | 类型  | 必填 | 说明           |
+| ------ | ----- | ---- | -------------- |
+| users  | array | 是   | 用户信息列表   |
+
+### 请求示例
+
+```json
+{
+  "users": [
+    {
+      "username": "annotator01",
+      "realName": "李四",
+      "password": "123456",
+      "role": "user",
+      "canCreateTask": false
+    },
+    {
+      "username": "annotator02",
+      "realName": "王五",
+      "password": "123456",
+      "role": "user",
+      "canCreateTask": false
+    }
+  ]
+}
+```
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "批量创建完成，成功 2 个用户",
+  "data": [
+    { "userId": 13 },
+    { "userId": 14 }
+  ]
+}
+```
+
+---
+
+## 3.7 编辑用户
 
 ### 接口说明
 
@@ -322,7 +434,7 @@ POST
 ### URL
 
 ```http
-PUT /api/users/{userId}
+PUT /api/users/{id}
 ```
 
 ### 请求参数
@@ -331,6 +443,7 @@ PUT /api/users/{userId}
 | ------------- | ------- | ---- | ---------------- |
 | realName      | string  | 否   | 用户姓名         |
 | password      | string  | 否   | 新密码           |
+| role          | string  | 否   | 角色             |
 | canCreateTask | boolean | 否   | 是否允许创建任务 |
 
 ### 成功响应
@@ -343,44 +456,19 @@ PUT /api/users/{userId}
 }
 ```
 
-### 失败响应
+---
 
-```json
-{
-  "code": 404,
-  "message": "用户不存在",
-  "data": null
-}
-```
-
-### 错误码定义
-
-| 错误码 | 说明       |
-| ------ | ---------- |
-| 400    | 参数非法   |
-| 403    | 无权限     |
-| 404    | 用户不存在 |
-| 500    | 修改失败   |
-
-------
-
-## 3.5 删除用户
+## 3.8 删除用户
 
 ### 接口说明
 
-删除指定用户。
+软删除指定用户（标记 is_deleted=1）。
 
 ### URL
 
 ```http
-DELETE /api/users/{userId}
+DELETE /api/users/{id}
 ```
-
-### 请求参数
-
-| 参数名 | 类型 | 必填 | 说明   |
-| ------ | ---- | ---- | ------ |
-| userId | int  | 是   | 用户ID |
 
 ### 成功响应
 
@@ -392,25 +480,7 @@ DELETE /api/users/{userId}
 }
 ```
 
-### 失败响应
-
-```json
-{
-  "code": 403,
-  "message": "权限不足",
-  "data": null
-}
-```
-
-### 错误码定义
-
-| 错误码 | 说明       |
-| ------ | ---------- |
-| 403    | 权限不足   |
-| 404    | 用户不存在 |
-| 500    | 删除失败   |
-
-------
+---
 
 # 4. 文书总库模块 API
 
@@ -418,7 +488,7 @@ DELETE /api/users/{userId}
 
 - P1 文书总库
 
-------
+---
 
 ## 4.1 批量上传文书
 
@@ -429,7 +499,7 @@ DELETE /api/users/{userId}
 系统自动进行：
 
 - 文件格式校验
-- 哈希去重校验
+- 文本提取与解析
 
 ### URL
 
@@ -454,44 +524,69 @@ multipart/form-data
 ```json
 {
   "code": 200,
-  "message": "上传成功",
+  "message": "解析完成，请确认后保存",
   "data": {
-    "count": 5
+    "documents": [
+      {
+        "title": "合同纠纷案",
+        "content": "依法成立的合同..."
+      }
+    ]
   }
 }
 ```
 
-### 失败响应
+---
 
-```json
-{
-  "code": 400,
-  "message": "文件格式错误",
-  "data": null
-}
-```
-
-### 错误码定义
-
-| 错误码 | 说明         |
-| ------ | ------------ |
-| 400    | 文件格式错误 |
-| 409    | 文件重复上传 |
-| 500    | 上传失败     |
-
-------
-
-## 4.2 获取文书列表
+## 4.2 新建文书
 
 ### 接口说明
 
-获取文书库列表。
+手动创建单篇文书（直接输入文本内容）。
 
-支持：
+### URL
 
-- 文书ID筛选
-- 标题筛选
-- 上传时间筛选
+```http
+POST /api/documents
+```
+
+### 请求参数
+
+| 参数名  | 类型   | 必填 | 说明         |
+| ------- | ------ | ---- | ------------ |
+| title   | string | 是   | 文书标题     |
+| type    | string | 是   | 文书类型     |
+| content | string | 是   | 文书文本内容 |
+
+### 请求示例
+
+```json
+{
+  "title": "民事判决书-001",
+  "type": "民事判决书",
+  "content": "原告XX与被告XX合同纠纷一案..."
+}
+```
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "文书创建成功",
+  "data": {
+    "documentId": 1
+  }
+}
+```
+
+---
+
+## 4.3 获取文书列表
+
+### 接口说明
+
+获取文书库列表，支持关键词搜索。
 
 ### URL
 
@@ -501,13 +596,9 @@ GET /api/documents
 
 ### Query 参数
 
-| 参数名     | 类型   | 必填 | 说明     |
-| ---------- | ------ | ---- | -------- |
-| documentId | string | 否   | 文书ID   |
-| title      | string | 否   | 文书标题 |
-| uploadDate | string | 否   | 上传日期 |
-| page       | int    | 否   | 页码     |
-| size       | int    | 否   | 每页数量 |
+| 参数名  | 类型   | 必填 | 说明       |
+| ------- | ------ | ---- | ---------- |
+| keyword | string | 否   | 搜索关键词 |
 
 ### 成功响应
 
@@ -519,33 +610,69 @@ GET /api/documents
     "total": 100,
     "list": [
       {
+        "id": 1,
         "documentId": "W001",
         "title": "合同纠纷案",
-        "uploadDate": "2026-05-04"
+        "type": "民事判决书",
+        "uploadDate": "2026-05-04",
+        "content": "..."
       }
     ]
   }
 }
 ```
 
-### 失败响应
+---
+
+## 4.4 获取文书详情
+
+### URL
+
+```http
+GET /api/documents/{id}
+```
+
+### 成功响应
 
 ```json
 {
-  "code": 500,
-  "message": "查询失败",
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "documentId": "W001",
+    "title": "合同纠纷案",
+    "type": "民事判决书",
+    "content": "依法成立的合同，自成立时生效。"
+  }
+}
+```
+
+---
+
+## 4.5 删除文书
+
+### 接口说明
+
+删除指定文书（管理员权限）。
+
+### URL
+
+```http
+DELETE /api/documents/{id}
+```
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "删除成功",
   "data": null
 }
 ```
 
-### 错误码定义
-
-| 错误码 | 说明     |
-| ------ | -------- |
-| 400    | 参数错误 |
-| 500    | 查询失败 |
-
-------
+---
 
 # 5. 配置中心模块 API
 
@@ -553,9 +680,75 @@ GET /api/documents
 
 - P2 配置中心
 
-------
+---
 
-## 5.1 创建指南版本
+## 5.1 获取配置版本列表
+
+### URL
+
+```http
+GET /api/configs/versions
+```
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "versionName": "V1.0",
+      "description": "初始版本",
+      "active": true,
+      "createdAt": "2026-05-01",
+      "attachmentName": null,
+      "primaryTags": [
+        { "shortName": "GF", "name": "一般事实判断", "description": null, "parentTag": null }
+      ],
+      "secondaryTags": [
+        { "shortName": "GM-L", "name": "法律条文", "description": null, "parentTag": "GM" }
+      ],
+      "relationTypes": [
+        { "shortName": "S", "name": "支持", "description": null, "parentTag": null }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## 5.2 获取当前启用的配置
+
+### URL
+
+```http
+GET /api/configs/versions/active
+```
+
+### 成功响应
+
+同 5.1 单项结构，返回当前 `active=true` 的版本。
+
+---
+
+## 5.3 获取指定配置版本
+
+### URL
+
+```http
+GET /api/configs/versions/{id}
+```
+
+### 成功响应
+
+同 5.1 单项结构。
+
+---
+
+## 5.4 创建指南版本
 
 ### 接口说明
 
@@ -578,26 +771,42 @@ POST /api/configs/versions
 ```json
 {
   "versionName": "V1.0",
+  "description": "初始版本",
   "primaryTags": [
     {
-      "name": "一般事实判断",
-      "shortName": "GF"
+      "shortName": "GF",
+      "name": "一般事实判断"
     }
   ],
   "secondaryTags": [
     {
+      "shortName": "GM-L",
       "name": "法律条文",
-      "shortName": "GM-L"
+      "parentTag": "GM"
     }
   ],
   "relationTypes": [
     {
+      "shortName": "S",
       "name": "支持",
-      "shortName": "S"
+      "isBinary": true
     }
   ]
 }
 ```
+
+| 字段                           | 类型    | 必填 | 说明                         |
+| ------------------------------ | ------- | ---- | ---------------------------- |
+| versionName                    | string  | 是   | 版本名称                     |
+| description                    | string  | 否   | 版本说明                     |
+| primaryTags[].shortName        | string  | 是   | 一级标签简称                 |
+| primaryTags[].name             | string  | 是   | 一级标签全称                 |
+| secondaryTags[].shortName      | string  | 是   | 二级标签简称                 |
+| secondaryTags[].name           | string  | 是   | 二级标签全称                 |
+| secondaryTags[].parentTag      | string  | 是   | 所属一级标签简称             |
+| relationTypes[].shortName      | string  | 是   | 关系类型简称                 |
+| relationTypes[].name           | string  | 是   | 关系类型全称                 |
+| relationTypes[].isBinary       | boolean | 否   | 是否二元关系，默认 true      |
 
 ### 成功响应
 
@@ -611,35 +820,103 @@ POST /api/configs/versions
 }
 ```
 
-### 失败响应
+---
+
+## 5.5 更新配置版本
+
+### URL
+
+```http
+PUT /api/configs/versions/{id}
+```
+
+### 请求参数
+
+同 5.4 创建参数结构。
+
+### 成功响应
 
 ```json
 {
-  "code": 400,
-  "message": "版本名称不能为空",
+  "code": 200,
+  "message": "配置更新成功",
+  "data": { ... }
+}
+```
+
+---
+
+## 5.6 删除配置版本
+
+### URL
+
+```http
+DELETE /api/configs/versions/{id}
+```
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "删除成功",
   "data": null
 }
 ```
 
-### 错误码定义
+---
 
-| 错误码 | 说明     |
-| ------ | -------- |
-| 400    | 参数错误 |
-| 403    | 权限不足 |
-| 500    | 保存失败 |
+## 5.7 上传配置附件
 
-------
+### URL
+
+```http
+POST /api/configs/versions/{id}/attachment
+```
+
+### 请求类型
+
+```http
+multipart/form-data
+```
+
+### 请求参数
+
+| 参数名 | 类型 | 必填 | 说明                       |
+| ------ | ---- | ---- | -------------------------- |
+| file   | File | 是   | 附件文件（PDF/DOCX/TXT）   |
+
+---
+
+## 5.8 下载配置附件
+
+### URL
+
+```http
+GET /api/configs/versions/{id}/attachment
+```
+
+### 成功响应
+
+返回文件流（Content-Type 根据文件类型自动设置）。
+
+---
 
 # 6. 任务管理模块 API
 
 对应页面：
 
-- P4
-- P5
-- P6
+- P4 任务列表
+- P5 我的任务
+- P6 任务详情
 
-------
+## 任务状态流转
+
+![任务阶段流转](../img/P3-任务阶段流转.png)
+
+> Mermaid 源文件：[P3-任务阶段流转.mmd](../img/P3-任务阶段流转.mmd)
+
+---
 
 ## 6.1 创建任务
 
@@ -662,23 +939,23 @@ POST /api/tasks
 | 参数名         | 类型     | 必填 | 说明                |
 | -------------- | -------- | ---- | ------------------- |
 | taskName       | string   | 是   | 任务名称            |
-| configId       | int      | 是   | 标签配置ID          |
-| annotatorIds   | int[]    | 是   | 标注员列表          |
+| description    | string   | 否   | 任务描述            |
+| configId       | int      | 是   | 标签配置版本ID      |
+| annotatorIds   | int[]    | 是   | 标注员ID列表        |
 | reviewerId     | int      | 是   | 裁定者ID            |
-| dataSourceType | string   | 是   | text/upload/library |
-| content        | string   | 否   | 文本内容            |
-| documentIds    | string[] | 否   | 文书ID列表          |
+| documentIds    | int[]    | 是   | 文书ID列表          |
+| dataSourceType | string   | 否   | 数据来源类型        |
 
 ### 请求示例
 
 ```json
 {
   "taskName": "合同法标注任务",
+  "description": "对合同纠纷相关文书进行标注",
   "configId": 1,
-  "annotatorIds": [2,3],
+  "annotatorIds": [2, 3],
   "reviewerId": 5,
-  "dataSourceType": "library",
-  "documentIds": ["W001","W002"]
+  "documentIds": [1, 2]
 }
 ```
 
@@ -694,42 +971,18 @@ POST /api/tasks
 }
 ```
 
-### 失败响应
-
-```json
-{
-  "code": 400,
-  "message": "标注员不能为空",
-  "data": null
-}
-```
-
-### 错误码定义
-
-| 错误码 | 说明       |
-| ------ | ---------- |
-| 400    | 参数不完整 |
-| 403    | 无权限     |
-| 404    | 配置不存在 |
-| 500    | 创建失败   |
-
-------
+---
 
 ## 6.2 获取任务列表
 
 ### 接口说明
 
-获取任务列表。
+获取所有任务列表。
 
 支持：
 
-- 角色筛选
 - 状态筛选
 - 关键词搜索
-
-对应作业中的：
-
-> 浏览需求列表
 
 ### URL
 
@@ -741,11 +994,8 @@ GET /api/tasks
 
 | 参数名  | 类型   | 必填 | 说明                       |
 | ------- | ------ | ---- | -------------------------- |
-| role    | string | 否   | creator/annotator/reviewer |
-| status  | string | 否   | 标注中/裁决中/已完成       |
+| status  | string | 否   | 标注中 / 待裁定 / 可导出   |
 | keyword | string | 否   | 搜索关键词                 |
-| page    | int    | 否   | 页码                       |
-| size    | int    | 否   | 每页数量                   |
 
 ### 成功响应
 
@@ -759,43 +1009,53 @@ GET /api/tasks
       {
         "taskId": 1001,
         "taskName": "合同法标注",
-        "status": "标注中"
+        "description": "...",
+        "status": "标注中",
+        "documentCount": 5,
+        "annotatorCount": 2,
+        "reviewerName": "赵六",
+        "creatorName": "管理员",
+        "creatorId": 1,
+        "createdAt": "2026-05-04T10:00:00"
       }
     ]
   }
 }
 ```
 
-### 错误码定义
+---
 
-| 错误码 | 说明     |
-| ------ | -------- |
-| 400    | 参数错误 |
-| 500    | 查询失败 |
-
-------
-
-## 6.3 获取任务详情
+## 6.3 获取我的任务
 
 ### 接口说明
 
-获取指定任务详细信息。
-
-对应作业中的：
-
-> 查看订单详情
+获取当前用户参与的任务（作为标注员或裁定者）。
 
 ### URL
 
 ```http
-GET /api/tasks/{taskId}
+GET /api/tasks/my
 ```
 
-### 请求参数
+### 请求头
 
-| 参数名 | 类型 | 必填 | 说明   |
-| ------ | ---- | ---- | ------ |
-| taskId | int  | 是   | 任务ID |
+```http
+Authorization: Bearer {token}
+```
+
+### 成功响应
+
+结构同 6.2。
+
+---
+
+## 6.4 获取任务详情
+
+### URL
+
+```http
+GET /api/tasks/{id}
+```
 
 ### 成功响应
 
@@ -804,23 +1064,165 @@ GET /api/tasks/{taskId}
   "code": 200,
   "message": "success",
   "data": {
-    "taskId": 1001,
-    "taskName": "合同法任务",
-    "status": "标注中",
-    "annotators": [],
-    "reviewer": {}
+    "summary": {
+      "taskId": 1001,
+      "taskName": "合同法标注",
+      "description": "...",
+      "status": "标注中",
+      "documentCount": 5,
+      "annotatorCount": 2,
+      "reviewerName": "赵六",
+      "creatorName": "管理员",
+      "creatorId": 1,
+      "createdAt": "2026-05-04T10:00:00"
+    },
+    "documents": [
+      {
+        "id": 1,
+        "documentId": "W001",
+        "title": "合同纠纷案",
+        "type": "民事判决书",
+        "status": "标注中"
+      }
+    ],
+    "annotators": [
+      { "id": 2, "username": "annotator01", "realName": "李四" }
+    ],
+    "reviewer": { "id": 5, "username": "reviewer01", "realName": "赵六" },
+    "configSnapshot": {
+      "id": 1,
+      "versionName": "V1.0",
+      "primaryTags": [...],
+      "secondaryTags": [...],
+      "relationTypes": [...]
+    }
   }
 }
 ```
 
-### 错误码定义
+---
 
-| 错误码 | 说明       |
-| ------ | ---------- |
-| 404    | 任务不存在 |
-| 500    | 查询失败   |
+## 6.5 推进任务阶段
 
-------
+### 接口说明
+
+将任务推进到下一阶段（标注中 → 待裁定 → 可导出）。
+
+### URL
+
+```http
+PUT /api/tasks/{id}/stage
+```
+
+### 请求参数
+
+| 参数名    | 类型   | 必填 | 说明               |
+| --------- | ------ | ---- | ------------------ |
+| newStatus | string | 是   | 目标阶段状态       |
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "阶段已推进",
+  "data": { ... }
+}
+```
+
+---
+
+## 6.6 更新任务配置
+
+### 接口说明
+
+更新任务的标签配置版本。
+
+### URL
+
+```http
+PUT /api/tasks/{id}/config
+```
+
+### 请求参数
+
+| 参数名   | 类型 | 必填 | 说明           |
+| -------- | ---- | ---- | -------------- |
+| configId | int  | 是   | 新配置版本ID   |
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "配置已更新",
+  "data": { ... }
+}
+```
+
+---
+
+## 6.7 删除任务
+
+### 接口说明
+
+删除指定任务（仅创建者可操作）。
+
+### URL
+
+```http
+DELETE /api/tasks/{id}
+```
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "任务已删除",
+  "data": null
+}
+```
+
+---
+
+## 6.8 上传任务文书
+
+### 接口说明
+
+向任务中上传新的文书文件（解析后返回前端确认）。
+
+### URL
+
+```http
+POST /api/tasks/documents/upload
+```
+
+### 请求类型
+
+```http
+multipart/form-data
+```
+
+### 请求参数
+
+| 参数名 | 类型   | 必填 | 说明         |
+| ------ | ------ | ---- | ------------ |
+| files  | File[] | 是   | 上传文件列表 |
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "解析完成",
+  "data": {
+    "documents": [...]
+  }
+}
+```
+
+---
 
 # 7. 标注工作台 API
 
@@ -829,7 +1231,13 @@ GET /api/tasks/{taskId}
 - P8 标注工作台
 - P11 数据选择页
 
-------
+## 标注流程
+
+![标注流程](../img/P3-标注流程.png)
+
+> Mermaid 源文件：[P3-标注流程.mmd](../img/P3-标注流程.mmd)
+
+---
 
 ## 7.1 获取待标注数据列表
 
@@ -839,12 +1247,6 @@ GET /api/tasks/{taskId}
 GET /api/tasks/{taskId}/items
 ```
 
-### Query 参数
-
-| 参数名 | 类型   | 必填 | 说明          |
-| ------ | ------ | ---- | ------------- |
-| status | string | 否   | 待标注/已标注 |
-
 ### 成功响应
 
 ```json
@@ -853,29 +1255,37 @@ GET /api/tasks/{taskId}/items
   "message": "success",
   "data": [
     {
-      "dataId": "D001",
-      "status": "待标注"
+      "dataId": 1,
+      "documentId": "W001",
+      "title": "合同纠纷案",
+      "status": "标注中"
     }
   ]
 }
 ```
 
-### 错误码定义
-
-| 错误码 | 说明       |
-| ------ | ---------- |
-| 404    | 任务不存在 |
-| 500    | 查询失败   |
-
-------
+---
 
 ## 7.2 获取标注详情
+
+### 接口说明
+
+获取指定文书的标注详情。
+
+支持查看其他标注员的标注结果（通过 sourceUserId 参数）或裁定结果（通过 sourceArbitration 参数）。
 
 ### URL
 
 ```http
 GET /api/tasks/{taskId}/items/{dataId}
 ```
+
+### Query 参数
+
+| 参数名            | 类型    | 必填 | 说明                           |
+| ----------------- | ------- | ---- | ------------------------------ |
+| sourceUserId      | long    | 否   | 查看指定用户的标注结果         |
+| sourceArbitration | boolean | 否   | 是否查看裁定结果               |
 
 ### 成功响应
 
@@ -885,20 +1295,30 @@ GET /api/tasks/{taskId}/items/{dataId}
   "message": "success",
   "data": {
     "content": "依法成立的合同，自成立时生效。",
-    "propositions": [],
-    "relations": []
+    "propositions": [
+      {
+        "propId": "P1",
+        "sequenceNo": 1,
+        "startPos": 0,
+        "endPos": 6,
+        "text": "依法成立的合同",
+        "tag": "GM-L"
+      }
+    ],
+    "relations": [
+      {
+        "relId": "R1",
+        "type": "S",
+        "source": "P1",
+        "target": "P2",
+        "members": ["P1", "P2"]
+      }
+    ]
   }
 }
 ```
 
-### 错误码定义
-
-| 错误码 | 说明       |
-| ------ | ---------- |
-| 404    | 数据不存在 |
-| 500    | 查询失败   |
-
-------
+---
 
 ## 7.3 提交标注结果
 
@@ -918,19 +1338,51 @@ POST /api/annotations/submit
 
 ### 请求参数
 
+| 参数名       | 类型          | 必填 | 说明                       |
+| ------------ | ------------- | ---- | -------------------------- |
+| taskId       | long          | 是   | 任务ID                     |
+| dataId       | long          | 是   | 文书数据ID                 |
+| propositions | Proposition[] | 否   | 命题列表                   |
+| relations    | Relation[]    | 否   | 关系列表                   |
+| isDraft      | boolean       | 是   | 是否为暂存草稿             |
+| graphLayout  | object        | 否   | 论证图布局信息             |
+
+**Proposition 结构：**
+
+| 字段       | 类型   | 说明               |
+| ---------- | ------ | ------------------ |
+| propId     | string | 命题标识（如 P1）  |
+| sequenceNo | int    | 文中序号           |
+| startPos   | int    | 起始字符位置       |
+| endPos     | int    | 结束字符位置       |
+| text       | string | 选中的文本片段     |
+| tag        | string | 标签路径（二级标签简称） |
+
+**Relation 结构：**
+
+| 字段    | 类型           | 说明                       |
+| ------- | -------------- | -------------------------- |
+| relId   | string         | 关系标识（如 R1）          |
+| type    | string         | 关系类型简称（S/M等）      |
+| source  | string         | 源节点ID（命题或关系ID）   |
+| target  | string         | 目标节点ID（命题或关系ID） |
+| members | string[]       | 成员ID列表                 |
+
+### 请求示例
+
 ```json
 {
   "taskId": 1001,
-  "dataId": "D001",
+  "dataId": 1,
   "propositions": [
-  	  { "propId": "P1", "text": "依法成立的合同", "tag": "GM-L" },
-      { "propId": "P2", "text": "自成立时生效", "tag": "GM-I" }
+    { "propId": "P1", "sequenceNo": 1, "startPos": 0, "endPos": 6, "text": "依法成立的合同", "tag": "GM-L" },
+    { "propId": "P2", "sequenceNo": 2, "startPos": 7, "endPos": 12, "text": "自成立时生效", "tag": "GM-I" }
   ],
   "relations": [
-      { "relId": "R1", "type": "S", "source": "P1", "target": "P2", "level": "M1" },
-      { "relId": "R2", "type": "M", "source": "R1", "target": "P3" } 
-  ]，
-  "isDraft": false
+    { "relId": "R1", "type": "S", "source": "P1", "target": "P2", "members": ["P1", "P2"] }
+  ],
+  "isDraft": false,
+  "graphLayout": null
 }
 ```
 
@@ -944,26 +1396,39 @@ POST /api/annotations/submit
 }
 ```
 
-### 失败响应
+---
+
+## 7.4 保存论证图布局
+
+### 接口说明
+
+保存论证图的节点布局坐标信息。
+
+### URL
+
+```http
+POST /api/annotations/layout
+```
+
+### 请求参数
+
+| 参数名      | 类型   | 必填 | 说明           |
+| ----------- | ------ | ---- | -------------- |
+| taskId      | long   | 是   | 任务ID         |
+| dataId      | long   | 是   | 文书数据ID     |
+| graphLayout | object | 是   | 论证图布局数据 |
+
+### 成功响应
 
 ```json
 {
-  "code": 400,
-  "message": "关系非法",
+  "code": 200,
+  "message": "布局已保存",
   "data": null
 }
 ```
 
-### 错误码定义
-
-| 错误码 | 说明         |
-| ------ | ------------ |
-| 400    | 关系结构非法 |
-| 403    | 无标注权限   |
-| 404    | 数据不存在   |
-| 500    | 提交失败     |
-
-------
+---
 
 # 8. 裁定模块 API
 
@@ -971,14 +1436,30 @@ POST /api/annotations/submit
 
 - P9 裁定界面
 
-------
+## 裁定流程
+
+![裁定流程](../img/P3-裁定流程.png)
+
+> Mermaid 源文件：[P3-裁定流程.mmd](../img/P3-裁定流程.mmd)
+
+---
 
 ## 8.1 获取裁定数据
+
+### 接口说明
+
+获取指定任务的所有标注员提交结果，用于裁定比对。
 
 ### URL
 
 ```http
 GET /api/reviews/{taskId}
+```
+
+### 请求头
+
+```http
+Authorization: Bearer {token}
 ```
 
 ### 成功响应
@@ -988,21 +1469,25 @@ GET /api/reviews/{taskId}
   "code": 200,
   "message": "success",
   "data": {
-    "annotatorResults": []
+    "annotatorResults": [
+      {
+        "userId": 2,
+        "userName": "李四",
+        "propositions": [...],
+        "relations": [...]
+      }
+    ]
   }
 }
 ```
 
-### 错误码定义
-
-| 错误码 | 说明       |
-| ------ | ---------- |
-| 403    | 无裁定权限 |
-| 404    | 任务不存在 |
-
-------
+---
 
 ## 8.2 全部采纳
+
+### 接口说明
+
+直接采纳某一标注员的全部标注结果作为最终裁定。
 
 ### URL
 
@@ -1012,10 +1497,11 @@ POST /api/reviews/adopt
 
 ### 请求参数
 
-| 参数名      | 类型 | 必填 | 说明           |
-| ----------- | ---- | ---- | -------------- |
-| taskId      | int  | 是   | 任务ID         |
-| annotatorId | int  | 是   | 被采纳标注员ID |
+| 参数名      | 类型   | 必填 | 说明           |
+| ----------- | ------ | ---- | -------------- |
+| taskId      | long   | 是   | 任务ID         |
+| dataId      | long   | 是   | 文书数据ID     |
+| annotatorId | long   | 是   | 被采纳标注员ID |
 
 ### 成功响应
 
@@ -1027,26 +1513,147 @@ POST /api/reviews/adopt
 }
 ```
 
-### 错误码定义
+---
 
-| 错误码 | 说明           |
-| ------ | -------------- |
-| 403    | 无裁定权限     |
-| 404    | 标注结果不存在 |
-| 500    | 裁定失败       |
+## 8.3 手动裁定
 
-------
+### 接口说明
+
+裁定者手动编辑标注结果，保存为裁定草稿。
+
+### URL
+
+```http
+POST /api/reviews/manual
+```
+
+### 请求参数
+
+| 参数名       | 类型          | 必填 | 说明         |
+| ------------ | ------------- | ---- | ------------ |
+| taskId       | long          | 是   | 任务ID       |
+| dataId       | long          | 是   | 文书数据ID   |
+| propositions | Proposition[] | 否   | 裁定后命题   |
+| relations    | Relation[]    | 否   | 裁定后关系   |
+| graphLayout  | object        | 否   | 论证图布局   |
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "裁定草稿已保存，请在裁定界面确认",
+  "data": null
+}
+```
+
+---
+
+## 8.4 确认裁定
+
+### 接口说明
+
+确认裁定结果生效。
+
+### URL
+
+```http
+POST /api/reviews/confirm
+```
+
+### 请求参数
+
+| 参数名 | 类型 | 必填 | 说明       |
+| ------ | ---- | ---- | ---------- |
+| taskId | long | 是   | 任务ID     |
+| dataId | long | 是   | 文书数据ID |
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "裁定结果已确认",
+  "data": null
+}
+```
+
+---
+
+## 8.5 取消待确认裁定
+
+### 接口说明
+
+取消之前已确认但未最终生效的裁定结果。
+
+### URL
+
+```http
+POST /api/reviews/cancel-pending
+```
+
+### 请求参数
+
+| 参数名 | 类型 | 必填 | 说明       |
+| ------ | ---- | ---- | ---------- |
+| taskId | long | 是   | 任务ID     |
+| dataId | long | 是   | 文书数据ID |
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "已取消待确认的裁定结果",
+  "data": null
+}
+```
+
+---
+
+## 8.6 退回标注员
+
+### 接口说明
+
+将标注结果退回指定标注员重新标注。
+
+### URL
+
+```http
+POST /api/reviews/reject
+```
+
+### 请求参数
+
+| 参数名 | 类型   | 必填 | 说明           |
+| ------ | ------ | ---- | -------------- |
+| taskId | long   | 是   | 任务ID         |
+| dataId | long   | 是   | 文书数据ID     |
+| userId | long   | 是   | 被退回标注员ID |
+| reason | string | 是   | 退回原因       |
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "已退回标注员重新标注",
+  "data": null
+}
+```
+
+---
 
 # 9. 结果查看与导出 API
 
 对应页面：
 
-- P7
-- P10
+- P7 结果查看
+- P10 结果导出
 
-------
+---
 
-## 9.1 获取结果列表
+## 9.1 获取任务结果列表
 
 ### URL
 
@@ -1060,32 +1667,28 @@ GET /api/tasks/{taskId}/results
 {
   "code": 200,
   "message": "success",
-  "data": []
+  "data": [
+    {
+      "taskId": 1001,
+      "dataId": 1,
+      "arbitratorId": 5,
+      "propositions": [...],
+      "relations": [...],
+      "adoptedFrom": "annotator_2",
+      "arbitratedAt": "2026-05-04T15:00:00",
+      "finalResult": true
+    }
+  ]
 }
 ```
 
-### 错误码定义
-
-| 错误码 | 说明       |
-| ------ | ---------- |
-| 404    | 任务不存在 |
-| 500    | 查询失败   |
-
-------
+---
 
 ## 9.2 导出结果
 
 ### 接口说明
 
-导出：
-
-- PNG
-- SVG
-- JSON
-- XLSX
-- ZIP
-
-格式结果。
+导出任务标注与裁定结果。
 
 仅任务创建者与裁定者允许导出。
 
@@ -1095,119 +1698,32 @@ GET /api/tasks/{taskId}/results
 GET /api/tasks/{taskId}/export
 ```
 
-### Query 参数
-
-| 参数名 | 类型   | 必填 | 说明                  |
-| ------ | ------ | ---- | --------------------- |
-| format | string | 是   | json/xlsx/png/svg/zip |
-
 ### 成功响应
 
-```json
-{
-  "code": 200,
-  "message": "导出成功",
-  "data": {
-    "downloadUrl": "/download/task1001.zip"
-  }
-}
-```
+直接返回文件下载流。
 
-### 失败响应
+---
 
-```json
-{
-  "code": 403,
-  "message": "无导出权限",
-  "data": null
-}
-```
+# 10. API 架构总览
 
-### 错误码定义
+![API架构总览](../img/P3-API架构总览.png)
 
-| 错误码 | 说明         |
-| ------ | ------------ |
-| 400    | 导出格式非法 |
-| 403    | 无导出权限   |
-| 404    | 任务不存在   |
-| 500    | 导出失败     |
+> Mermaid 源文件：[P3-API架构总览.mmd](../img/P3-API架构总览.mmd)
 
-------
-
-# 10. AI 辅助实验分析
-
-## 10.1 接口命名问题
-
-AI 初版生成存在：
-
-```http
-/getTaskList
-/updateUser
-```
-
-等不规范命名。
-
-修正后统一采用 RESTful 风格：
-
-```http
-GET /api/tasks
-PUT /api/users/{id}
-```
-
-------
-
-## 10.2 缺少错误处理
-
-AI 初版仅包含成功响应。
-
-未考虑：
-
-- Token 失效
-- 权限不足
-- 参数错误
-- 数据不存在
-
-等情况。
-
-因此增加：
-
-- 统一错误码
-- 失败响应结构
-
-------
-
-## 10.3 参数校验不完整
-
-AI 初版未校验：
-
-- 标注员不能为空
-- 文件格式是否合法
-- 关系是否合法
-
-修正后增加：
-
-- 必填字段校验
-- 文件类型校验
-- 关系结构校验
-
-------
+---
 
 # 11. 总结
 
-本 API 文档基于法律文书标注分析平台完整业务流程设计，采用 RESTful 风格实现：
+本 API 文档基于法律文书标注分析平台实际后端代码设计，共涵盖 **7 大模块 38 个接口**：
 
-- 用户管理
-- 文书管理
-- 配置管理
-- 标注任务管理
-- 标注与裁定流程
-- 结果查看与导出
+| 模块       | 接口数 | 说明                                       |
+| ---------- | ------ | ------------------------------------------ |
+| 认证       | 2      | 登录、登出                                 |
+| 用户管理   | 6      | CRUD + 批量导入 + 当前用户信息             |
+| 文书总库   | 5      | 文书上传、创建、列表、详情、删除           |
+| 配置中心   | 8      | 指南版本 CRUD + 激活版本 + 附件上传下载    |
+| 任务管理   | 12     | 任务 CRUD + 阶段推进 + 配置更新 + 文书管理 + 结果查看导出 |
+| 标注工作台 | 2      | 标注提交、布局保存                         |
+| 裁定工作台 | 6      | 裁定获取、采纳、手动裁定、确认、退回       |
 
-并针对：
-
-- 参数校验
-- 权限控制
-- 错误处理
-- Token 认证
-
-进行了完整设计，可支持后续 Swagger/OpenAPI 自动化生成与前后端联调开发。
+采用 RESTful 风格，统一 JSON 数据格式，JWT Token 认证，并对参数校验、权限控制、错误处理进行了完整设计，可支持后续 Swagger/OpenAPI 自动化生成与前后端联调开发。

@@ -1,0 +1,29 @@
+erDiagram
+    sys_user ||--o{ task : "创建"
+    sys_user ||--o{ task_member : "被分配"
+    sys_user ||--o{ annotation : "提交标注"
+    sys_user ||--o{ arbitration_snapshot : "执行裁定"
+
+    guide_version ||--o{ label_l1 : "定义"
+    guide_version ||--o{ label_l2 : "定义"
+    guide_version ||--o{ relation_type : "定义"
+    guide_version ||--o{ task : "被引用"
+
+    label_l1 ||--o{ label_l2 : "包含"
+
+    global_document ||--o{ task_document : "被引用"
+
+    task ||--o{ task_member : "分配"
+    task ||--o{ task_document : "包含"
+    task ||--o{ annotation : "产生快照"
+    task ||--o{ arbitration_snapshot : "产生"
+
+    task_document ||--o{ annotation : "产生快照"
+    task_document ||--|| arbitration_snapshot : "拥有最终裁决"
+
+    annotation ||--o{ proposition : "包含"
+    annotation ||--o{ argument_relation : "包含"
+
+    argument_relation ||--o{ relation_member : "包含成员"
+    proposition ||--o{ relation_member : "作为成员"
+    argument_relation ||--o{ relation_member : "作为成员"
