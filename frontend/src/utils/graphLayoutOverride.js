@@ -60,6 +60,9 @@ export function nodeRect(node) {
 
 export function handleConnectionPoint(node, handleId) {
   const rect = nodeRect(node)
+  if (String(node?.type || '').startsWith('hub-')) {
+    return { x: rect.cx, y: rect.cy }
+  }
   const map = {
     top: { x: rect.cx, y: rect.y },
     'top-left': { x: rect.x, y: rect.y },
@@ -84,6 +87,10 @@ function pointOnRectToward(rect, toward) {
 
 /** 节点边框上朝向某点的连接点（与自动布局一致） */
 export function borderPointToward(node, toward) {
+  if (String(node?.type || '').startsWith('hub-')) {
+    const rect = nodeRect(node)
+    return { x: rect.cx, y: rect.cy }
+  }
   return pointOnRectToward(nodeRect(node), toward)
 }
 

@@ -261,7 +261,9 @@ function handleEndpointDrag({ edgeId, end, phase, event }) {
       const anchorNodeId = end === 'source' ? edge.source : edge.target
       const anchorNode = nodes.value.find((item) => item.id === anchorNodeId)
       if (anchorNode) {
-        const handleId = inferHandleId(anchorNode, flowPoint)
+        const handleId = String(anchorNode.type || '').startsWith('hub-')
+          ? (end === 'target' ? 'center-target' : 'center-source')
+          : inferHandleId(anchorNode, flowPoint)
         applyEdgeEndpoint(edgeId, end, anchorNodeId, handleId)
       }
     }
@@ -965,7 +967,7 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
 }
 
 :deep(.graph-editor-flow.is-reconnect-mode .vue-flow__nodes) {
-  z-index: 1;
+  z-index: 20;
 }
 
 :deep(.graph-editor-flow.is-reconnect-mode .vue-flow__node) {

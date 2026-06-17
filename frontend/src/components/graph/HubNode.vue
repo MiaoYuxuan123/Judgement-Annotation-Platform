@@ -37,10 +37,8 @@ const showPlus = computed(() => {
 })
 
 const handles = [
-  { id: 'top', type: 'target', position: Position.Top, style: { left: '50%' } },
-  { id: 'right', type: 'source', position: Position.Right, style: { top: '50%' } },
-  { id: 'bottom', type: 'source', position: Position.Bottom, style: { left: '50%' } },
-  { id: 'left', type: 'target', position: Position.Left, style: { top: '50%' } }
+  { id: 'center-source', type: 'source', position: Position.Top, style: { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' } },
+  { id: 'center-target', type: 'target', position: Position.Top, style: { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' } }
 ]
 
 function onHandleClick(handleId) {

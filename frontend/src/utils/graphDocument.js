@@ -26,12 +26,14 @@ export const HANDLE_IDS = [
 
 export const CARDINAL_HANDLE_IDS = ['top', 'right', 'bottom', 'left']
 
+export const HUB_HANDLE_IDS = ['center-source', 'center-target']
+
 export function isHubNodeType(type) {
   return String(type || '').startsWith('hub-')
 }
 
 export function getNodeHandles(node) {
-  return isHubNodeType(node?.type) ? CARDINAL_HANDLE_IDS : HANDLE_IDS
+  return isHubNodeType(node?.type) ? HUB_HANDLE_IDS : HANDLE_IDS
 }
 
 /** 在画布坐标中查找最近的节点连接点 */
@@ -543,6 +545,7 @@ export function removeBendPoint(points, bendIndex) {
 
 /** 根据连线路径端点推断节点连接点（自动布局导入 v2 时使用） */
 export function inferHandleIdFromDirection(node, towardPoint) {
+  if (isHubNodeType(node?.type)) return 'center-source'
   if (!node || !towardPoint) return 'right'
   const rect = nodeRect(node)
   const dx = towardPoint.x - rect.cx
@@ -555,6 +558,7 @@ export function inferHandleIdFromDirection(node, towardPoint) {
 
 export function inferHandleId(node, point) {
   if (!node || !point) return 'right'
+  if (isHubNodeType(node.type)) return 'center-source'
   const handles = getNodeHandles(node)
   let bestId = handles[0]
   let bestDist = Infinity
@@ -576,11 +580,13 @@ function isNearHubCenter(node, point) {
   return Math.hypot(point.x - rect.cx, point.y - rect.cy) <= r + 2
 }
 
-function inferHandleForEndpoint(node, point, otherPoint) {
+function hubHandleForEnd(end = 'source') {
+  return end === 'target' ? 'center-target' : 'center-source'
+}
+
+function inferHandleForEndpoint(node, point, otherPoint, end = 'source') {
   if (!node || !point) return 'right'
-  if (otherPoint && isHubNodeType(node.type) && isNearHubCenter(node, point)) {
-    return inferHandleIdFromDirection(node, otherPoint)
-  }
+  if (isHubNodeType(node.type)) return hubHandleForEnd(end)
   return inferHandleId(node, point)
 }
 
@@ -592,11 +598,11 @@ function normalizeEdgePathPoints(edge, nodeById) {
   const sourceNode = nodeById.get(edge.source)
   const targetNode = nodeById.get(edge.target)
 
-  if (sourceNode && isNearHubCenter(sourceNode, points[0])) {
-    points[0] = borderPointToward(sourceNode, points[points.length - 1])
+  if (sourceNode && isHubNodeType(sourceNode.type)) {
+    points[0] = handleConnectionPoint(sourceNode, 'center-source')
   }
-  if (targetNode && isNearHubCenter(targetNode, points[points.length - 1])) {
-    points[points.length - 1] = borderPointToward(targetNode, points[0])
+  if (targetNode && isHubNodeType(targetNode.type)) {
+    points[points.length - 1] = handleConnectionPoint(targetNode, 'center-target')
   }
 
   return points
@@ -625,10 +631,10 @@ export function ensureEdgeHandles(edge, nodeById) {
   )
 
   if (!sourceHandle || staleDefaults) {
-    sourceHandle = inferHandleForEndpoint(sourceNode, points[0], points[points.length - 1])
+    sourceHandle = inferHandleForEndpoint(sourceNode, points[0], points[points.length - 1], 'source')
   }
   if (!targetHandle || staleDefaults) {
-    targetHandle = inferHandleForEndpoint(targetNode, points[points.length - 1], points[0])
+    targetHandle = inferHandleForEndpoint(targetNode, points[points.length - 1], points[0], 'target')
   }
 
   return {
@@ -691,17 +697,27 @@ export function rebuildEdgePaths(nodes, edges, options = {}) {
 
 /** 重连端点吸附：优先当前端所在节点上的连接点，再考虑其他节点 */
 export function findReconnectHandleSnap(nodes, flowPoint, edge, end, options = {}) {
+  const withEndAwareHubHandle = (snap) => {
+    if (!snap) return snap
+    const node = (nodes || []).find((item) => item.id === snap.nodeId)
+    if (!isHubNodeType(node?.type)) return snap
+    return {
+      ...snap,
+      handleId: hubHandleForEnd(end),
+      point: handleConnectionPoint(node, hubHandleForEnd(end))
+    }
+  }
   const anchorNodeId = end === 'source' ? edge.source : edge.target
   const otherNodeId = end === 'source' ? edge.target : edge.source
   const anchorNode = (nodes || []).find((node) => node.id === anchorNodeId)
   if (anchorNode) {
     const local = findNearestHandle([anchorNode], flowPoint, { threshold: options.localThreshold ?? 56 })
-    if (local) return local
+    if (local) return withEndAwareHubHandle(local)
   }
-  return findNearestHandle(nodes, flowPoint, {
+  return withEndAwareHubHandle(findNearestHandle(nodes, flowPoint, {
     excludeNodeId: otherNodeId,
     threshold: options.remoteThreshold ?? 40
-  })
+  }))
 }
 
 
@@ -714,6 +730,7 @@ export function decorateForEditor(nodes, edges, options = {}) {
       const isSelected = !!node.selected
       return {
         ...node,
+        zIndex: isHubNodeType(node.type) ? 20 : node.zIndex,
         draggable: canSelect,
         selectable: canSelect,
         selected: isSelected,
