@@ -41,7 +41,8 @@
         <div class="list-box proposition-box proposition-table-list">
           <div v-if="propositions.length" class="proposition-table-head">
             <span>序号</span>
-            <span>要素内容</span>
+            <span>内容</span>
+            <span>类型</span>
           </div>
           <div
               v-for="(p, index) in propositions"
@@ -66,6 +67,10 @@
             >
               <span class="prop-col prop-text">{{ p.text }}</span>
             </el-tooltip>
+            <span class="prop-col prop-tag">
+              <el-tag v-if="p.tag" size="small" effect="plain">{{ p.tag }}</el-tag>
+              <el-tag v-else size="small" type="info" effect="plain">未标注</el-tag>
+            </span>
             <span class="item-actions proposition-row-actions">
               <el-button link type="primary" @click.stop="editProposition(p)">标注</el-button>
               <el-button link type="danger" @click.stop="deleteProposition(p)">删除</el-button>
@@ -138,13 +143,13 @@
               <div class="relation-type-preview">{{ relationForm.type }}</div>
               <div>
                 <strong>{{ relationTypeName }}</strong>
-                <span>{{ supportsMultiMember ? '支持多个要素/关系成员' : '请选择两个要素/关系成员' }}</span>
+                <span>{{ supportsMultiMember ? '支持多个命题/关系成员' : '请选择两个命题/关系成员' }}</span>
               </div>
             </div>
             <div ref="memberBuilderEl" class="member-builder">
               <div v-for="(member, index) in relationMembers" :key="index" class="member-slot">
                 <span class="member-index">{{ index + 1 }}</span>
-                <el-select v-model="relationMembers[index]" placeholder="选择要素/关系" class="relation-select">
+                <el-select v-model="relationMembers[index]" placeholder="选择命题/关系" class="relation-select">
                   <el-option v-for="item in relationOptions" :key="item.value" :label="item.label" :value="item.value" />
                 </el-select>
                 <el-button v-if="supportsMultiMember && relationMembers.length > 2" text type="danger" @click="removeMember(index)">删除</el-button>
@@ -176,7 +181,7 @@
           </div>
         </div>
         <div v-if="!graphGenerated" class="graph-placeholder">
-          <strong>完成要素与关系标注后生成图示</strong>
+          <strong>完成命题与关系标注后生成图示</strong>
           <span>右下角“生成图示”按钮会刷新这里的节点和关系。</span>
         </div>
         <GraphCanvas
@@ -193,7 +198,7 @@
     <div v-if="labelDialog" class="floating-label-root" :style="labelPopupStyle">
       <div class="tag-popover draggable-tag-popover">
         <div class="tag-popover-head draggable-tag-head" @mousedown="startLabelDrag">
-          <strong>选择要素标签</strong>
+          <strong>选择命题标签</strong>
           <span>{{ selectedText }}</span>
         </div>
         <div class="tag-group-title">一级标签</div>
@@ -417,19 +422,6 @@ const relationOptions = computed(() => [
   ...relations.value.map((r) => ({ label: `${r.relId} ${formula(r)}`, value: r.relId }))
 ])
 
-const availableElementTags = computed(() => {
-  const tags = []
-  const seen = new Set()
-  const add = (tag) => {
-    if (!tag?.shortName || seen.has(tag.shortName)) return
-    seen.add(tag.shortName)
-    tags.push(tag)
-  }
-  ;(data.value?.config?.primaryTags || []).forEach(add)
-  ;(data.value?.config?.secondaryTags || []).forEach(add)
-  return tags
-})
-
 const primaryTagOrder = computed(() => {
   const order = ['GM', 'SM', 'SF', 'GF']
   return [...(data.value?.config.primaryTags || [])].sort((a, b) => order.indexOf(a.shortName) - order.indexOf(b.shortName))
@@ -547,7 +539,7 @@ function handleSelection(event) {
   selectedStart.value = span.start
   selectedEnd.value = span.end
   if (overlapsExisting(selectedStart.value, selectedEnd.value, editingPropositionId.value)) {
-    ElMessage.warning('该文本已被框定或与已有要素重叠，请选择其他文本')
+    ElMessage.warning('该文本已被框定或与已有命题重叠，请选择其他文本')
     window.getSelection()?.removeAllRanges()
     return
   }
@@ -603,14 +595,14 @@ function confirmLabel() {
     return
   }
   if (overlapsExisting(selectedStart.value, selectedEnd.value, editingPropositionId.value)) {
-    ElMessage.warning('该文本与已有要素重叠，请重新选择')
+    ElMessage.warning('该文本与已有命题重叠，请重新选择')
     return
   }
   snapshot()
   const existingElement = propositions.value.find((item) => item.propId === editingPropositionId.value)
   const prop = {
     elementId: existingElement?.elementId || nextElementId(),
-    propId: editingPropositionId.value || nextElementId(),
+    propId: editingPropositionId.value || nextPropositionId(),
     sequenceNo: propositions.value.length + 1,
     startPos: selectedStart.value,
     endPos: selectedEnd.value,
@@ -634,7 +626,7 @@ function addElementFromSelection() {
   snapshot()
   propositions.value.push({
     elementId: nextElementId(),
-    propId: nextElementId(),
+    propId: nextPropositionId(),
     sequenceNo: propositions.value.length + 1,
     startPos: selectedStart.value,
     endPos: selectedEnd.value,
@@ -652,12 +644,8 @@ function addElementFromSelection() {
 function renumberElements({ sortByText = false } = {}) {
   const oldToNew = new Map()
   if (sortByText) propositions.value.sort((a, b) => a.startPos - b.startPos)
-  const tagCounters = new Map()
   propositions.value = propositions.value.map((p, i) => {
-    const prefix = elementPrefix(p)
-    const nextNo = (tagCounters.get(prefix) || 0) + 1
-    tagCounters.set(prefix, nextNo)
-    const nextId = `${prefix}${nextNo}`
+    const nextId = `P${i + 1}`
     oldToNew.set(p.propId, nextId)
     return {
       ...p,
@@ -672,14 +660,14 @@ function renumberElements({ sortByText = false } = {}) {
   renumberRelations()
 }
 
-function elementPrefix(prop) {
-  return String(prop?.tag || 'E').trim() || 'E'
-}
-
 function nextElementId() {
   const nums = propositions.value
     .map((p) => Number(String(p.elementId || '').replace(/^E/, '')) || 0)
   return `E${(nums.length ? Math.max(...nums) : 0) + 1}`
+}
+
+function nextPropositionId() {
+  return `P${propositions.value.length + 1}`
 }
 
 function resetRelationMembers(type = relationForm.type) {
@@ -704,7 +692,7 @@ function clearRelation(keepType = true) {
 function addRelation() {
   const members = relationMembers.value.filter(Boolean)
   if (members.length < 2 || new Set(members).size !== members.length) {
-    ElMessage.warning('请选择至少两个不同的要素或关系')
+    ElMessage.warning('请选择至少两个不同的命题或关系')
     return
   }
   if (!supportsMultiMember.value && members.length !== 2) {
