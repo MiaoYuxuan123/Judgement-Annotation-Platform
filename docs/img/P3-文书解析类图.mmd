@@ -1,0 +1,27 @@
+classDiagram
+    class DocumentController {
+    }
+    class DocumentService {
+        +list()
+        +upload()
+    }
+    class TaskDocumentUploadService {
+        +uploadToTask()
+    }
+    class DocumentTextExtractor {
+        <<utility>>
+        +parse(file) ParsedDocument
+        +parseZip(file) List
+    }
+    class ParsedDocument {
+        +title: String
+        +type: String
+        +content: String
+    }
+
+    DocumentController --> DocumentService
+    TaskDocumentUploadService --> DocumentTextExtractor
+    DocumentService --> DocumentTextExtractor
+    DocumentTextExtractor ..> ParsedDocument : creates
+
+    note for DocumentTextExtractor "支持 txt / pdf / docx\n按扩展名 switch 分发"
