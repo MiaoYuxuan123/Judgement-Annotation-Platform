@@ -28,10 +28,11 @@ class TaskServiceTest {
     private final ArbitrationSnapshotMapper arbitrationSnapshotMapper = mock(ArbitrationSnapshotMapper.class);
     private final AnnotationMapper annotationMapper = mock(AnnotationMapper.class);
     private final TaskDocumentStorage taskDocumentStorage = mock(TaskDocumentStorage.class);
+    private final MessageService messageService = mock(MessageService.class);
     private final TaskService taskService = new TaskService(taskMapper, taskMemberMapper, taskDocumentMapper,
             globalDocumentMapper, taskAggregateService, taskDocumentResolver, currentUserService,
             annotationPersistenceService, taskDocumentFactory, arbitrationSnapshotMapper, annotationMapper,
-            taskDocumentStorage);
+            taskDocumentStorage, messageService);
 
     @Test
     void nextStatusOnlyMovesForward() {

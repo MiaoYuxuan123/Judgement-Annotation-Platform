@@ -4,6 +4,7 @@ export function emptyTaskCreateDraft() {
   return {
     taskName: '',
     description: '',
+    deadline: '',
     configId: null,
     annotatorIds: [],
     reviewerId: null,
@@ -47,6 +48,7 @@ export function toCreatePayload(draft) {
   return {
     taskName: draft.taskName,
     description: draft.description,
+    deadline: draft.deadline || '',
     configId: draft.configId,
     annotatorIds: draft.annotatorIds,
     reviewerId: draft.reviewerId,

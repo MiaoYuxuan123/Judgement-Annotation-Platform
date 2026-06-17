@@ -61,4 +61,6 @@ AGENTS.md
 
 .claude/
 
+docs/superpowers/
+
 backend/src/main/resources/application-mysql.yml

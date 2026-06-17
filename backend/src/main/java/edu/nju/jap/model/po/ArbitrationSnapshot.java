@@ -10,6 +10,7 @@ public class ArbitrationSnapshot {
     private String adoptedFrom;
     private Integer finalResult;
     private LocalDateTime arbitratedAt;
+    private Long basedOnAnnotatorId;
 
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -25,4 +26,6 @@ public class ArbitrationSnapshot {
     public void setFinalResult(Integer finalResult) { this.finalResult = finalResult; }
     public LocalDateTime getArbitratedAt() { return arbitratedAt; }
     public void setArbitratedAt(LocalDateTime arbitratedAt) { this.arbitratedAt = arbitratedAt; }
+    public Long getBasedOnAnnotatorId() { return basedOnAnnotatorId; }
+    public void setBasedOnAnnotatorId(Long basedOnAnnotatorId) { this.basedOnAnnotatorId = basedOnAnnotatorId; }
 }

@@ -26,6 +26,7 @@ export function clearTaskUpdateDraft(taskId) {
 
 export function toUpdatePayload(form) {
   return {
+    deadline: form.deadline || '',
     addAnnotatorIds: form.pendingAddAnnotatorIds || [],
     documents: (form.pendingDocuments || []).map((doc) => {
       if (doc.sourceType === 'GLOBAL') {

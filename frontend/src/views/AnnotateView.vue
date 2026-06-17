@@ -1,16 +1,5 @@
 <template>
   <div v-if="data" class="annotate-page">
-    <el-alert
-      v-if="rejectReason && rejectAlertVisible"
-      class="annotate-reject-alert"
-      type="warning"
-      title="裁定未采纳，请修改后重新提交"
-      :description="rejectReason"
-      show-icon
-      closable
-      @close="rejectAlertVisible = false"
-    />
-
     <section class="annotate-topbar modern">
       <div class="annotate-topbar-main">
         <span class="annotate-logo">JAP</span>
@@ -323,8 +312,6 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const isArbitration = computed(() => isArbitrationMode(route.query))
-const rejectReason = computed(() => data.value?.annotation?.rejectReason || '')
-const rejectAlertVisible = ref(true)
 
 const data = ref(null)
 const propositions = ref([])
@@ -952,6 +939,11 @@ async function submit(isDraft) {
     return
   }
 
+  if (!isDraft && !propositions.value.length && !relations.value.length) {
+    ElMessage.warning('请标注后再提交')
+    return
+  }
+
   await client.post('/annotations/submit', {
     taskId,
     dataId,
@@ -969,7 +961,6 @@ async function load() {
   const taskId = route.params.taskId
   const dataId = route.params.dataId
   data.value = await fetchAnnotationItem(client, taskId, dataId, route.query)
-  rejectAlertVisible.value = true
   propositions.value = normalizeElements(data.value.annotation.propositions || [])
   relations.value = [...(data.value.annotation.relations || [])]
   graphLayout.value = data.value.annotation.graphLayout

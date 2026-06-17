@@ -4,9 +4,11 @@ import edu.nju.jap.model.dto.request.AnnotationSubmit;
 import edu.nju.jap.model.entity.Proposition;
 import edu.nju.jap.model.entity.Relation;
 import edu.nju.jap.model.entity.User;
+import edu.nju.jap.model.po.Task;
 import edu.nju.jap.model.po.TaskDocument;
 import edu.nju.jap.service.support.AnnotationPersistenceService;
 import edu.nju.jap.service.support.CurrentUserService;
+import edu.nju.jap.service.support.TaskAggregateService;
 import edu.nju.jap.service.support.TaskDocumentResolver;
 import edu.nju.jap.service.support.TaskStageSyncService;
 import org.junit.jupiter.api.Test;
@@ -23,13 +25,15 @@ class AnnotationServiceTest {
     private final TaskDocumentResolver taskDocumentResolver = mock(TaskDocumentResolver.class);
     private final CurrentUserService currentUserService = mock(CurrentUserService.class);
     private final TaskStageSyncService taskStageSyncService = mock(TaskStageSyncService.class);
+    private final TaskAggregateService taskAggregateService = mock(TaskAggregateService.class);
     private final AnnotationService annotationService = new AnnotationService(
-            persistenceService, taskDocumentResolver, currentUserService, taskStageSyncService);
+            persistenceService, taskDocumentResolver, currentUserService, taskStageSyncService, taskAggregateService);
 
     @Test
     void submitRenumbersPropositionsByStartPosition() {
         MockHttpServletRequest request = requestWithUser();
         TaskDocument taskDocument = taskDocument();
+        when(taskAggregateService.requireTaskPo(1001)).thenReturn(taskPo());
         when(currentUserService.requireCurrent(request)).thenReturn(new User(3, "annotator1", "", "标注员一", "USER", false, "active"));
         when(taskDocumentResolver.requireTaskDocument(1001, 101)).thenReturn(taskDocument);
 
@@ -49,6 +53,7 @@ class AnnotationServiceTest {
     @Test
     void draftSubmitDoesNotAdvanceTaskStage() {
         MockHttpServletRequest request = requestWithUser();
+        when(taskAggregateService.requireTaskPo(1001)).thenReturn(taskPo());
         when(currentUserService.requireCurrent(request)).thenReturn(new User(3, "annotator1", "", "标注员一", "USER", false, "active"));
         when(taskDocumentResolver.requireTaskDocument(1001, 101)).thenReturn(taskDocument());
 
@@ -60,6 +65,7 @@ class AnnotationServiceTest {
     @Test
     void formalSubmitAdvancesTaskStageSync() {
         MockHttpServletRequest request = requestWithUser();
+        when(taskAggregateService.requireTaskPo(1001)).thenReturn(taskPo());
         when(currentUserService.requireCurrent(request)).thenReturn(new User(3, "annotator1", "", "标注员一", "USER", false, "active"));
         when(taskDocumentResolver.requireTaskDocument(1001, 101)).thenReturn(taskDocument());
 
@@ -79,5 +85,13 @@ class AnnotationServiceTest {
         taskDocument.setGlobalDocId(101L);
         taskDocument.setSourceType("GLOBAL");
         return taskDocument;
+    }
+
+    private static Task taskPo() {
+        Task task = new Task();
+        task.setId(1001);
+        task.setTitle("测试任务");
+        task.setStatus("标注中");
+        return task;
     }
 }

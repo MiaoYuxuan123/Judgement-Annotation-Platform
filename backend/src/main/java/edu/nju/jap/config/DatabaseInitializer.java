@@ -61,6 +61,25 @@ public class DatabaseInitializer implements ApplicationRunner {
                     "ALTER TABLE `annotation` ADD COLUMN `layout_json` JSON DEFAULT NULL COMMENT '论证图布局覆盖' AFTER `updated_at`");
             addColumnIfMissing(connection, "annotation", "reject_reason",
                     "ALTER TABLE `annotation` ADD COLUMN `reject_reason` VARCHAR(500) DEFAULT NULL COMMENT '裁定不予采纳理由' AFTER `layout_json`");
+            addColumnIfMissing(connection, "task", "deadline",
+                    "ALTER TABLE `task` ADD COLUMN `deadline` DATETIME DEFAULT NULL COMMENT '任务截止日期' AFTER `stage_changed_at`");
+            addColumnIfMissing(connection, "arbitration_snapshot", "based_on_annotator_id",
+                    "ALTER TABLE `arbitration_snapshot` ADD COLUMN `based_on_annotator_id` BIGINT DEFAULT NULL COMMENT '裁定基于的标注员ID' AFTER `arbitrated_at`");
+            createTableIfMissing(connection, "message",
+                    "CREATE TABLE `message` (" +
+                    "`id` BIGINT AUTO_INCREMENT PRIMARY KEY," +
+                    "`user_id` BIGINT NOT NULL," +
+                    "`type` VARCHAR(32) NOT NULL DEFAULT 'INFO'," +
+                    "`title` VARCHAR(255) NOT NULL," +
+                    "`content` VARCHAR(2000) DEFAULT NULL," +
+                    "`task_id` INT DEFAULT NULL," +
+                    "`task_document_id` INT DEFAULT NULL," +
+                    "`data_id` INT DEFAULT NULL," +
+                    "`is_read` TINYINT NOT NULL DEFAULT 0," +
+                    "`created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+                    "INDEX `idx_user_id` (`user_id`)," +
+                    "INDEX `idx_user_read` (`user_id`, `is_read`)" +
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='消息表'");
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to patch database schema", ex);
         }
@@ -77,6 +96,20 @@ public class DatabaseInitializer implements ApplicationRunner {
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate(ddl);
             log.info("Patched missing column {}.{}", tableName, columnName);
+        }
+    }
+
+    private void createTableIfMissing(Connection connection, String tableName, String ddl) throws Exception {
+        DatabaseMetaData metaData = connection.getMetaData();
+        String catalog = connection.getCatalog();
+        try (ResultSet tables = metaData.getTables(catalog, null, tableName, new String[]{"TABLE"})) {
+            if (tables.next()) {
+                return;
+            }
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(ddl);
+            log.info("Created missing table {}", tableName);
         }
     }
 

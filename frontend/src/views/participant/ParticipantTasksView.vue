@@ -128,7 +128,7 @@ import client from '../../api/client'
 import { useAuthStore } from '../../stores/auth'
 import TaskDirectorySidebar from '../../components/task/TaskDirectorySidebar.vue'
 import TaskInlineDetail from '../../components/task/TaskInlineDetail.vue'
-import { buildParticipantRows, participantActions, participantRowStage } from '../../utils/taskRows'
+import { buildParticipantRows, isTaskExpired, participantActions, participantRowStage } from '../../utils/taskRows'
 import { syncTasksRoute } from '../../utils/navigationReturn'
 
 const router = useRouter()

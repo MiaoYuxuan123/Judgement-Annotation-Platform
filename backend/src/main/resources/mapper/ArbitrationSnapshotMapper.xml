@@ -8,12 +8,12 @@
         SELECT * FROM arbitration_snapshot WHERE task_id=#{taskId}
     </select>
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO arbitration_snapshot(task_id, task_document_id, arbitrator_id, adopted_from, final_result, arbitrated_at)
-        VALUES (#{taskId}, #{taskDocumentId}, #{arbitratorId}, #{adoptedFrom}, #{finalResult}, #{arbitratedAt})
+        INSERT INTO arbitration_snapshot(task_id, task_document_id, arbitrator_id, adopted_from, final_result, arbitrated_at, based_on_annotator_id)
+        VALUES (#{taskId}, #{taskDocumentId}, #{arbitratorId}, #{adoptedFrom}, #{finalResult}, #{arbitratedAt}, #{basedOnAnnotatorId})
     </insert>
     <update id="update">
         UPDATE arbitration_snapshot SET adopted_from=#{adoptedFrom}, final_result=#{finalResult}, arbitrated_at=#{arbitratedAt},
-        arbitrator_id=#{arbitratorId} WHERE id=#{id}
+        arbitrator_id=#{arbitratorId}, based_on_annotator_id=#{basedOnAnnotatorId} WHERE id=#{id}
     </update>
     <delete id="deleteByTaskAndDoc">
         DELETE FROM arbitration_snapshot WHERE task_id=#{taskId} AND task_document_id=#{taskDocumentId}
