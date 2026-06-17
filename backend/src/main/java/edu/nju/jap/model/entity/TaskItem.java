@@ -15,6 +15,7 @@ public class TaskItem {
     public long creatorId;
     public LocalDateTime createdAt;
     public LocalDateTime stageChangedAt;
+    public LocalDateTime deadline;
     public GuideConfig configSnapshot;
 
     public TaskItem(long id, String taskName, String description, String status, long configId,

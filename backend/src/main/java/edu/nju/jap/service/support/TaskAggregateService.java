@@ -68,6 +68,7 @@ public class TaskAggregateService {
                 task.getGuideVersionId() == null ? 0 : task.getGuideVersionId(), documentIds, annotatorIds,
                 reviewerId, task.getCreatorId(), task.getCreatedAt(), config);
         item.stageChangedAt = task.getStageChangedAt();
+        item.deadline = task.getDeadline();
         return item;
     }
 
@@ -76,7 +77,7 @@ public class TaskAggregateService {
         User creator = DomainConverter.toUser(sysUserMapper.selectById(task.creatorId));
         return new TaskSummary(task.id, task.taskName, task.description, task.status, task.documentIds.size(),
                 task.annotatorIds.size(), reviewer == null ? "-" : reviewer.realName,
-                creator == null ? "-" : creator.realName, task.creatorId, task.createdAt);
+                creator == null ? "-" : creator.realName, task.creatorId, task.createdAt, task.deadline);
     }
 
     public List<UserVO> annotatorVos(TaskItem task) {

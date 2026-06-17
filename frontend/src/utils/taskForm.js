@@ -2,6 +2,7 @@ export function emptyTaskForm() {
   return {
     taskName: '',
     description: '',
+    deadline: '',
     documentIds: [],
     annotatorIds: [],
     reviewerId: null,
@@ -14,6 +15,7 @@ export function taskFormFromDetail(detail, pendingDocuments = [], pendingAddAnno
   return {
     taskName: detail.summary?.taskName || '',
     description: detail.summary?.description || '',
+    deadline: detail.summary?.deadline || '',
     documentIds: (detail.documents || []).map((d) => d.id),
     documents: detail.documents || [],
     pendingDocuments: [...pendingDocuments],

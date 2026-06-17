@@ -3,12 +3,16 @@ package edu.nju.jap.service;
 import edu.nju.jap.common.MapBodyUtils;
 import edu.nju.jap.mapper.AnnotationMapper;
 import edu.nju.jap.mapper.ArbitrationSnapshotMapper;
+import edu.nju.jap.mapper.GlobalDocumentMapper;
+import edu.nju.jap.mapper.TaskDocumentMapper;
 import edu.nju.jap.model.dto.request.ArbitrationSubmit;
 import edu.nju.jap.model.entity.AnnotationResult;
 import edu.nju.jap.model.entity.ArbitrationResult;
 import edu.nju.jap.model.entity.TaskItem;
 import edu.nju.jap.model.entity.User;
 import edu.nju.jap.model.po.ArbitrationSnapshot;
+import edu.nju.jap.model.po.GlobalDocument;
+import edu.nju.jap.model.po.Task;
 import edu.nju.jap.model.po.TaskDocument;
 import edu.nju.jap.service.support.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,13 +36,18 @@ public class ReviewService {
     private final ArbitrationSnapshotMapper arbitrationSnapshotMapper;
     private final CurrentUserService currentUserService;
     private final TaskStageSyncService taskStageSyncService;
+    private final MessageService messageService;
+    private final TaskDocumentMapper taskDocumentMapper;
+    private final GlobalDocumentMapper globalDocumentMapper;
 
     public ReviewService(TaskService taskService, TaskAggregateService taskAggregateService,
                          TaskDocumentResolver taskDocumentResolver,
                          AnnotationPersistenceService annotationPersistenceService,
                          AnnotationMapper annotationMapper,
                          ArbitrationSnapshotMapper arbitrationSnapshotMapper,
-                         CurrentUserService currentUserService, TaskStageSyncService taskStageSyncService) {
+                         CurrentUserService currentUserService, TaskStageSyncService taskStageSyncService,
+                         MessageService messageService, TaskDocumentMapper taskDocumentMapper,
+                         GlobalDocumentMapper globalDocumentMapper) {
         this.taskService = taskService;
         this.taskAggregateService = taskAggregateService;
         this.taskDocumentResolver = taskDocumentResolver;
@@ -47,6 +56,9 @@ public class ReviewService {
         this.arbitrationSnapshotMapper = arbitrationSnapshotMapper;
         this.currentUserService = currentUserService;
         this.taskStageSyncService = taskStageSyncService;
+        this.messageService = messageService;
+        this.taskDocumentMapper = taskDocumentMapper;
+        this.globalDocumentMapper = globalDocumentMapper;
     }
 
     public Map<String, Object> review(long taskId, HttpServletRequest request) {
@@ -102,6 +114,7 @@ public class ReviewService {
         long annotatorId = MapBodyUtils.longValue(body.get("annotatorId"), 0);
         TaskDocument td = taskDocumentResolver.requireTaskDocument(taskId, dataId);
         requireAllAnnotatorsSubmitted(taskId, td);
+        requireNotExpired(taskId);
         AnnotationResult source = annotationPersistenceService.loadAnnotation(taskId, td.getId(), annotatorId,
                 taskDocumentResolver.apiDataId(td));
         if (source.propositions.isEmpty() && source.relations.isEmpty()) {
@@ -110,18 +123,24 @@ public class ReviewService {
         long arbitratorId = currentUserService.requireCurrent(request).id;
         annotationPersistenceService.saveArbitration(taskId, td.getId(), arbitratorId, source.propositions,
                 source.relations, false, source.graphLayout);
-        upsertSnapshot(taskId, td.getId(), arbitratorId, String.valueOf(annotatorId), true);
+        upsertSnapshot(taskId, td.getId(), arbitratorId, String.valueOf(annotatorId), true, annotatorId);
         taskStageSyncService.afterArbitrationConfirmed(taskId, td.getId());
+        String docTitle = resolveDocTitle(td);
+        int msgDataId = resolveDataId(td);
+        messageService.send(annotatorId, "ARBITRATION", "裁定通过",
+                "您的标注【" + docTitle + "】已被裁定通过", taskId, td.getId(), msgDataId);
     }
 
     @Transactional
     public void manual(ArbitrationSubmit body, HttpServletRequest request) {
+        int taskId = (int) body.taskId();
+        requireNotExpired(taskId);
         long arbitratorId = currentUserService.requireCurrent(request).id;
-        TaskDocument td = taskDocumentResolver.requireTaskDocument((int) body.taskId(), body.dataId());
-        annotationPersistenceService.saveArbitration((int) body.taskId(), td.getId(), arbitratorId,
+        TaskDocument td = taskDocumentResolver.requireTaskDocument(taskId, body.dataId());
+        annotationPersistenceService.saveArbitration(taskId, td.getId(), arbitratorId,
                 body.propositions() == null ? List.of() : body.propositions(),
                 body.relations() == null ? List.of() : body.relations(), true, body.graphLayout());
-        upsertSnapshot((int) body.taskId(), td.getId(), arbitratorId, "MANUAL", false);
+        upsertSnapshot(taskId, td.getId(), arbitratorId, "MANUAL", false, body.basedOnAnnotatorId());
     }
 
     @Transactional
@@ -130,6 +149,7 @@ public class ReviewService {
         long dataId = MapBodyUtils.longValue(body.get("dataId"), MapBodyUtils.longValue(body.get("documentId"), 0));
         TaskDocument td = taskDocumentResolver.requireTaskDocument(taskId, dataId);
         requireAllAnnotatorsSubmitted(taskId, td);
+        requireNotExpired(taskId);
         ArbitrationSnapshot arb = arbitrationSnapshotMapper.selectByTaskAndDoc(taskId, td.getId());
         if (arb == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "暂无待确认的裁定结果");
@@ -143,6 +163,12 @@ public class ReviewService {
         arb.setArbitratedAt(LocalDateTime.now());
         arbitrationSnapshotMapper.update(arb);
         taskStageSyncService.afterArbitrationConfirmed(taskId, td.getId());
+        String docTitle = resolveDocTitle(td);
+        int msgDataId = resolveDataId(td);
+        if (arb.getBasedOnAnnotatorId() != null) {
+            messageService.send(arb.getBasedOnAnnotatorId(), "ARBITRATION", "经部分修改后采纳",
+                    "您的标注【" + docTitle + "】经部分修改后已被采纳", taskId, td.getId(), msgDataId);
+        }
     }
 
     @Transactional
@@ -155,6 +181,7 @@ public class ReviewService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请填写不予采纳理由");
         }
         TaskDocument td = taskDocumentResolver.requireTaskDocument(taskId, dataId);
+        requireNotExpired(taskId);
         currentUserService.requireCurrent(request);
         annotationPersistenceService.rejectAnnotation(taskId, td.getId(), annotatorId, reason);
 
@@ -164,6 +191,10 @@ public class ReviewService {
             arbitrationSnapshotMapper.deleteByTaskAndDoc(taskId, td.getId());
         }
         taskStageSyncService.afterAnnotationRejected(taskId, td.getId());
+        String docTitle = resolveDocTitle(td);
+        int msgDataId = resolveDataId(td);
+        messageService.send(annotatorId, "ARBITRATION", "不予采纳",
+                "您的标注【" + docTitle + "】未被采纳，原因：" + reason, taskId, td.getId(), msgDataId);
     }
 
     @Transactional
@@ -195,7 +226,7 @@ public class ReviewService {
     }
 
     private void upsertSnapshot(int taskId, int taskDocumentId, long arbitratorId, String adoptedFrom,
-                                boolean finalResult) {
+                                boolean finalResult, Long basedOnAnnotatorId) {
         ArbitrationSnapshot existing = arbitrationSnapshotMapper.selectByTaskAndDoc(taskId, taskDocumentId);
         if (existing == null) {
             ArbitrationSnapshot snap = new ArbitrationSnapshot();
@@ -205,13 +236,34 @@ public class ReviewService {
             snap.setAdoptedFrom(adoptedFrom);
             snap.setFinalResult(finalResult ? 1 : 0);
             snap.setArbitratedAt(LocalDateTime.now());
+            snap.setBasedOnAnnotatorId(basedOnAnnotatorId);
             arbitrationSnapshotMapper.insert(snap);
         } else {
             existing.setArbitratorId(arbitratorId);
             existing.setAdoptedFrom(adoptedFrom);
             existing.setFinalResult(finalResult ? 1 : 0);
             existing.setArbitratedAt(LocalDateTime.now());
+            existing.setBasedOnAnnotatorId(basedOnAnnotatorId);
             arbitrationSnapshotMapper.update(existing);
         }
+    }
+
+    private void requireNotExpired(int taskId) {
+        Task task = taskAggregateService.requireTaskPo(taskId);
+        if (task.getDeadline() != null && LocalDateTime.now().isAfter(task.getDeadline())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "任务已截止，无法进行裁定操作");
+        }
+    }
+
+    private String resolveDocTitle(TaskDocument td) {
+        if (td.getGlobalDocId() != null) {
+            GlobalDocument gd = globalDocumentMapper.selectById(td.getGlobalDocId());
+            if (gd != null && gd.getTitle() != null && !gd.getTitle().isBlank()) return gd.getTitle();
+        }
+        return td.getFileName() != null ? td.getFileName() : "文书#" + td.getId();
+    }
+
+    private int resolveDataId(TaskDocument td) {
+        return (int) taskDocumentResolver.apiDataId(td);
     }
 }

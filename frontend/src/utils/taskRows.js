@@ -328,8 +328,7 @@ export function buildParticipantRows(tasks, details, userId) {
       }
     }
 
-    const personalStage = combineParticipantStage(...stages)
-    rows.push({
+    const row = {
       key: String(task.taskId),
       taskId: task.taskId,
       taskName: task.taskName,
@@ -339,7 +338,12 @@ export function buildParticipantRows(tasks, details, userId) {
       info: infoParts.join('；'),
       infoType,
       detail
-    })
+    }
+    if (isTaskExpired(row)) {
+      row.infoType = 'expired'
+      row.info = '任务已截止'
+    }
+    rows.push(row)
   }
   return rows
 }
@@ -470,6 +474,12 @@ export function reviewerHasInProgressWork(detail, review) {
   })
 }
 
+export function isTaskExpired(row) {
+  const deadline = row?.detail?.summary?.deadline
+  if (!deadline) return false
+  return new Date(deadline) < new Date()
+}
+
 /** 参与者任务目录操作（标注员 / 裁定者） */
 export function participantActions(row, userId) {
   const taskId = row.taskId
@@ -477,6 +487,10 @@ export function participantActions(row, userId) {
   const review = detail?._review
   const roles = row.roles || []
   const dataRoute = `/tasks/${taskId}/data`
+
+  if (isTaskExpired(row)) {
+    return []
+  }
 
   if (taskIsExportable(row, userId)) {
     return [

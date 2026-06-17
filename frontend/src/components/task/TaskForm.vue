@@ -6,6 +6,24 @@
     <el-form-item label="任务描述">
       <el-input v-model="form.description" type="textarea" placeholder="请输入任务描述" :disabled="isEdit" />
     </el-form-item>
+    <el-form-item label="截止日期">
+      <div class="deadline-picker-row">
+        <el-date-picker
+          v-model="deadlineDate"
+          type="date"
+          placeholder="选择日期"
+          value-format="YYYY-MM-DD"
+          style="width: 55%"
+        />
+        <el-time-picker
+          v-model="deadlineTime"
+          placeholder="选择时间"
+          format="HH:mm:ss"
+          value-format="HH:mm:ss"
+          style="width: 43%"
+        />
+      </div>
+    </el-form-item>
     <el-form-item label="指南版本">
       <div v-if="isEdit" class="readonly-config-row">
         <span>{{ configLabel }}</span>
@@ -64,7 +82,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { sourceTypeLabel } from '../../utils/taskCreateDraft'
 import { buildGuideViewRoute } from '../../utils/navigationReturn'
@@ -83,6 +101,30 @@ defineEmits(['add-documents', 'add-members', 'pick-members'])
 
 const router = useRouter()
 const isEdit = computed(() => props.mode === 'edit')
+
+const deadlineDate = ref(null)
+const deadlineTime = ref(null)
+
+// sync from form.deadline to date/time pickers
+watch(() => props.form.deadline, (val) => {
+  if (val) {
+    const parts = val.split('T')
+    deadlineDate.value = parts[0]
+    deadlineTime.value = parts[1] || null
+  } else {
+    deadlineDate.value = null
+    deadlineTime.value = null
+  }
+}, { immediate: true })
+
+// sync from date/time pickers to form.deadline
+watch([deadlineDate, deadlineTime], ([d, t]) => {
+  if (d) {
+    props.form.deadline = d + 'T' + (t || '23:59:59')
+  } else {
+    props.form.deadline = null
+  }
+})
 
 const userMap = computed(() => {
   const map = new Map()
@@ -206,6 +248,12 @@ function openConfigView() {
   padding: 2px 8px;
   border-radius: 999px;
   flex-shrink: 0;
+}
+
+.deadline-picker-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .task-doc-source-tag {

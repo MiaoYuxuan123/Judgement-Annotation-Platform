@@ -25,6 +25,31 @@
       <label>当前阶段</label>
       <div><span class="task-detail-stage">{{ stageText }}</span></div>
 
+      <label>截止日期</label>
+      <div>
+        <template v-if="editable">
+          <div class="deadline-picker-row">
+            <el-date-picker
+              v-model="deadlineDate"
+              type="date"
+              placeholder="选择日期"
+              value-format="YYYY-MM-DD"
+              style="width: 55%"
+            />
+            <el-time-picker
+              v-model="deadlineTime"
+              placeholder="选择时间"
+              format="HH:mm:ss"
+              value-format="HH:mm:ss"
+              style="width: 43%"
+            />
+          </div>
+        </template>
+        <span v-else class="field-value" :class="{ 'deadline-expired': isExpired }">
+          {{ deadlineText }}
+        </span>
+      </div>
+
       <label>当前标签</label>
       <div class="field-value config-row">
         {{ detail?.configSnapshot?.versionName || '—' }}
@@ -57,8 +82,10 @@
 </template>
 
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import client from '../../api/client'
 import { buildGuideViewRoute } from '../../utils/navigationReturn'
 import { stageLabel } from '../../utils/taskRows'
 
@@ -74,7 +101,9 @@ const props = defineProps({
 defineEmits(['save', 'cancel'])
 
 const router = useRouter()
-const form = reactive({ taskName: '' })
+const form = reactive({ taskName: '', deadline: '' })
+const deadlineDate = ref(null)
+const deadlineTime = ref(null)
 
 watch(
   () => props.detail?.summary?.taskName,
@@ -84,11 +113,45 @@ watch(
   { immediate: true }
 )
 
+watch(
+  () => props.detail?.summary?.deadline,
+  (val) => {
+    form.deadline = val || ''
+    if (val) {
+      const parts = val.split('T')
+      deadlineDate.value = parts[0]
+      deadlineTime.value = parts[1] || null
+    } else {
+      deadlineDate.value = null
+      deadlineTime.value = null
+    }
+  },
+  { immediate: true }
+)
+
+watch([deadlineDate, deadlineTime], ([d, t]) => {
+  if (d) {
+    form.deadline = d + 'T' + (t || '23:59:59')
+  } else {
+    form.deadline = null
+  }
+})
 const annotatorNames = computed(() =>
   (props.detail?.annotators || []).map((u) => u.realName).join('、') || '—'
 )
 
 const stageText = computed(() => stageLabel(props.detail?.summary?.status))
+
+const deadlineText = computed(() => {
+  const d = props.detail?.summary?.deadline
+  if (!d) return '不限'
+  return new Date(d).toLocaleString('zh-CN')
+})
+
+const isExpired = computed(() => {
+  const d = props.detail?.summary?.deadline
+  return d && new Date(d) < new Date()
+})
 
 function openConfigView() {
   const configId = props.detail?.configSnapshot?.id
@@ -103,6 +166,12 @@ function openConfigView() {
 </script>
 
 <style scoped>
+.deadline-expired { color: #f56c6c; font-weight: 600; }
+.deadline-picker-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 .config-row {
   display: flex;
   align-items: center;

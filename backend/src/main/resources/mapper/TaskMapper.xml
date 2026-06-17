@@ -17,13 +17,14 @@
         ORDER BY t.id DESC
     </select>
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO task(title, description, status, creator_id, guide_version_id)
-        VALUES (#{title}, #{description}, #{status}, #{creatorId}, #{guideVersionId})
+        INSERT INTO task(title, description, status, creator_id, guide_version_id, deadline)
+        VALUES (#{title}, #{description}, #{status}, #{creatorId}, #{guideVersionId}, #{deadline})
     </insert>
     <update id="updateStatus">UPDATE task SET status=#{status}, stage_changed_at=NOW() WHERE id=#{id}</update>
     <select id="countByGuideVersionId" resultType="int">
         SELECT COUNT(*) FROM task WHERE guide_version_id = #{id}
     </select>
     <delete id="deleteById">DELETE FROM task WHERE id=#{id}</delete>
+    <update id="updateDeadline">UPDATE task SET deadline=#{deadline} WHERE id=#{id}</update>
 </mapper>
 

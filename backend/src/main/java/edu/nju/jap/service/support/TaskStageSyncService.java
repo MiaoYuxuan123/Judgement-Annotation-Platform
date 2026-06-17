@@ -1,11 +1,15 @@
 package edu.nju.jap.service.support;
 
 import edu.nju.jap.mapper.AnnotationMapper;
+import edu.nju.jap.mapper.GlobalDocumentMapper;
 import edu.nju.jap.mapper.SysUserMapper;
 import edu.nju.jap.mapper.TaskDocumentMapper;
 import edu.nju.jap.mapper.TaskMapper;
 import edu.nju.jap.model.entity.TaskItem;
+import edu.nju.jap.model.po.GlobalDocument;
+import edu.nju.jap.model.po.Task;
 import edu.nju.jap.model.po.TaskDocument;
+import edu.nju.jap.service.MessageService;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -25,15 +29,20 @@ public class TaskStageSyncService {
     private final TaskMapper taskMapper;
     private final SysUserMapper sysUserMapper;
     private final TaskAggregateService taskAggregateService;
+    private final MessageService messageService;
+    private final GlobalDocumentMapper globalDocumentMapper;
 
     public TaskStageSyncService(AnnotationMapper annotationMapper, TaskDocumentMapper taskDocumentMapper,
                                   TaskMapper taskMapper, SysUserMapper sysUserMapper,
-                                  TaskAggregateService taskAggregateService) {
+                                  TaskAggregateService taskAggregateService,
+                                  MessageService messageService, GlobalDocumentMapper globalDocumentMapper) {
         this.annotationMapper = annotationMapper;
         this.taskDocumentMapper = taskDocumentMapper;
         this.taskMapper = taskMapper;
         this.sysUserMapper = sysUserMapper;
         this.taskAggregateService = taskAggregateService;
+        this.messageService = messageService;
+        this.globalDocumentMapper = globalDocumentMapper;
     }
 
     /**
@@ -53,6 +62,12 @@ public class TaskStageSyncService {
             }
             if (annotationMapper.countSubmittedByTaskDocument(taskId, doc.getId()) >= annotatorCount) {
                 taskDocumentMapper.updateStatus(doc.getId(), STAGE_ARBITRATION);
+                String docTitle = resolveDocTitle(doc);
+                int msgDataId = resolveDataId(doc);
+                messageService.send(task.reviewerId, "SUBMISSION", "请进行裁定",
+                        "文书【" + docTitle + "】已全员提交，请进行裁定", taskId, doc.getId(), msgDataId);
+                messageService.send(task.creatorId, "SUBMISSION", "待裁定",
+                        "文书【" + docTitle + "】已全员提交，状态变更为待裁定", taskId, doc.getId(), msgDataId);
             }
         }
         syncTaskStatus(taskId);
@@ -83,7 +98,24 @@ public class TaskStageSyncService {
     /** 裁定确认后调用：更新该文书为可导出，并按全部文书进度同步任务阶段。 */
     public void afterArbitrationConfirmed(int taskId, int taskDocumentId) {
         taskDocumentMapper.updateStatus(taskDocumentId, STAGE_EXPORTABLE);
+        TaskItem task = taskAggregateService.loadTaskItem(taskId);
+        TaskDocument doc = taskDocumentMapper.selectById(taskDocumentId);
+        if (doc != null) {
+            String docTitle = resolveDocTitle(doc);
+            int msgDataId = resolveDataId(doc);
+            for (long annotatorId : task.annotatorIds) {
+                messageService.send(annotatorId, "COMPLETION", "文书裁定完成",
+                        "文书【" + docTitle + "】已完成裁定", taskId, taskDocumentId, msgDataId);
+            }
+        }
         syncTaskStatus(taskId);
+        // 全部文书导出后任务完成提醒
+        Task po = taskMapper.selectById(taskId);
+        if (po != null && STAGE_EXPORTABLE.equals(po.getStatus())) {
+            String taskTitle = po.getTitle() != null ? po.getTitle() : "任务#" + taskId;
+            messageService.send(task.creatorId, "COMPLETION", "任务完成",
+                    "任务【" + taskTitle + "】所有文书裁定已完成，可导出结果", taskId, null, null);
+        }
     }
 
     /**
@@ -116,5 +148,20 @@ public class TaskStageSyncService {
             return;
         }
         taskMapper.updateStatus(taskId, STAGE_ANNOTATING);
+    }
+
+    private String resolveDocTitle(TaskDocument td) {
+        if (td.getGlobalDocId() != null) {
+            GlobalDocument gd = globalDocumentMapper.selectById(td.getGlobalDocId());
+            if (gd != null && gd.getTitle() != null && !gd.getTitle().isBlank()) return gd.getTitle();
+        }
+        return td.getFileName() != null ? td.getFileName() : "文书#" + td.getId();
+    }
+
+    private int resolveDataId(TaskDocument td) {
+        if (td.getGlobalDocId() != null) {
+            return td.getGlobalDocId().intValue();
+        }
+        return td.getId();
     }
 }

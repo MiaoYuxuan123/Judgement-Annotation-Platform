@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,6 +41,7 @@ public class TaskService {
     private final edu.nju.jap.mapper.ArbitrationSnapshotMapper arbitrationSnapshotMapper;
     private final AnnotationMapper annotationMapper;
     private final TaskDocumentStorage taskDocumentStorage;
+    private final MessageService messageService;
 
     public TaskService(TaskMapper taskMapper, TaskMemberMapper taskMemberMapper, TaskDocumentMapper taskDocumentMapper,
                        GlobalDocumentMapper globalDocumentMapper, TaskAggregateService taskAggregateService,
@@ -47,7 +49,8 @@ public class TaskService {
                        AnnotationPersistenceService annotationPersistenceService,
                        TaskDocumentFactory taskDocumentFactory,
                        edu.nju.jap.mapper.ArbitrationSnapshotMapper arbitrationSnapshotMapper,
-                       AnnotationMapper annotationMapper, TaskDocumentStorage taskDocumentStorage) {
+                       AnnotationMapper annotationMapper, TaskDocumentStorage taskDocumentStorage,
+                       MessageService messageService) {
         this.taskMapper = taskMapper;
         this.taskMemberMapper = taskMemberMapper;
         this.taskDocumentMapper = taskDocumentMapper;
@@ -60,6 +63,7 @@ public class TaskService {
         this.arbitrationSnapshotMapper = arbitrationSnapshotMapper;
         this.annotationMapper = annotationMapper;
         this.taskDocumentStorage = taskDocumentStorage;
+        this.messageService = messageService;
     }
 
     public Map<String, Object> list(String status, String keyword) {
@@ -94,12 +98,16 @@ public class TaskService {
         long reviewerId = MapBodyUtils.longValue(body.get("reviewerId"), 5);
         int configId = (int) MapBodyUtils.longValue(body.get("configId"), 1);
 
+        String deadlineStr = MapBodyUtils.text(body, "deadline", "").trim();
         Task task = new Task();
         task.setTitle(MapBodyUtils.text(body, "taskName", "新建标注任务"));
         task.setDescription(MapBodyUtils.text(body, "description", "课程演示任务"));
         task.setStatus("标注中");
         task.setCreatorId(user.id);
         task.setGuideVersionId(configId);
+        if (!deadlineStr.isEmpty()) {
+            task.setDeadline(LocalDateTime.parse(deadlineStr));
+        }
         taskMapper.insert(task);
 
         for (Long uid : annotators) {
@@ -108,6 +116,9 @@ public class TaskService {
             m.setUserId(uid);
             m.setRoleInTask("标注员");
             taskMemberMapper.insert(m);
+            messageService.send(uid, "TASK", "新任务",
+                    "您被分配了新的标注任务：" + task.getTitle(),
+                    task.getId(), null, null);
         }
         TaskMember reviewer = new TaskMember();
         reviewer.setTaskId(task.getId());
@@ -210,6 +221,14 @@ public class TaskService {
             member.setRoleInTask("标注员");
             taskMemberMapper.insert(member);
             existingAnnotators.add(uid);
+            messageService.send(uid, "TASK", "新任务",
+                    "您被分配了新的标注任务：" + task.getTitle(),
+                    taskId, null, null);
+        }
+
+        String deadlineStr = MapBodyUtils.text(body, "deadline", "").trim();
+        if (!deadlineStr.isEmpty()) {
+            taskMapper.updateDeadline(taskId, LocalDateTime.parse(deadlineStr));
         }
 
         List<TaskDocument> existingDocs = new java.util.ArrayList<>(taskDocumentMapper.selectByTaskId(taskId));

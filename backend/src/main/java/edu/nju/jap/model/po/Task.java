@@ -11,6 +11,7 @@ public class Task {
     private Integer guideVersionId;
     private LocalDateTime createdAt;
     private LocalDateTime stageChangedAt;
+    private LocalDateTime deadline;
 
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -28,4 +29,6 @@ public class Task {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getStageChangedAt() { return stageChangedAt; }
     public void setStageChangedAt(LocalDateTime stageChangedAt) { this.stageChangedAt = stageChangedAt; }
+    public LocalDateTime getDeadline() { return deadline; }
+    public void setDeadline(LocalDateTime deadline) { this.deadline = deadline; }
 }

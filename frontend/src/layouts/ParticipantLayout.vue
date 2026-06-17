@@ -5,6 +5,7 @@
         <span class="task-shell-title">任务目录</span>
       </div>
       <div class="task-shell-header-right">
+        <MessageCenter v-if="auth.user?.role !== 'admin'" />
         <el-button text @click="openProfile">个人中心</el-button>
         <el-tag effect="dark" type="info" size="small">任务参与者</el-tag>
         <span>{{ auth.user?.realName }}</span>
@@ -34,6 +35,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import client from '../api/client'
 import { ElMessage } from 'element-plus'
+import MessageCenter from '../views/MessageCenter.vue'
 
 const router = useRouter()
 const route = useRoute()

@@ -4,6 +4,7 @@ import edu.nju.jap.model.po.Task;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -21,4 +22,6 @@ public interface TaskMapper {
     int countByGuideVersionId(@Param("id") int id);
 
     int deleteById(@Param("id") int id);
+
+    int updateDeadline(@Param("id") int id, @Param("deadline") LocalDateTime deadline);
 }
