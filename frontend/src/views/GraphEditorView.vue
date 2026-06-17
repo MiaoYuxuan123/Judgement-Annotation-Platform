@@ -38,8 +38,8 @@
             v-for="rel in relTypes"
             :key="rel.id"
             class="graph-editor-rel-btn"
-            :class="{ active: tool === 'add-hub' && addRelType === rel.id }"
-            @click="selectAddHub(rel.id)"
+            :class="{ active: rel.id !== 'I' && tool === 'add-hub' && addRelType === rel.id }"
+            @click="onRelTypeClick(rel.id)"
           >
             <strong>{{ rel.id }}</strong>
             <span>{{ rel.label }}</span>
@@ -48,11 +48,11 @@
 
         <div class="graph-editor-panel-title">操作说明</div>
         <ul class="graph-editor-guide">
-          <li><strong>框选</strong>：框选工具下空白处拖拽框选；Shift+点击增减选中；拖动选中节点可一起移动</li>
+          <li><strong>移动</strong>：空白处拖拽平移画布；点击命题或关系节点选中；拖动节点可移动；滚轮缩放</li>
           <li><strong>对齐</strong>：拖动节点时靠近其他节点会自动水平/竖直对齐</li>
-          <li><strong>拖拽画布</strong>：切换到拖拽画布工具后，按住空白处平移画布；滚轮缩放</li>
+          <li><strong>框选</strong>：切换到框选工具后，空白处拖拽框选；Ctrl+点击增减选中；拖动选中节点可一起移动</li>
           <li><strong>命题节点</strong>：从标注列表选择后添加</li>
-          <li><strong>同一关系 I</strong>：框选多个命题节点后，在右侧点「设为同一关系」</li>
+          <li><strong>同一 I</strong>：Ctrl+单击或框选多个命题节点后，点击左侧 I 合并为同一关系</li>
           <li><strong>关系节点</strong>：选 S/A/M/J 类型后点击画布</li>
           <li><strong>连线</strong>：从连接点拖到另一节点</li>
           <li><strong>折线</strong>：选中连线后拖拽折点；靠近水平/竖直时会自动吸附</li>
@@ -84,17 +84,7 @@
           <div class="graph-editor-prop-block">
             <div class="graph-editor-prop-label">多选</div>
             <div class="graph-editor-prop-value">已选中 {{ selectedNodeCount }} 个节点</div>
-            <div class="graph-editor-prop-meta">拖动任一选中节点可一起移动；Shift+点击可增减选中</div>
-            <el-button
-              class="graph-editor-identity-btn"
-              type="primary"
-              plain
-              size="small"
-              :disabled="!canMergeIdentity"
-              @click="openIdentityPicker"
-            >
-              设为同一关系 (I)
-            </el-button>
+            <div class="graph-editor-prop-meta">拖动任一选中节点可一起移动；Ctrl+点击可增减选中；合并同一关系请点左侧 I</div>
           </div>
         </template>
 
@@ -116,7 +106,7 @@
           <el-form v-else-if="isHubNode(selectedNode)" label-position="top" size="small" class="graph-editor-form">
             <el-form-item label="关系类型">
               <el-select v-model="nodeForm.relType" @change="applyNodeForm">
-                <el-option v-for="rel in relTypes" :key="rel.id" :label="`${rel.id} ${rel.label}`" :value="rel.id" />
+                <el-option v-for="rel in hubRelTypes" :key="rel.id" :label="`${rel.id} ${rel.label}`" :value="rel.id" />
               </el-select>
             </el-form-item>
             <el-form-item label="关系编号">
@@ -202,55 +192,6 @@
       </el-button>
     </template>
   </el-dialog>
-
-  <el-dialog
-    v-model="identityPickerVisible"
-    title="设为同一关系 (I)"
-    width="520px"
-    :close-on-click-modal="false"
-    destroy-on-close
-    @closed="resetIdentityPicker"
-  >
-    <p class="prop-picker-hint">
-      将所选命题合并为一个矩形节点，标签形如 <strong>P1 / P2</strong>。请勾选要合并的命题（至少 2 个）。
-    </p>
-    <div v-if="!identityPickerOptions.length" class="prop-picker-empty">当前选中的节点中没有可合并的命题节点。</div>
-    <template v-else>
-      <div class="prop-picker-toolbar">
-        <el-checkbox
-          :model-value="allIdentitySelected"
-          :indeterminate="someIdentitySelected && !allIdentitySelected"
-          @change="toggleSelectAllIdentity"
-        >
-          全选（{{ identityPickerOptions.length }}）
-        </el-checkbox>
-        <span class="prop-picker-count">已选 {{ identityPickerSelection.length }} 项</span>
-      </div>
-      <el-checkbox-group v-model="identityPickerSelection" class="prop-picker-list">
-        <label
-          v-for="item in identityPickerOptions"
-          :key="item.id"
-          class="prop-picker-item"
-          :class="{ 'is-checked': identityPickerSelection.includes(item.id) }"
-        >
-          <el-checkbox :label="item.id">
-            <span class="prop-picker-id">{{ item.displayLabel }}</span>
-            <span v-if="item.members.length > 1" class="prop-picker-text">（已含 {{ item.members.join(' / ') }}）</span>
-          </el-checkbox>
-        </label>
-      </el-checkbox-group>
-    </template>
-    <template #footer>
-      <el-button @click="identityPickerVisible = false">取消</el-button>
-      <el-button
-        type="primary"
-        :disabled="identityPickerSelection.length < 2"
-        @click="confirmIdentityMerge"
-      >
-        合并为同一关系（{{ identityPickerSelection.length }}）
-      </el-button>
-    </template>
-  </el-dialog>
 </template>
 
 <script setup>
@@ -300,8 +241,6 @@ const history = ref([])
 const redoStack = ref([])
 const propPickerVisible = ref(false)
 const propPickerSelection = ref([])
-const identityPickerVisible = ref(false)
-const identityPickerSelection = ref([])
 
 const canvasPropIds = computed(() => getCanvasPropIds(graphDocument.value.nodes))
 
@@ -327,20 +266,22 @@ const someAvailableSelected = computed(() => {
 })
 
 const tools = [
-  { id: 'select', label: '框选', icon: '▭' },
-  { id: 'pan', label: '拖拽画布', icon: '✋' },
+  { id: 'select', label: '移动', icon: '✥' },
+  { id: 'pan', label: '框选', icon: '⬚' },
   { id: 'connect', label: '连线', icon: '🔗' },
   { id: 'add-prop', label: '添加命题', icon: '⬜' },
-  { id: 'add-hub', label: '添加关系', icon: '⊕' },
   { id: 'delete', label: '删除', icon: '🗑' }
 ]
 
 const relTypes = [
   { id: 'S', label: '支持' },
   { id: 'A', label: '反对' },
-  { id: 'M', label: '修饰' },
-  { id: 'J', label: '联合' }
+  { id: 'M', label: '匹配' },
+  { id: 'J', label: '组合' },
+  { id: 'I', label: '同一' }
 ]
+
+const hubRelTypes = computed(() => relTypes.filter((rel) => rel.id !== 'I'))
 
 const nodeForm = reactive({ label: '', relType: 'S', relKey: '' })
 const edgeForm = reactive({ directed: false })
@@ -364,26 +305,6 @@ function isIdentityNode(node) {
 function identityMembersText(node) {
   return getPropMemberIds(node).join('、')
 }
-
-const canMergeIdentity = computed(() => selectedPropCount.value >= 2)
-
-const identityPickerOptions = computed(() => {
-  const selected = canvasRef.value?.getSelectedNodes?.() || []
-  return selected
-    .filter((node) => node.type === 'prop')
-    .map((node) => ({
-      id: node.id,
-      displayLabel: node.data?.label || node.id,
-      members: getPropMemberIds(node)
-    }))
-})
-
-const allIdentitySelected = computed(() => (
-  identityPickerOptions.value.length > 0
-  && identityPickerSelection.value.length === identityPickerOptions.value.length
-))
-
-const someIdentitySelected = computed(() => identityPickerSelection.value.length > 0)
 
 function nodeTypeLabel(node) {
   if (node.type === 'prop') {
@@ -457,41 +378,29 @@ function confirmAddPropositions() {
   fitView()
 }
 
-function openIdentityPicker() {
+function applyIdentityMerge() {
   syncDocumentFromCanvas()
-  const options = identityPickerOptions.value
-  if (options.length < 2) {
-    ElMessage.warning('请至少框选两个命题节点')
-    return
-  }
-  identityPickerSelection.value = options.map((item) => item.id)
-  identityPickerVisible.value = true
-}
-
-function resetIdentityPicker() {
-  identityPickerSelection.value = []
-}
-
-function toggleSelectAllIdentity(checked) {
-  identityPickerSelection.value = checked
-    ? identityPickerOptions.value.map((item) => item.id)
-    : []
-}
-
-function confirmIdentityMerge() {
-  if (identityPickerSelection.value.length < 2) {
-    ElMessage.warning('同一关系至少需要两个命题')
+  const selected = (canvasRef.value?.getSelectedNodes?.() || []).filter((node) => node.type === 'prop')
+  if (selected.length < 2) {
+    ElMessage.warning('请先 Ctrl+单击或框选至少两个命题节点')
     return
   }
   snapshot('同一关系')
-  const mergedId = canvasRef.value?.mergeIdentityNodes(identityPickerSelection.value)
+  const mergedId = canvasRef.value?.mergeIdentityNodes(selected.map((node) => node.id))
   if (!mergedId) {
     ElMessage.error('合并失败，请确认所选均为命题节点')
     return
   }
-  identityPickerVisible.value = false
   dirty.value = true
   ElMessage.success('已设为同一关系')
+}
+
+function onRelTypeClick(relType) {
+  if (relType === 'I') {
+    applyIdentityMerge()
+    return
+  }
+  selectAddHub(relType)
 }
 
 function selectAddHub(relType) {
@@ -850,11 +759,6 @@ onMounted(load)
   font-size: 12px;
   color: #78716c;
   margin-top: 4px;
-}
-
-.graph-editor-identity-btn {
-  margin-top: 12px;
-  width: 100%;
 }
 
 .graph-editor-dirty { color: #b88a3e; font-weight: 700; }

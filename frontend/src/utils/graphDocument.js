@@ -708,7 +708,7 @@ export function findReconnectHandleSnap(nodes, flowPoint, edge, end, options = {
 export function decorateForEditor(nodes, edges, options = {}) {
   const { editable = true, tool = 'select', edgeReconnect = false } = options
   const showHandles = editable && (tool === 'connect' || edgeReconnect)
-  const canSelect = editable && tool === 'select'
+  const canSelect = editable && (tool === 'select' || tool === 'pan')
   return {
     nodes: nodes.map((node) => {
       const isSelected = !!node.selected

@@ -10,13 +10,13 @@
         :edge-types="edgeTypes"
         :min-zoom="0.15"
         :max-zoom="3"
-        :nodes-draggable="editable && tool === 'select'"
+        :nodes-draggable="editable && isSelectLikeTool"
         :nodes-connectable="editable && tool === 'connect'"
-        :elements-selectable="editable && tool === 'select'"
-        :pan-on-drag="tool === 'pan'"
-        :selection-key-code="tool === 'select'"
-        :multi-selection-key-code="'Shift'"
-        :select-nodes-on-drag="true"
+        :elements-selectable="editable && isSelectLikeTool"
+        :pan-on-drag="tool === 'select'"
+        :selection-key-code="tool === 'pan'"
+        :multi-selection-key-code="'Control'"
+        :select-nodes-on-drag="tool === 'pan'"
         :zoom-on-scroll="true"
         :pan-on-scroll="false"
         :prevent-scrolling="true"
@@ -27,6 +27,7 @@
           'is-add-mode': isAddMode,
           'is-connect-mode': tool === 'connect',
           'is-select-mode': tool === 'select',
+          'is-box-select-mode': tool === 'pan',
           'is-reconnect-mode': isReconnectMode
         }"
         @nodes-initialized="onNodesInitialized"
@@ -133,8 +134,9 @@ const edgeTypes = {
 }
 
 const isAddMode = computed(() => props.tool === 'add-hub')
+const isSelectLikeTool = computed(() => props.tool === 'select' || props.tool === 'pan')
 const isReconnectMode = computed(() => (
-  props.tool === 'select' && (edges.value.some((edge) => edge.selected) || !!reconnectDrag.value)
+  isSelectLikeTool.value && (edges.value.some((edge) => edge.selected) || !!reconnectDrag.value)
 ))
 
 const { fitView, zoomIn, zoomOut, screenToFlowCoordinate, removeNodes, removeEdges, removeSelectedElements } = useVueFlow({ id: flowId })
@@ -307,7 +309,7 @@ function handleEdgeSelect({ edgeId }) {
     deleteEdge(edgeId)
     return
   }
-  if (props.tool === 'pan' || props.tool === 'connect') return
+  if (props.tool === 'connect') return
   nodes.value = nodes.value.map((node) => ({
     ...node,
     selected: false,
@@ -553,7 +555,7 @@ function onPaneClick(event) {
     addHubAt(event)
     return
   }
-  if (props.tool === 'select') {
+  if (isSelectLikeTool.value) {
     clearSelection()
   }
 }
@@ -667,7 +669,7 @@ function emitSelectionCounts(selNodes = nodes.value.filter((n) => n.selected)) {
 }
 
 function syncSelectionFromCanvas() {
-  if (props.tool !== 'select') return
+  if (!isSelectLikeTool.value) return
   const selNodes = nodes.value.filter((n) => n.selected)
   const selEdges = edges.value.filter((e) => e.selected)
   emit('update:selectedNodeId', selNodes.length === 1 ? selNodes[0].id : '')
@@ -711,7 +713,7 @@ function refreshDecorations() {
 }
 
 function onSelectionChange({ nodes: selNodes, edges: selEdges }) {
-  if (props.tool !== 'select') return
+  if (!isSelectLikeTool.value) return
   emit('update:selectedNodeId', selNodes?.length === 1 ? selNodes[0].id : '')
   emit('update:selectedEdgeId', selEdges?.length === 1 ? selEdges[0].id : '')
   emitSelectionCounts(selNodes || [])
@@ -833,7 +835,7 @@ watch(() => props.document, (doc) => {
 }, { deep: true })
 
 watch(() => props.tool, (tool, prevTool) => {
-  if (prevTool === 'select' && tool !== 'select') {
+  if ((prevTool === 'select' || prevTool === 'pan') && tool !== 'select' && tool !== 'pan') {
     emit('update:selectedNodeId', '')
     emit('update:selectedEdgeId', '')
     emitSelectionCounts([])
@@ -875,6 +877,14 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
 }
 
 .graph-editor-flow.is-select-mode {
+  cursor: grab;
+}
+
+.graph-editor-flow.is-select-mode:active {
+  cursor: grabbing;
+}
+
+.graph-editor-flow.is-box-select-mode {
   cursor: default;
 }
 
