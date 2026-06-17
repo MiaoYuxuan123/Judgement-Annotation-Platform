@@ -41,7 +41,7 @@
     <div class="review-body">
       <aside class="review-lists">
         <div class="review-block">
-          <h3>命题列表</h3>
+          <h3>要素列表</h3>
           <el-table :data="activeData.propositions" size="small" stripe empty-text="暂无命题">
             <el-table-column label="序号" width="72" align="center">
               <template #default="{ row }">{{ circledNo(row) }}</template>

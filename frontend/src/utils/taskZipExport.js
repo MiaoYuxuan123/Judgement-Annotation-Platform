@@ -84,7 +84,7 @@ async function addVersionFolder(folder, label, propositions, relations, graphLay
   const rels = relations || []
   const hasV2Graph = graphLayout?.version === 2 && graphLayout.nodes?.length
 
-  folder.file('命题列表.csv', buildPropositionsCsv(props))
+  folder.file('要素列表.csv', buildPropositionsCsv(props))
   folder.file('关系列表.csv', buildRelationsCsv(props, rels))
 
   if (props.length || hasV2Graph) {
@@ -115,7 +115,7 @@ async function addDocumentToZip(root, docEntry, { taskName, nameMap, onProgress,
       annotatorOnly
         ? '  {我的标注或最终裁定结果}/'
         : '  {标注员姓名或最终裁定结果}/',
-      '    命题列表.csv',
+      '    要素列表.csv',
       '    关系列表.csv',
       '    论证图示.png',
       '',
