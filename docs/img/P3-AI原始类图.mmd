@@ -1,0 +1,42 @@
+flowchart TB
+    subgraph AI_User["用户权限模块（AI 初稿）"]
+        Role["Role"]
+        UserAI["User\n+ login()\n+ hasPermission()"]
+        TaskAssignment["TaskAssignment\n+ documentId\n+ assignedBy"]
+        Role --> UserAI
+        UserAI --> TaskAssignment
+    end
+
+    subgraph AI_Task["任务管理模块（AI 初稿）"]
+        TaskAI["Task\n+ exportData()\n+ assignAnnotator()\n+ labelConfigSnapshot"]
+        LabelConfig["LabelConfig"]
+        ExportLog["ExportLog"]
+        ExportFile["ExportFile"]
+        TaskAI --> LabelConfig
+        TaskAI --> ExportLog
+        ExportLog --> ExportFile
+    end
+
+    subgraph AI_Annotation["标注核心（AI 初稿）"]
+        PropDoc["Proposition\n挂 documentId"]
+        RelDoc["Relation\n挂 documentId"]
+        AnnotationAI["Annotation\n+ propositionData JSON\n+ relationData JSON\n+ submit()"]
+        PropDoc --- RelDoc
+        AnnotationAI --> PropDoc
+    end
+
+    subgraph AI_Arbitration["裁决（AI 初稿）"]
+        ArbitrationAI["Arbitration\n+ finalPropositionData JSON\n+ finalRelationData JSON"]
+    end
+
+    subgraph AI_Patterns["未实现的设计模式"]
+        StatePattern["状态模式\nTaskStageState 四子类"]
+        TemplateMethod["模板方法\nAbstractExporter"]
+        Observer["观察者\nIAnnotationSubject"]
+        Strategy["策略\nIDocumentParser + Factory"]
+    end
+
+    style UserAI fill:#fdd,stroke:#c00
+    style TaskAI fill:#fdd,stroke:#c00
+    style AnnotationAI fill:#fdd,stroke:#c00
+    style ArbitrationAI fill:#fdd,stroke:#c00

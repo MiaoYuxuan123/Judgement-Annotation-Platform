@@ -1,0 +1,19 @@
+sequenceDiagram
+    actor Client as 客户端
+    participant API as REST API
+    participant DB as 数据库
+
+    Client->>API: POST /api/auth/login<br/>{username, password}
+    API->>DB: 查询用户
+    DB-->>API: 用户信息
+    API->>API: 校验密码
+    API->>API: 生成 JWT Token
+    API-->>Client: {code:200, data:{token, user}}
+
+    Note over Client,API: 后续请求携带 Token
+
+    Client->>API: GET /api/users/me<br/>Authorization: Bearer {token}
+    API->>API: 解析 Token, 提取 userId
+    API->>DB: 查询用户
+    DB-->>API: 用户信息
+    API-->>Client: {code:200, data:{id, username, role}}

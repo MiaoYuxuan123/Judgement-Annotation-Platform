@@ -1,0 +1,45 @@
+graph TB
+    subgraph 前端["前端 SPA"]
+        direction LR
+        U["用户管理"]
+        D["文书总库"]
+        C["配置中心"]
+        T["任务管理"]
+        A["标注工作台"]
+        R["裁定工作台"]
+        E["结果查看与导出"]
+    end
+
+    subgraph 后端["后端 REST API (/api)"]
+        direction LR
+        Auth["/auth<br/>认证模块"]
+        Users["/users<br/>用户模块"]
+        Docs["/documents<br/>文书模块"]
+        Config["/configs/versions<br/>配置模块"]
+        Tasks["/tasks<br/>任务模块"]
+        Anno["/annotations<br/>标注模块"]
+        Rev["/reviews<br/>裁定模块"]
+    end
+
+    subgraph 存储["数据存储"]
+        MySQL[("MySQL<br/>数据库")]
+        FS[("文件系统<br/>文书/附件")]
+    end
+
+    U --> Users
+    D --> Docs
+    C --> Config
+    T --> Tasks
+    A --> Anno
+    R --> Rev
+    E --> Tasks
+
+    Auth --> MySQL
+    Users --> MySQL
+    Config --> MySQL
+    Config --> FS
+    Tasks --> MySQL
+    Anno --> MySQL
+    Rev --> MySQL
+    Docs --> MySQL
+    Docs --> FS

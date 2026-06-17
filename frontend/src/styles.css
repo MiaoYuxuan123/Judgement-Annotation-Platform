@@ -1866,7 +1866,7 @@ h1, h2, h3, h4, h5, h6 {
 .proposition-table-head,
 .proposition-table-row {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr) 76px;
   align-items: center;
   column-gap: 10px;
 }
@@ -1914,26 +1914,16 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
 }
 
-.proposition-table-row.is-unlabeled .prop-seq {
+.proposition-table-row.is-unlabeled .prop-seq,
+.proposition-table-row.is-unlabeled .prop-text {
   color: var(--ink-300);
 }
 
-.proposition-table-row.is-unlabeled .prop-seq::after {
-  content: "待";
-  display: inline-grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  margin-left: 4px;
-  border-radius: 5px;
-  color: var(--ink-500);
-  background: rgba(168, 162, 158, 0.12);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.proposition-table-row.is-unlabeled .prop-text {
-  color: var(--ink-500);
+.prop-tag .el-tag {
+  max-width: 70px;
+  justify-content: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .prop-text {

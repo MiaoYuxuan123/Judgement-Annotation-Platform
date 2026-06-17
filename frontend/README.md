@@ -35,7 +35,7 @@ cd judgment-platform/
 
 **重启前后端**
 ```angular2html
-sudo docker compose restart backend frontend
+sudo docker compose up -d --build backend frontend
 ```
 
 ## 访问地址
