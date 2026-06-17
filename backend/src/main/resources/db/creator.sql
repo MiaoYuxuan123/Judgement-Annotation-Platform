@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS `task` (
     `guide_version_id` INT UNSIGNED DEFAULT NULL,
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `stage_changed_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deadline` DATETIME DEFAULT NULL COMMENT '任务截止时间',
     PRIMARY KEY (`id`),
     KEY `idx_creator_id` (`creator_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -35,3 +36,19 @@ CREATE TABLE IF NOT EXISTS `task_document` (
     KEY `idx_task_id` (`task_id`),
     KEY `idx_global_doc_id` (`global_doc_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `message` (
+    `id`               BIGINT AUTO_INCREMENT,
+    `user_id`          BIGINT UNSIGNED NOT NULL COMMENT '接收者',
+    `type`             VARCHAR(20) NOT NULL COMMENT 'TASK / ARBITRATION / SUBMISSION',
+    `title`            VARCHAR(200) NOT NULL COMMENT '消息标题',
+    `content`          TEXT COMMENT '消息正文',
+    `task_id`          INT COMMENT '关联任务',
+    `task_document_id` INT COMMENT '关联文书（可空）',
+    `data_id`          INT COMMENT '文书API ID（用于跳转）',
+    `is_read`          TINYINT NOT NULL DEFAULT 0 COMMENT '0=未读 1=已读',
+    `created_at`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_user_read` (`user_id`, `is_read`),
+    INDEX `idx_user_created` (`user_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='消息表';
