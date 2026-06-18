@@ -152,7 +152,7 @@ const sidebarTasks = computed(() => {
 })
 
 const tableRows = computed(() =>
-  buildParticipantRows(tasks.value, details.value, auth.user?.id)
+  buildParticipantRows(tasks.value, details.value, auth.user)
 )
 
 const displayRows = computed(() => {

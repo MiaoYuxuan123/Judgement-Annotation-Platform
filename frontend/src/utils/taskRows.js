@@ -297,11 +297,18 @@ export function arbitrateInfo(detail, review) {
 
 export function buildParticipantRows(tasks, details, userId) {
   const rows = []
+  const currentUser = typeof userId === 'object' ? userId : { id: userId }
+  const currentUserId = currentUser?.id
+  const sameUser = (value) => String(value ?? '') === String(currentUserId ?? '')
   for (const task of tasks) {
     const detail = details[task.taskId]
     const review = detail?._review
-    const isAnnotator = detail?.annotators?.some((u) => u.id === userId)
-    const isReviewer = detail?.reviewer?.id === userId
+    const matchedAnnotator = detail?.annotators?.some((u) => sameUser(u.id))
+    const matchedReviewer = sameUser(detail?.reviewer?.id)
+    const inferredReviewer = !matchedReviewer && currentUser?.realName && task?.reviewerName === currentUser.realName
+    const shouldFallbackAsAnnotator = detail && !matchedAnnotator && !matchedReviewer && !inferredReviewer
+    const isAnnotator = matchedAnnotator || shouldFallbackAsAnnotator
+    const isReviewer = matchedReviewer || inferredReviewer
     if (!isAnnotator && !isReviewer) continue
 
     const roles = []
@@ -311,9 +318,9 @@ export function buildParticipantRows(tasks, details, userId) {
 
     if (isAnnotator) {
       roles.push({ role: 'annotate', roleLabel: '标注' })
-      const personalStage = resolveAnnotatorTaskStage(detail, review, userId)
+      const personalStage = resolveAnnotatorTaskStage(detail, review, currentUserId)
       stages.push(personalStage)
-      infoParts.push(`标注 ${annotateInfo(detail, review, userId)}`)
+      infoParts.push(`标注 ${annotateInfo(detail, review, currentUserId)}`)
     }
     if (isReviewer) {
       roles.push({ role: 'arbitrate', roleLabel: '裁定' })
@@ -333,8 +340,8 @@ export function buildParticipantRows(tasks, details, userId) {
       taskId: task.taskId,
       taskName: task.taskName,
       roles,
-      status: stageDisplay(personalStage),
-      personalStage,
+      status: stageDisplay(combineParticipantStage(...stages)),
+      personalStage: combineParticipantStage(...stages),
       info: infoParts.join('；'),
       infoType,
       detail
