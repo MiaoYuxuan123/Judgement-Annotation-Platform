@@ -15,6 +15,7 @@
 - 标注工作台
 - 裁定工作台
 - 结果查看与导出
+- 消息中心
 
 ## 系统模块架构
 
@@ -1428,6 +1429,15 @@ POST /api/annotations/layout
 }
 ```
 
+### 前端交互说明
+
+在标注页完成命题与关系编辑后，需点击「**生成图示**」按钮才会刷新右侧预览；变更后会出现「图示待刷新」提示。
+
+`graphLayout` 支持两种格式：
+
+- `version: 1`：节点坐标与边样式覆盖（`nodePositions` / `edgeStyles`）
+- `version: 2`：完整 GraphDocument（Vue Flow 节点/边），由 `/annotate/:taskId/:dataId/graph` 全屏编辑器维护
+
 ---
 
 # 8. 裁定模块 API
@@ -1644,7 +1654,95 @@ POST /api/reviews/reject
 
 ---
 
-# 9. 结果查看与导出 API
+# 9. 消息中心 API
+
+对应组件：创建者/参与者布局顶栏 `MessageCenter.vue`（超级管理员不展示消息入口）。
+
+## 9.1 获取消息列表
+
+### URL
+
+```http
+GET /api/messages
+```
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "total": 2,
+    "list": [
+      {
+        "id": 1,
+        "type": "TASK",
+        "title": "任务阶段已更新",
+        "content": "任务「合同纠纷标注」已进入待裁定阶段",
+        "taskId": 1001,
+        "dataId": null,
+        "isRead": false,
+        "createdAt": "2026-06-18T10:00:00"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 9.2 获取未读数量
+
+### URL
+
+```http
+GET /api/messages/unread-count
+```
+
+### 成功响应
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": { "count": 3 }
+}
+```
+
+---
+
+## 9.3 标记单条已读
+
+### URL
+
+```http
+PUT /api/messages/{id}/read
+```
+
+---
+
+## 9.4 全部标记已读
+
+### URL
+
+```http
+PUT /api/messages/read-all
+```
+
+---
+
+## 9.5 删除已读消息
+
+### URL
+
+```http
+DELETE /api/messages/read
+```
+
+---
+
+# 10. 结果查看与导出 API
 
 对应页面：
 
@@ -1653,7 +1751,7 @@ POST /api/reviews/reject
 
 ---
 
-## 9.1 获取任务结果列表
+## 10.1 获取任务结果列表
 
 ### URL
 
@@ -1684,7 +1782,7 @@ GET /api/tasks/{taskId}/results
 
 ---
 
-## 9.2 导出结果
+## 10.2 导出结果
 
 ### 接口说明
 
@@ -1704,7 +1802,7 @@ GET /api/tasks/{taskId}/export
 
 ---
 
-# 10. API 架构总览
+# 11. API 架构总览
 
 ![API架构总览](../img/P3-API架构总览.png)
 
@@ -1712,9 +1810,9 @@ GET /api/tasks/{taskId}/export
 
 ---
 
-# 11. 总结
+# 12. 总结
 
-本 API 文档基于法律文书标注分析平台实际后端代码设计，共涵盖 **7 大模块 38 个接口**：
+本 API 文档基于法律文书标注分析平台实际后端代码设计，共涵盖 **8 大模块 43 个接口**：
 
 | 模块       | 接口数 | 说明                                       |
 | ---------- | ------ | ------------------------------------------ |
@@ -1725,5 +1823,6 @@ GET /api/tasks/{taskId}/export
 | 任务管理   | 12     | 任务 CRUD + 阶段推进 + 配置更新 + 文书管理 + 结果查看导出 |
 | 标注工作台 | 2      | 标注提交、布局保存                         |
 | 裁定工作台 | 6      | 裁定获取、采纳、手动裁定、确认、退回       |
+| 消息中心   | 5      | 列表、未读数、已读、全部已读、删除已读     |
 
 采用 RESTful 风格，统一 JSON 数据格式，JWT Token 认证，并对参数校验、权限控制、错误处理进行了完整设计，可支持后续 Swagger/OpenAPI 自动化生成与前后端联调开发。

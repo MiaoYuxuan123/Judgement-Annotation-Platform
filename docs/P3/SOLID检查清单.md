@@ -2,7 +2,7 @@
 
 > 本清单记录 P3 阶段 AI 生成的初版类图/数据库设计中的 SOLID 违规项，以及团队对照实际代码落地后的修正与取舍。
 >
-> **对照基准**：AI 原始设计（18 表、胖实体、JSON 快照、独立导出模块） vs 当前实现（`deploy/init.sql` + `backend/` 源码）。
+> **对照基准**：AI 原始设计（18 表、胖实体、JSON 快照、独立导出模块） vs 当前实现（`backend/src/main/resources/db/` + `backend/` 源码）。
 
 ---
 
@@ -171,7 +171,7 @@
 | 5 | **O** | 文书来源扩展 | TaskDocumentFactory switch 工厂 | `support/TaskDocumentFactory.java` |
 | 6 | **O** | 配置历史 | annotation.guide_snapshot JSON | `annotation` 表 |
 | 7 | **L** | Label 语义双重 | label_l1 / label_l2 独立表与 PO | `model/po/LabelL1.java` |
-| 8 | **D** | 标注 JSON 依赖 | proposition / argument_relation / relation_member 规范化 | `deploy/init.sql` |
+| 8 | **D** | 标注 JSON 依赖 | proposition / argument_relation / relation_member 规范化 | `backend/src/main/resources/db/` |
 | 9 | **D** | 布局 JSON 依赖 | GraphLayoutJsonCodec 隔离编解码 | `support/GraphLayoutJsonCodec.java` |
 | 10 | **D** | Mapper 具体实现 | MyBatis Mapper 接口 + Spring 注入 | `mapper/*.java` |
 

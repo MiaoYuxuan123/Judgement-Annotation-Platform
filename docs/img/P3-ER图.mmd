@@ -17,6 +17,7 @@ erDiagram
     task ||--o{ arbitration_snapshot : arbitrates
     task_document ||--|| arbitration_snapshot : finalizes
     sys_user ||--o{ arbitration_snapshot : arbitrates_by
+    sys_user ||--o{ message : receives
     guide_version ||--o{ label_l1 : defines
     guide_version ||--o{ label_l2 : defines
     label_l1 ||--o{ label_l2 : contains

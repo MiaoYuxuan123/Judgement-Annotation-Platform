@@ -8,6 +8,7 @@ graph TB
         A["标注工作台"]
         R["裁定工作台"]
         E["结果查看与导出"]
+        M["消息中心"]
     end
 
     subgraph 后端["后端 REST API (/api)"]
@@ -19,6 +20,7 @@ graph TB
         Tasks["/tasks<br/>任务模块"]
         Anno["/annotations<br/>标注模块"]
         Rev["/reviews<br/>裁定模块"]
+        Msg["/messages<br/>消息模块"]
     end
 
     subgraph 存储["数据存储"]
@@ -33,6 +35,7 @@ graph TB
     A --> Anno
     R --> Rev
     E --> Tasks
+    M --> Msg
 
     Auth --> MySQL
     Users --> MySQL
@@ -41,5 +44,6 @@ graph TB
     Tasks --> MySQL
     Anno --> MySQL
     Rev --> MySQL
+    Msg --> MySQL
     Docs --> MySQL
     Docs --> FS

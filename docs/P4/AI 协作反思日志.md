@@ -18,7 +18,7 @@
 | 关系标注功能    | Cursor        | 关系编辑界面与数据持久化             | 3               | 50              |
 | 论证图生成      | Cursor，Codex | Vue Flow 与 ELK 自动布局集成         | 3               | 60              |
 | 裁定页面        | Cursor        | 双标注结果对比与裁定逻辑             | 3               | 50              |
-| 导出功能        | Cursor        | JSON、ZIP、图示导出功能              | 3               | 40              |
+| 导出功能        | Cursor        | ZIP（CSV+PNG）前端导出（含论证图 PNG） | 3               | 40              |
 | Mapper与XML生成 | Cursor        | MyBatis Mapper与XML模板              | 3               | 55              |
 | Sprint规划      | Cursor        | 任务拆解与工时估算                   | 4               | 25              |
 | Bug定位与修复   | Cursor，Codex | 权限、跨域和认证问题排查             | 4               | 20              |

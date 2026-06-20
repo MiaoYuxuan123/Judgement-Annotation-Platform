@@ -1,0 +1,46 @@
+flowchart LR
+    Admin((超级管理员))
+    Creator((任务创建者))
+    Annotator((标注员))
+    Arbiter((裁定者))
+
+    subgraph SYS["法律文书标注系统"]
+        direction TB
+        UC01([用户登录])
+        UC02([用户管理])
+        UC03([角色分配])
+        UC04([系统全局配置])
+        UC05([创建标注任务])
+        UC06([上传裁判文书])
+        UC07([配置标签体系])
+        UC08([分配标注任务])
+        UC10([进行命题标注])
+        UC11([进行关系标注])
+        UC12([提交标注结果])
+        UC13([生成论证图示])
+        UC16([导出标注结果])
+        UC14([查看多人标注结果])
+        UC15([裁定最终标注结果])
+    end
+
+    Admin --> UC01
+    Admin --> UC02
+    Admin --> UC03
+    Admin --> UC04
+
+    Creator --> UC01
+    Creator --> UC05
+    Creator --> UC06
+    Creator --> UC07
+    Creator --> UC08
+
+    Annotator --> UC01
+    Annotator --> UC10
+    Annotator --> UC11
+    Annotator --> UC12
+    Annotator --> UC13
+    Annotator --> UC16
+
+    Arbiter --> UC01
+    Arbiter --> UC14
+    Arbiter --> UC15

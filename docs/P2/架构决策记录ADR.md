@@ -135,3 +135,20 @@
 - **AI 初稿内容摘要**：给出了 JWT 的代码实现步骤，将其描述为完美方案。
 - **人工修订内容**：补充了关于 安全性的权衡，明确指出了 Token 无法即时失效的负面影响及黑客防范方案。
 - **修订理由**：AI 往往只关注技术的可实现性，而忽略了安全性与可控性的权衡。对于涉及用户权限的系统，必须明确安全红线。
+
+---
+
+## 与当前实现的差异说明
+
+> 更新：2026-06-20。四条 ADR 的**决策结论仍然有效**；以下为落地细节与 P2 撰写时的差异。
+
+| ADR | 决策结论 | 与当前实现的差异 |
+| --- | --- | --- |
+| ADR-001 模块化垂直架构 | 按业务垂直切分、API 轻量交互 | 协作模式仍成立；代码为单体 Spring Boot 项目，按 Controller/Service 分层而非四人独立仓库 |
+| ADR-002 Vue3 + Spring Boot | 前后端分离、Element Plus | 完全一致；另增 Pinia 状态管理、Vue Flow 论证图编辑器 |
+| ADR-003 MySQL 单库 | 不引入 Redis/NoSQL | 完全一致；持久化通过 MyBatis + `backend/src/main/resources/db/*.sql` 初始化 |
+| ADR-004 JWT 无状态认证 | Bearer Token | 方向一致；实现为自定义 `SimpleAuthInterceptor`，非 ADR 正文中的 Spring Security 模板 |
+
+**其他实现期补充（P2 未覆盖）**：消息通知模块（`message` 表 + `/api/messages`）、任务截止时间字段、裁定快照 `based_on_annotator_id` 等，详见 P3 数据库设计与 API 规范。
+
+**维护建议**：ADR 保留决策 rationale；具体接口路径、表结构以 P3 文档为准。

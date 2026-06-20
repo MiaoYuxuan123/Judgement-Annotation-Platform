@@ -17,7 +17,7 @@
 | API 问题审查 | 通义千问 | 审查命名、权限、参数校验、错误处理、安全认证 | 3 | 40 |
 | ER 图 + 建表 SQL | DeepSeek | 生成用户、任务、标注、配置等核心表的 ER 图与 SQL | 3 | 65 |
 | 数据库设计审查 | Kimi | 审查第三范式、索引、隐私存储、性能瓶颈 | 2 | 75 |
-| **实现阶段对照修订** | Cursor | 对照 `deploy/init.sql` 与 backend 源码，重构 P3 文档使其反映真实架构 | 4 | 90 |
+| **实现阶段对照修订** | Cursor | 对照 `backend/src/main/resources/db/` 与 backend 源码，重构 P3 文档使其反映真实架构 | 4 | 90 |
 
 ---
 
@@ -62,7 +62,7 @@ SOLID 检查中发现的 AI 设计问题数量：**13 处**（S:3, O:4, L:1, I:2
 
 | 维度 | AI 误导内容 | 实际处理 |
 | --- | --- | --- |
-| 数据库 | 设计 18 张表，含 sys_role、export_log、label_config | 精简为 14 张表，角色内嵌、前端导出、快照替代配置历史 |
+| 数据库 | 设计 18 张表，含 sys_role、export_log、label_config | 精简为 **15 张表**（含 message），角色内嵌、前端导出、快照替代配置历史 |
 | 类图 | 大量未落地的设计模式（状态模式四子类、AbstractExporter、观察者模式） | 仅落地 Factory（TaskDocumentFactory）和 Converter（DomainConverter） |
 | 权限 | 建议 Admin/Annotator/Reviewer 继承 User | 改为 sys_user.role 字符串 + JWT 拦截器，避免 LSP 问题 |
 | 安全 | 建议密码 BCrypt，但初稿 SQL 示例仍为明文 | 演示环境暂用明文比对，文档中标注为技术债 |
@@ -128,11 +128,11 @@ SOLID 检查中发现的 AI 设计问题数量：**13 处**（S:3, O:4, L:1, I:2
 
 ## 6. 文档修订说明
 
-本次根据 `deploy/init.sql` 与 `backend/src/main/java/edu/nju/jap/` 源码，对以下交付物进行了回溯修订：
+本次根据 `backend/src/main/resources/db/` 与 `backend/src/main/java/edu/nju/jap/` 源码，对以下交付物进行了回溯修订（**2026-06-20**：消息模块、15 表、论证图交互说明）：
 
 | 文档 | 修订要点 |
 | --- | --- |
-| 类图（修正稿）.md | 14 表 ER 图、实际分层架构、真实类名与依赖关系 |
+| 类图（修正稿）.md | **15 表** ER 图、实际分层架构、真实类名与依赖关系 |
 | SOLID检查清单.md | 区分 AI 初稿违规 vs 实现状态，诚实记录技术债 |
 | AI 协作反思日志.md | 本文档，补充实现阶段对照与工程决策 |
 

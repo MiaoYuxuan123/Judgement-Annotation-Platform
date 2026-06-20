@@ -59,3 +59,11 @@ graph LR
         R5[POST /reviews/cancel-pending]
         R6[POST /reviews/reject]
     end
+
+    subgraph 消息中心
+        MSG1[GET /messages]
+        MSG2[GET /messages/unread-count]
+        MSG3[PUT /messages/:id/read]
+        MSG4[PUT /messages/read-all]
+        MSG5[DELETE /messages/read]
+    end
